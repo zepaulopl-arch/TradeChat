@@ -1,6 +1,6 @@
 # TradeGem update corrigido
 
-## Superfície final da CLI
+## Supeextratreesície final da CLI
 
 ```powershell
 .\run data PETR4
@@ -15,7 +15,7 @@
 - `data` é comando único. Não há `data update`, `data check` nem `--cvm`.
 - `daily` não treina. Ele executa apenas `data -> predict -> report compacto`.
 - A arquitetura original de motores foi restaurada:
-  - motores base/especialistas: `XGB`, `RandomForest`, `MLP`;
+  - motores base/especialistas: `XGB`, `ExtraTrees`, `removed neural engine`;
   - árbitro/juiz de stacking: `Ridge`.
 - `Ridge` não é mais tratado como motor comum nem participa de média simples.
 - `train` salva os motores base, a ordem dos motores e o árbitro em `artifacts/<ticker>/<run_id>/model.pkl`.
@@ -42,7 +42,7 @@ O `daily` pressupõe que já existe um modelo treinado para o ativo. Se não exi
 
 This update restores the original TradeGem modeling contract instead of simplifying it away.
 
-- Base specialists: XGB, RandomForest and MLP.
+- Base specialists: XGB, CatBoost and ExtraTrees.
 - Arbiter: Ridge stacking judge, not a normal base engine.
 - Default train: fixed parameters from `config.yaml`, faster and deterministic.
 - Optional autotune: `run train PETR4 --autotune` uses BayesSearchCV over the three base specialists, then trains the Ridge arbiter on their predictions.

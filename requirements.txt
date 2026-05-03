@@ -4,6 +4,7 @@ pyyaml
 scikit-learn
 yfinance
 xgboost
+catboost
 pyarrow
 requests
 feedparser

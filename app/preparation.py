@@ -173,7 +173,7 @@ def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) 
         meta["selected_feature_count"] = len(X1.columns)
         return X1, y0, meta
 
-    # Target clipping protects engines, especially MLP, from very old/extreme daily
+    # Target clipping protects engines, especially divergent base engines, from very old/extreme daily
     # returns dominating a long history. It is configurable and audited.
     target_cfg = prep.get("target", {}) or {}
     y1 = y0.astype(float)

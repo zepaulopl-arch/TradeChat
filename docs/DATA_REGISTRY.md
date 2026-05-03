@@ -14,7 +14,7 @@
 - linked B3 indices for future context expansion;
 - a reference sample with more than 50 Brazilian equities.
 
-The system does not add new CLI commands. `data`, `train`, `predict`, `daily` keep the same surface.
+The system does not add new CLI commands. `data`, `train`, `predict`, `daily` keep the same suextratreesace.
 
 ## Conservative rule
 

@@ -12,22 +12,40 @@ def yahoo_snapshot(ticker: str) -> dict[str, float | str]:
     import yfinance as yf
     ticker = normalize_ticker(ticker)
     try:
-        info = yf.Ticker(ticker).info or {}
+        t = yf.Ticker(ticker)
+        info = t.info or {}
     except Exception:
         info = {}
-    price = info.get("currentPrice") or info.get("previousClose") or 0.0
+
+    # Robust price discovery
+    price = info.get("currentPrice") or info.get("previousClose") or info.get("regularMarketPrice") or info.get("navPrice") or 0.0
+    if not price:
+        # Last resort: try to get the last closing price from fast_info or history
+        try:
+            price = t.fast_info.get("lastPrice", 0.0)
+        except Exception:
+            pass
+            
     dy = info.get("dividendYield") or 0.0
-    if price and dy and dy > 1:
-        dy = dy / price
+    # yfinance sometimes returns yield as a whole number (e.g. 5.5 instead of 0.055)
+    # but info["dividendYield"] is usually 0.0xx. Checking for sanity.
+    if price and dy and dy > 1.0:
+        dy = dy / 100.0 if dy > 100 else dy / price if dy > price else dy
+
+    market_cap = float(info.get("marketCap") or 0.0)
+    shares = float(info.get("sharesOutstanding") or 0.0)
+    if not shares and market_cap and price:
+        shares = market_cap / price
+
     return {
         "source": "yfinance",
         "pl": float(info.get("trailingPE") or info.get("forwardPE") or 0.0),
         "dy": float(dy or 0.0),
         "pvp": float(info.get("priceToBook") or 0.0),
         "roe": float(info.get("returnOnEquity") or 0.0),
-        "market_cap": float(info.get("marketCap") or 0.0),
+        "market_cap": market_cap,
         "current_price": float(price or 0.0),
-        "shares": float((info.get("marketCap") or 0.0) / price) if price and info.get("marketCap") else float(info.get("sharesOutstanding") or 0.0),
+        "shares": shares,
     }
 
 

@@ -1,5 +1,5 @@
 app:
-  name: TradeGem
+  name: TradeChat
   default_horizon_days: 1
   artifact_dir: artifacts
   data_cache_dir: data_cache
@@ -18,43 +18,34 @@ model:
   engines:
     xgb:
       enabled: true
-      n_estimators: 120
+      n_estimators: 140
       max_depth: 3
       learning_rate: 0.05
       subsample: 0.9
-    rf:
+    catboost:
       enabled: true
-      n_estimators: 220
-      max_depth: 8
-    mlp:
+      iterations: 220
+      depth: 4
+      learning_rate: 0.04
+      loss_function: MAE
+    extratrees:
       enabled: true
-      hidden_layer_sizes:
-      - 64
-      - 32
-      alpha: 0.0005
-      learning_rate_init: 0.001
-      max_iter: 800
-      early_stopping: true
-      scaler: robust
-      input:
-        enabled: true
-        scaler: robust
-        max_features: 15
-        families:
-        - technical
-        - context
-      activation: relu
-      solver: adam
-      learning_rate: adaptive
-      validation_fraction: 0.12
-      n_iter_no_change: 30
+      n_estimators: 260
+      max_depth: 10
+      min_samples_leaf: 2
   arbiter:
     ridge:
       enabled: true
       alpha: 1.0
   confidence:
-    agreement_scale_return: 0.01
-    minimum_when_engines_exist: 0.05
+    agreement_scale_return: 0.010
+    mae_reference_return: 0.012
+    action_scale_return: 0.0045
+    neutral_prediction_component_floor: 0.30
+    discarded_engine_penalty: 0.75
+    sample_reference_rows: 1000
+    minimum_when_engines_exist: 0.03
+    maximum_confidence: 0.88
   prediction_guards:
     max_engine_return_abs: 0.12
     max_final_return_abs: 0.08
@@ -66,30 +57,38 @@ model:
     spaces:
       xgb:
         n_estimators:
-        - 50
-        - 150
+        - 60
+        - 180
+        max_depth:
+        - 2
+        - 7
+        learning_rate:
+        - 0.01
+        - 0.12
+      catboost:
+        iterations:
+        - 80
+        - 260
+        depth:
+        - 2
+        - 7
+        learning_rate:
+        - 0.01
+        - 0.12
+      extratrees:
+        n_estimators:
+        - 120
+        - 360
         max_depth:
         - 3
-        - 7
-      rf:
-        n_estimators:
-        - 50
-        - 150
-        max_depth:
-        - 5
-        - 10
-      mlp:
-        hidden_layer_sizes:
-        - 32
-        - 64
-        alpha:
-        - 0.0001
-        - 0.01
+        - 14
+        min_samples_leaf:
+        - 1
+        - 8
   engine_safety:
     consensus_guard_enabled: true
     max_deviation_from_median: 0.025
-    note: Protects Ridge arbitration from a single divergent base engine, especially
-      MLP.
+    note: Protects Ridge arbitration from a single divergent tabular engine.
 policy:
   strong_buy_return_pct: 1.5
   buy_return_pct: 0.45

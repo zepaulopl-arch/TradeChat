@@ -8,6 +8,19 @@ from .feature_audit import abbreviate_feature_name, feature_family, selected_fea
 from .utils import run_id, safe_ticker, write_json
 
 
+class C:
+    """Discrete, opaque color palette for professional CLI."""
+    HEADER = '\033[90m'  # Dark Gray
+    BLUE = '\033[38;5;67m'  # Steel Blue (discrete)
+    CYAN = '\033[38;5;109m' # Muted Cyan
+    GREEN = '\033[38;5;108m' # Sage Green
+    YELLOW = '\033[38;5;144m' # Sand/Beige
+    RED = '\033[38;5;131m'   # Muted Red
+    DIM = '\033[2m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
+
 def _money(value: float) -> str:
     return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -26,9 +39,9 @@ def print_data_summary(status: dict[str, Any]) -> None:
     if "data_cache" in cache_display:
         cache_display = cache_display[cache_display.rfind("data_cache"):]
 
-    print("\n" + "=" * 72)
-    print(f"TRADEGEM DATA | {ticker}")
-    print("=" * 72)
+    print("\n" + C.HEADER + "=" * 72 + C.RESET)
+    print(f"{C.BOLD}TRADECHAT DATA{C.RESET} | {C.BLUE}{ticker}{C.RESET}")
+    print(C.HEADER + "=" * 72 + C.RESET)
     print(f"status      : {status.get('status', 'updated')}")
     if status.get("ticker_changed"):
         requested = status.get("requested_ticker")
@@ -71,9 +84,9 @@ def print_data_summary(status: dict[str, Any]) -> None:
 
 
 def print_train_summary(manifest: dict[str, Any]) -> None:
-    print("\n" + "=" * 72)
-    print(f"TRADEGEM TRAIN | {manifest['ticker']}")
-    print("=" * 72)
+    print("\n" + C.HEADER + "=" * 72 + C.RESET)
+    print(f"{C.BOLD}TRADECHAT TRAIN{C.RESET} | {C.BLUE}{manifest['ticker']}{C.RESET}")
+    print(C.HEADER + "=" * 72 + C.RESET)
     print(f"run_id      : {manifest['run_id']}")
     print(f"rows        : {manifest['rows']} ({manifest['train_rows']} train / {manifest['test_rows']} test)")
     base_engines = manifest.get('base_engines', manifest.get('engines', []))
@@ -98,32 +111,32 @@ def print_signal(signal: dict[str, Any]) -> None:
     policy = signal["policy"]
     fundamentals = signal.get("fundamentals", {})
     engines = signal.get("prediction", {}).get("by_engine", {})
-    print("\n" + "=" * 72)
-    print(f"TRADEGEM SIGNAL | {ticker}")
-    print("=" * 72)
+    print("\n" + C.HEADER + "=" * 72 + C.RESET)
+    print(f"{C.BOLD}TRADECHAT SIGNAL{C.RESET} | {C.BLUE}{ticker}{C.RESET}")
+    print(C.HEADER + "=" * 72 + C.RESET)
     print(f"date        : {signal.get('latest_date')}")
     print(f"last price  : {_money(price)}")
     print(f"target D+1  : {_money(target)} ({policy['score_pct']:+.2f}%)")
-    print(f"signal      : {policy['label']} | posture: {policy['posture']}")
-    print(f"confidence  : {policy['confidence_pct']:.0f}%")
-    print(f"fundamentals: P/L {float(fundamentals.get('pl', 0) or 0):.2f} | DY {float(fundamentals.get('dy', 0) or 0)*100:.1f}% | P/VP {float(fundamentals.get('pvp', 0) or 0):.2f} | ROE {float(fundamentals.get('roe', 0) or 0)*100:.1f}%")
+    print(f"signal      : {C.BOLD}{policy['label']}{C.RESET} | posture: {C.CYAN}{policy['posture']}{C.RESET}")
+    print(f"confidence  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET}")
+    print(f"fundamentals: P/L {C.DIM}{float(fundamentals.get('pl', 0) or 0):.2f}{C.RESET} | DY {C.DIM}{float(fundamentals.get('dy', 0) or 0)*100:.1f}%{C.RESET} | P/VP {C.DIM}{float(fundamentals.get('pvp', 0) or 0):.2f}{C.RESET} | ROE {C.DIM}{float(fundamentals.get('roe', 0) or 0)*100:.1f}%{C.RESET}")
     if engines:
         line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in engines.items()])
         arbiter = signal.get('prediction', {}).get('arbiter', 'ridge')
-        print(f"base engines: {line}")
+        print(f"base engines: {C.DIM}{line}{C.RESET}")
         raw_engines = signal.get("prediction", {}).get("raw_by_engine", {}) or {}
         discarded = signal.get("prediction", {}).get("discarded_engines", []) or []
         used = signal.get("prediction", {}).get("used_engines", []) or []
         if raw_engines and any(abs(float(raw_engines.get(k, 0))) > abs(float(v)) + 1e-12 for k, v in engines.items()):
             raw_line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in raw_engines.items()])
-            print(f"raw engines : {raw_line}")
+            print(f"raw engines : {C.DIM}{raw_line}{C.RESET}")
         if discarded:
             print(f"used engines: {', '.join(used) if used else 'none'}")
-            print(f"guard       : {', '.join(discarded)} neutralized before Ridge")
+            print(f"guard       : {C.YELLOW}{', '.join(discarded)} neutralized before Ridge{C.RESET}")
         print(f"arbiter     : {arbiter}")
     print("reasons     : " + "; ".join(policy.get("reasons", [])))
-    print(f"train run   : {signal.get('train_run_id')}")
-    print("=" * 72)
+    print(f"train run   : {C.DIM}{signal.get('train_run_id')}{C.RESET}")
+    print(C.HEADER + "=" * 72 + C.RESET)
 
 
 def _fmt_bool(value: Any) -> str:
@@ -155,12 +168,12 @@ def render_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> str:
     metrics = train_manifest.get("metrics", {}) or {}
 
     lines: list[str] = []
-    lines.append("TRADEGEM AUDIT REPORT")
+    lines.append("TRADECHAT AUDIT REPORT")
     lines.append("=" * 80)
     lines.append(f"ticker        : {signal.get('ticker')}")
     lines.append(f"latest_date   : {signal.get('latest_date')}")
     lines.append(f"train_run_id  : {signal.get('train_run_id')}")
-    lines.append(f"architecture  : {train_manifest.get('architecture', 'XGB + RandomForest + MLP -> Ridge arbiter')}")
+    lines.append(f"architecture  : {train_manifest.get('architecture', 'XGB + CatBoost + ExtraTrees -> Ridge arbiter')}")
     lines.append(f"autotune      : {_fmt_bool(train_manifest.get('autotune', False))}")
     lines.append("")
     lines.append("SIGNAL")

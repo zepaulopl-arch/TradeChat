@@ -73,7 +73,8 @@ def update_sentiment_cache(ticker: str, cfg: dict[str, Any]) -> dict[str, Any]:
     if raw.empty:
         return {"enabled": True, "source": "rss_vader_cache", "cache_path": str(path), "new_items": 0, "cache_rows": int(len(old))}
     grouped = raw.groupby("date").agg(score=("score", "mean"), count=("score", "size")).reset_index()
-    merged = pd.concat([old, grouped], ignore_index=True)
+    frames = [df for df in (old, grouped) if df is not None and not df.empty and not df.dropna(how="all").empty]
+    merged = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["date", "score", "count"])
     merged["date"] = pd.to_datetime(merged["date"]).dt.date.astype(str)
     merged = merged.groupby("date", as_index=False).agg(score=("score", "mean"), count=("count", "sum"))
     cache_days = int(sent_cfg.get("cache_days", 365))

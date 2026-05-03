@@ -1,6 +1,6 @@
 version: 1
-description: 'Operational asset registry: metadata for market context, CVM/fundamentals lookup and future sector/index expansion.
-  Keep this file cadastral; keep model parameters in config.yaml.'
+description: 'Operational asset registry: metadata for market context, CVM/fundamentals lookup and future
+  sector/index expansion. Keep this file cadastral; keep model parameters in config.yaml.'
 sources:
   b3_companies_listed: B3 Empresas Listadas
   b3_sector_classification: B3 Classificacao Setorial
@@ -422,6 +422,50 @@ assets:
     - ICON
     use_in_reference_sample: true
     registry_status: active
+  ARZZ3.SA:
+    name: AREZZO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id011
+    - ^BVSP
+    - USDBRL=X
+    linked_indices: &id012
+    - ICON
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: AZZA3.SA
+    alias_reason: ticker_migration_arezzosoma_merger
+    effective_date: '2024-08-01'
+    old_name: AREZZO
+    new_name: AZZAS 2154
+  SOMA3.SA:
+    name: GRUPO SOMA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: AZZA3.SA
+    alias_reason: incorporated_into_azzas2154
+    effective_date: '2024-08-01'
+    old_name: GRUPO SOMA
+    new_name: AZZAS 2154
   ABEV3.SA:
     name: AMBEV
     asset_type: stock
@@ -459,6 +503,51 @@ assets:
     use_in_reference_sample: true
     registry_status: active
     provider_status: active_verify_yahoo_if_download_fails
+  BRFS3.SA:
+    name: BRF
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id017
+    - ^BVSP
+    - USDBRL=X
+    linked_indices: &id018
+    - IBOV
+    - ICON
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: MBRF3.SA
+    alias_reason: corporate_combination_marfrig_brf
+    effective_date: '2025-09-23'
+    old_name: BRF
+    new_name: MBRF
+  MRFG3.SA:
+    name: MARFRIG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: MBRF3.SA
+    alias_reason: corporate_combination_marfrig_brf
+    effective_date: '2025-09-23'
+    old_name: MARFRIG
+    new_name: MBRF
   SLCE3.SA:
     name: SLC AGRICOLA
     asset_type: stock
@@ -617,6 +706,29 @@ assets:
     - IBOV
     use_in_reference_sample: true
     registry_status: active
+  RRRP3.SA:
+    name: 3R PETROLEUM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id015
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices: &id016
+    - IBOV
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: BRAV3.SA
+    alias_reason: ticker_migration_brand_change
+    effective_date: '2024-09-09'
+    old_name: 3R PETROLEUM
+    new_name: BRAVA ENERGIA
   CSAN3.SA:
     name: COSAN
     asset_type: stock
@@ -671,6 +783,50 @@ assets:
     - IBOV
     use_in_reference_sample: true
     registry_status: active
+  ELET3.SA:
+    name: ELETROBRAS (OLD TICKER)
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    linked_indices:
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: inactive_alias
+    canonical_ticker: AXIA3.SA
+  ELET6.SA:
+    name: ELETROBRAS PNB (OLD TICKER)
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    linked_indices:
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: inactive_alias
+    canonical_ticker: AXIA6.SA
   CPFE3.SA:
     name: CPFL ENERGIA
     asset_type: stock
@@ -793,6 +949,29 @@ assets:
     - INDX
     use_in_reference_sample: true
     registry_status: active
+  EMBR3.SA:
+    name: EMBRAER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: aerospace_defense
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id023
+    - ^BVSP
+    - USDBRL=X
+    linked_indices: &id024
+    - IBOV
+    - INDX
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: EMBJ3.SA
+    alias_reason: ticker_migration_global_identity
+    effective_date: '2025-11-03'
+    old_name: EMBRAER
+    new_name: EMBRAER
   RAIL3.SA:
     name: RUMO
     asset_type: stock
@@ -811,6 +990,76 @@ assets:
     - INDX
     use_in_reference_sample: true
     registry_status: active
+  CCRO3.SA:
+    name: CCR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_infrastructure
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id013
+    - ^BVSP
+    - USDBRL=X
+    linked_indices: &id014
+    - IBOV
+    - INDX
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: MOTV3.SA
+    alias_reason: ticker_migration_brand_change
+    effective_date: '2025-05-02'
+    old_name: CCR
+    new_name: MOTIVA
+  AZUL4.SA:
+    name: AZUL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: airlines
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id019
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices: &id020
+    - IBOV
+    - INDX
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: AZUL54.SA
+    alias_reason: ticker_adjustment_restructuring
+    effective_date: '2025-12-23'
+    old_name: AZUL
+    new_name: AZUL
+  GOLL4.SA:
+    name: GOL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: airlines
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id021
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices: &id022
+    - INDX
+    use_in_reference_sample: false
+    registry_status: inactive_alias
+    canonical_ticker: GOLL54.SA
+    alias_reason: ticker_adjustment_restructuring
+    effective_date: '2025-06-12'
+    old_name: GOL
+    new_name: GOL
   YDUQ3.SA:
     name: YDUQS
     asset_type: stock
@@ -993,17 +1242,21 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - ^IEE
-    - ^IBX50
-    - USDBRL=X
-    linked_indices: &id008
+    context_tickers: &id008
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    linked_indices: &id009
     - IBOV
     - IEEX
     - IBRX50
     use_in_reference_sample: true
     registry_status: active
+    former_tickers: &id010
+    - ELET3.SA
+    - ELET5.SA
+    - ELET6.SA
     share_class: 'ON'
   AXIA5.SA:
     name: AXIA ENERGIA
@@ -1015,14 +1268,11 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - ^IEE
-    - ^IBX50
-    - USDBRL=X
-    linked_indices: *id008
+    context_tickers: *id008
+    linked_indices: *id009
     use_in_reference_sample: false
     registry_status: active
+    former_tickers: *id010
     share_class: PNA
   AXIA6.SA:
     name: AXIA ENERGIA
@@ -1034,14 +1284,11 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - ^IEE
-    - ^IBX50
-    - USDBRL=X
-    linked_indices: *id008
-    use_in_reference_sample: true
+    context_tickers: *id008
+    linked_indices: *id009
+    use_in_reference_sample: false
     registry_status: active
+    former_tickers: *id010
     share_class: PNB
   AZZA3.SA:
     name: AZZAS 2154
@@ -1053,11 +1300,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - ICON
+    context_tickers: *id011
+    linked_indices: *id012
     use_in_reference_sample: true
     registry_status: active
   MOTV3.SA:
@@ -1070,12 +1314,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - IBOV
-    - INDX
+    context_tickers: *id013
+    linked_indices: *id014
     use_in_reference_sample: true
     registry_status: active
   BRAV3.SA:
@@ -1088,13 +1328,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - BZ=F
-    - USDBRL=X
-    - ^IBX50
-    linked_indices:
-    - IBOV
+    context_tickers: *id015
+    linked_indices: *id016
     use_in_reference_sample: true
     registry_status: active
   MBRF3.SA:
@@ -1107,12 +1342,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - IBOV
-    - ICON
+    context_tickers: *id017
+    linked_indices: *id018
     use_in_reference_sample: true
     registry_status: active
   AZUL54.SA:
@@ -1125,12 +1356,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - IBOV
-    - INDX
+    context_tickers: *id019
+    linked_indices: *id020
     use_in_reference_sample: true
     registry_status: active
     note: quotation factor / standard lot adjusted by B3
@@ -1144,11 +1371,8 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - INDX
+    context_tickers: *id021
+    linked_indices: *id022
     use_in_reference_sample: true
     registry_status: active
     note: restructuring code after Chapter 11 process
@@ -1162,17 +1386,13 @@ assets:
     financial_class: non_financial
     cnpj: null
     cnpj_status: pending_lookup
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    - ^IBX50
-    linked_indices:
-    - IBOV
-    - INDX
+    context_tickers: *id023
+    linked_indices: *id024
     use_in_reference_sample: true
     registry_status: active
 context:
-  description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to Yahoo tickers when available.
+  description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to
+    Yahoo tickers when available.
   global:
   - IBOV
   group_defaults:
@@ -1270,3 +1490,97 @@ context:
     - USDBRL
     - IMOB
     - IBRX50
+aliases:
+  ELET3.SA:
+    canonical: AXIA3.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS
+    new_name: AXIA ENERGIA
+  ELET5.SA:
+    canonical: AXIA5.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS PNA
+    new_name: AXIA ENERGIA
+  ELET6.SA:
+    canonical: AXIA6.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS PNB
+    new_name: AXIA ENERGIA
+  ELET3:
+    canonical: AXIA3.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+  ELET5:
+    canonical: AXIA5.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+  ELET6:
+    canonical: AXIA6.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+  ARZZ3.SA: &id025
+    canonical: AZZA3.SA
+    reason: ticker_migration_arezzosoma_merger
+    effective_date: '2024-08-01'
+    old_name: AREZZO
+    new_name: AZZAS 2154
+  ARZZ3: *id025
+  SOMA3.SA: &id026
+    canonical: AZZA3.SA
+    reason: incorporated_into_azzas2154
+    effective_date: '2024-08-01'
+    old_name: GRUPO SOMA
+    new_name: AZZAS 2154
+  SOMA3: *id026
+  CCRO3.SA: &id027
+    canonical: MOTV3.SA
+    reason: ticker_migration_brand_change
+    effective_date: '2025-05-02'
+    old_name: CCR
+    new_name: MOTIVA
+  CCRO3: *id027
+  RRRP3.SA: &id028
+    canonical: BRAV3.SA
+    reason: ticker_migration_brand_change
+    effective_date: '2024-09-09'
+    old_name: 3R PETROLEUM
+    new_name: BRAVA ENERGIA
+  RRRP3: *id028
+  BRFS3.SA: &id029
+    canonical: MBRF3.SA
+    reason: corporate_combination_marfrig_brf
+    effective_date: '2025-09-23'
+    old_name: BRF
+    new_name: MBRF
+  BRFS3: *id029
+  MRFG3.SA: &id030
+    canonical: MBRF3.SA
+    reason: corporate_combination_marfrig_brf
+    effective_date: '2025-09-23'
+    old_name: MARFRIG
+    new_name: MBRF
+  MRFG3: *id030
+  AZUL4.SA: &id031
+    canonical: AZUL54.SA
+    reason: ticker_adjustment_restructuring
+    effective_date: '2025-12-23'
+    old_name: AZUL
+    new_name: AZUL
+  AZUL4: *id031
+  GOLL4.SA: &id032
+    canonical: GOLL54.SA
+    reason: ticker_adjustment_restructuring
+    effective_date: '2025-06-12'
+    old_name: GOL
+    new_name: GOL
+  GOLL4: *id032
+  EMBR3.SA: &id033
+    canonical: EMBJ3.SA
+    reason: ticker_migration_global_identity
+    effective_date: '2025-11-03'
+    old_name: EMBRAER
+    new_name: EMBRAER
+  EMBR3: *id033

@@ -3,12 +3,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_mlp_fixed_config_preserves_two_layer_architecture():
+def test_operational_stack_removes_mlp_and_uses_tabular_engines():
     source = (ROOT / "app" / "models.py").read_text(encoding="utf-8")
-    block = source.split('if engines_cfg.get("mlp"', 1)[1].split('return engines', 1)[0]
-    assert "tuple(int(v) for v in hidden)" in block
-    assert "hidden_layer_sizes=hidden_layer_sizes" in block
-    assert "hidden = int(hidden[-1])" not in block
+    assert "MLPRegressor" not in source
+    assert "RandomForestRegressor" not in source
+    assert "CatBoostRegressor" in source
+    assert "ExtraTreesRegressor" in source
+    assert "XGB + CatBoost + ExtraTrees -> Ridge arbiter" in source
 
 
 def test_engine_consensus_guard_exists_for_stacking_inputs():

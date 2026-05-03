@@ -135,7 +135,7 @@ def cmd_daily(args: argparse.Namespace) -> None:
             rows.append((signal["ticker"], signal["policy"]["label"], signal["policy"]["score_pct"], signal["policy"]["confidence_pct"], signal["target_price"]))
         except Exception as exc:
             rows.append((normalize_ticker(ticker), "ERROR", 0.0, 0.0, str(exc)))
-    print("\nTRADEGEM DAILY")
+    print("\nTRADECHAT DAILY")
     print("-" * 80)
     print(f"{'ticker':<12} {'signal':<14} {'return':>9} {'conf':>8} {'target/error':>24}")
     print("-" * 80)
@@ -149,7 +149,7 @@ def cmd_daily(args: argparse.Namespace) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="tradegem", description="Simple, practical CLI for B3 signal generation.")
+    parser = argparse.ArgumentParser(prog="tradechat", description="Simple, practical CLI for B3 signal generation.")
     parser.add_argument("--config", default=None, help="optional config.yaml path")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -160,7 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
     train = sub.add_parser("train", help="train and persist models")
     train.add_argument("tickers", nargs="+")
     train.add_argument("--update", action="store_true", help="refresh price cache before training")
-    train.add_argument("--autotune", action="store_true", help="tune XGB, RandomForest and MLP with BayesSearchCV before Ridge arbitration")
+    train.add_argument("--autotune", action="store_true", help="tune XGB, CatBoost and ExtraTrees with BayesSearchCV before Ridge arbitration")
     train.set_defaults(func=cmd_train)
 
     pred = sub.add_parser("predict", help="generate signal using saved model")

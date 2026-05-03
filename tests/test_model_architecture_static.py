@@ -2,19 +2,24 @@ from app.config import load_config
 from app.models import _make_base_engines
 
 
-def test_base_engines_include_mlp_and_exclude_ridge():
+def test_base_engines_are_tabular_and_exclude_ridge_and_mlp():
     cfg = load_config(None)
     cfg["model"]["engines"]["xgb"]["enabled"] = False
+    cfg["model"]["engines"]["catboost"]["enabled"] = False
     engines = _make_base_engines(cfg)
-    assert "rf" in engines
-    assert "mlp" in engines
+    assert "extratrees" in engines
+    assert "mlp" not in engines
+    assert "rf" not in engines
     assert "ridge" not in engines
 
 
 def test_ridge_is_declared_as_arbiter_in_config():
     cfg = load_config(None)
     assert cfg["model"]["arbiter"]["ridge"]["enabled"] is True
-    assert "mlp" in cfg["model"]["engines"]
+    assert "xgb" in cfg["model"]["engines"]
+    assert "catboost" in cfg["model"]["engines"]
+    assert "extratrees" in cfg["model"]["engines"]
+    assert "mlp" not in cfg["model"]["engines"]
 
 
 def test_autotune_is_available_but_not_default_daily():

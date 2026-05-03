@@ -6,13 +6,13 @@ import pickle
 import warnings
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
-from sklearn.neural_network import MLPRegressor
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-from .feature_audit import feature_family
 from sklearn.exceptions import ConvergenceWarning
+from .feature_audit import feature_family
 
 from .config import artifact_dir
 from .feature_audit import top_selected_features, feature_family_profile
@@ -42,40 +42,18 @@ def _make_named_scaler(name: str):
     return StandardScaler()
 
 
-def _mlp_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
-    return ((cfg.get("model", {}) or {}).get("engines", {}) or {}).get("mlp", {}) or {}
-
-
 def _engine_feature_columns(cfg: dict[str, Any], engine_name: str, all_features: list[str]) -> list[str]:
-    """Return the feature subset used by a given engine.
+    """Return the prepared feature subset used by each tabular engine.
 
-    Tree engines can handle the full prepared matrix. The MLP is more sensitive to
-    noisy heterogeneous inputs, so it may use a smaller family-filtered subset.
+    Operational engines are tree/boosting tabular models. They receive the same
+    prepared feature matrix so the Ridge arbiter compares specialists on a
+    consistent input contract.
     """
-    if engine_name != "mlp":
-        return list(all_features)
-    ecfg = _mlp_cfg(cfg)
-    input_cfg = ecfg.get("input", {}) or {}
-    if not bool(input_cfg.get("enabled", True)):
-        return list(all_features)
-    families = input_cfg.get("families", ["technical", "context"])
-    families = {str(f) for f in families}
-    selected = [c for c in all_features if feature_family(c) in families]
-    if not selected:
-        selected = list(all_features)
-    max_features = int(input_cfg.get("max_features", 15) or 0)
-    if max_features > 0:
-        selected = selected[:max_features]
-    return selected
+    return list(all_features)
 
 
 def _make_engine_scaler(cfg: dict[str, Any], engine_name: str):
-    if engine_name != "mlp":
-        return _make_scaler(cfg)
-    ecfg = _mlp_cfg(cfg)
-    input_cfg = ecfg.get("input", {}) or {}
-    scaler_name = input_cfg.get("scaler", ecfg.get("scaler", "robust"))
-    return _make_named_scaler(str(scaler_name))
+    return _make_scaler(cfg)
 
 
 def _fit_engine_input(cfg: dict[str, Any], engine_name: str, X_train: pd.DataFrame, X_test: pd.DataFrame, X_latest: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray, Any, list[str]]:
@@ -108,7 +86,7 @@ def _transform_engine_input(engine_meta: dict[str, Any], engine_name: str, X: pd
 def _latest_engine_guard(raw_by_engine: dict[str, float], cfg: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any]]:
     """Neutralize divergent latest engine predictions before Ridge.
 
-    A clipped MLP should not keep pushing the arbiter. If an engine is outside the
+    A divergent tabular engine should not keep pushing the arbiter. If an engine is outside the
     absolute return guard or too far from the median, it is replaced by the median
     of valid engines for this one signal and reported as discarded/neutralized.
     """
@@ -170,8 +148,8 @@ def _engine_safety_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
 def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any]]:
     """Limit one divergent engine without changing the architecture.
 
-    The Ridge arbiter should judge specialists, not be dominated by a single MLP
-    excursion. This guard is row-wise: each engine prediction is clipped to a
+    The Ridge arbiter should judge specialists, not be dominated by a single
+    divergent engine excursion. This guard is row-wise: each engine prediction is clipped to a
     configurable band around the row median of all base engines. Raw predictions
     are still audited separately.
     """
@@ -194,13 +172,14 @@ def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.
 
 
 def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Create the specialist/base engines.
+    """Create the specialist/base tabular engines.
 
-    Original TradeGem architecture is preserved here:
-      XGB + RandomForest + MLP -> Ridge arbiter.
+    Operational architecture:
+      XGB + CatBoost + ExtraTrees -> Ridge arbiter.
 
-    Ridge is deliberately not a base engine. It is the stacking judge trained on the
-    predictions produced by the three specialists.
+    The old MLP path was intentionally removed from the production stack because
+    diagnostics showed frequent divergent raw predictions. Neural experiments
+    should live in a separate benchmark, not in the daily arbiter.
     """
     model_cfg = cfg.get("model", {})
     random_state = int(model_cfg.get("random_state", 42))
@@ -221,55 +200,57 @@ def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
                 verbosity=0,
             )
         except Exception:
-            # Keep the CLI usable when xgboost is not installed. RF + MLP can still train.
+            # Keep the CLI usable when xgboost is not installed.
             pass
 
-    if engines_cfg.get("rf", {}).get("enabled", True):
-        ecfg = engines_cfg.get("rf", {})
-        engines["rf"] = RandomForestRegressor(
-            n_estimators=int(ecfg.get("n_estimators", 220)),
-            max_depth=int(ecfg.get("max_depth", 8)),
+    if engines_cfg.get("catboost", {}).get("enabled", True):
+        try:
+            from catboost import CatBoostRegressor
+            ecfg = engines_cfg.get("catboost", {})
+            engines["catboost"] = CatBoostRegressor(
+                iterations=int(ecfg.get("iterations", 220)),
+                depth=int(ecfg.get("depth", 4)),
+                learning_rate=float(ecfg.get("learning_rate", 0.04)),
+                loss_function=str(ecfg.get("loss_function", "MAE")),
+                random_seed=random_state,
+                verbose=False,
+                allow_writing_files=False,
+            )
+        except Exception:
+            # CatBoost is optional at import time, but listed in requirements.
+            pass
+
+    if engines_cfg.get("extratrees", {}).get("enabled", True):
+        ecfg = engines_cfg.get("extratrees", {})
+        engines["extratrees"] = ExtraTreesRegressor(
+            n_estimators=int(ecfg.get("n_estimators", 260)),
+            max_depth=ecfg.get("max_depth", 10),
+            min_samples_leaf=int(ecfg.get("min_samples_leaf", 2)),
             random_state=random_state,
             n_jobs=-1,
         )
-
-    if engines_cfg.get("mlp", {}).get("enabled", True):
-        ecfg = engines_cfg.get("mlp", {})
-        hidden = ecfg.get("hidden_layer_sizes", [64, 32])
-        # Fixed training config uses the sklearn meaning: [64, 32] = two hidden layers.
-        # Autotune search config may still use scalar alternatives such as [32, 64].
-        if isinstance(hidden, list):
-            hidden_layer_sizes = tuple(int(v) for v in hidden) if hidden else (64,)
-        elif isinstance(hidden, tuple):
-            hidden_layer_sizes = tuple(int(v) for v in hidden) if hidden else (64,)
-        else:
-            hidden_layer_sizes = (int(hidden),)
-        engines["mlp"] = MLPRegressor(
-            hidden_layer_sizes=hidden_layer_sizes,
-            activation=str(ecfg.get("activation", "relu")),
-            solver=str(ecfg.get("solver", "adam")),
-            alpha=float(ecfg.get("alpha", 0.0005)),
-            learning_rate=str(ecfg.get("learning_rate", "adaptive")),
-            learning_rate_init=float(ecfg.get("learning_rate_init", 0.001)),
-            max_iter=int(ecfg.get("max_iter", 800)),
-            random_state=random_state,
-            early_stopping=bool(ecfg.get("early_stopping", True)),
-            validation_fraction=float(ecfg.get("validation_fraction", 0.12)),
-            n_iter_no_change=int(ecfg.get("n_iter_no_change", 30)),
-        )
     return engines
+
+def _make_arbiter(cfg: dict[str, Any]) -> Ridge:
+    arbiter_cfg = cfg.get("model", {}).get("arbiter", {}).get("ridge", {})
+    return Ridge(alpha=float(arbiter_cfg.get("alpha", 1.0)))
+
+def _space_from_pair(values: Any, kind: str):
+    """Build skopt dimensions explicitly from YAML ranges."""
+    from skopt.space import Integer, Real, Categorical
+
+    if isinstance(values, list) and len(values) == 2 and all(isinstance(v, (int, float)) for v in values):
+        lo, hi = values
+        if kind == "int":
+            return Integer(int(lo), int(hi))
+        return Real(float(lo), float(hi))
+    if isinstance(values, list):
+        return Categorical(values)
+    return Categorical([values])
 
 
 def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_train: np.ndarray, y_train: pd.Series) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Tune specialists using the original working TradeGem pattern.
-
-    Contract restored from the original project:
-      - global StandardScaler is applied before this function;
-      - MLPRegressor is tuned directly, not through a Pipeline;
-      - MLP hidden_layer_sizes uses scalar choices like [32, 64];
-      - specialists remain XGB + RandomForest + MLP;
-      - Ridge remains only the stacking arbiter.
-    """
+    """Tune tabular specialists before Ridge arbitration."""
     try:
         from skopt import BayesSearchCV
     except Exception as exc:
@@ -290,23 +271,23 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
         if name == "xgb":
             raw = spaces.get("xgb", {})
             search_space = {
-                "n_estimators": raw.get("n_estimators", [50, 150]),
-                "max_depth": raw.get("max_depth", [3, 7]),
+                "n_estimators": _space_from_pair(raw.get("n_estimators", [60, 180]), "int"),
+                "max_depth": _space_from_pair(raw.get("max_depth", [2, 7]), "int"),
+                "learning_rate": _space_from_pair(raw.get("learning_rate", [0.01, 0.12]), "real"),
             }
-        elif name == "rf":
-            raw = spaces.get("rf", {})
+        elif name == "catboost":
+            raw = spaces.get("catboost", {})
             search_space = {
-                "n_estimators": raw.get("n_estimators", [50, 150]),
-                "max_depth": raw.get("max_depth", [5, 10]),
+                "iterations": _space_from_pair(raw.get("iterations", [80, 260]), "int"),
+                "depth": _space_from_pair(raw.get("depth", [2, 7]), "int"),
+                "learning_rate": _space_from_pair(raw.get("learning_rate", [0.01, 0.12]), "real"),
             }
-        elif name == "mlp":
-            raw = spaces.get("mlp", {})
-            # Original working code used scalar hidden sizes directly: [32, 64].
-            hidden = raw.get("hidden_layer_sizes", [32, 64])
-            alpha = raw.get("alpha", [0.0001, 0.01])
+        elif name == "extratrees":
+            raw = spaces.get("extratrees", {})
             search_space = {
-                "hidden_layer_sizes": hidden,
-                "alpha": alpha,
+                "n_estimators": _space_from_pair(raw.get("n_estimators", [120, 360]), "int"),
+                "max_depth": _space_from_pair(raw.get("max_depth", [3, 14]), "int"),
+                "min_samples_leaf": _space_from_pair(raw.get("min_samples_leaf", [1, 8]), "int"),
             }
         else:
             tuned[name] = engine
@@ -328,26 +309,32 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
             opt.fit(X_train, y_train)
         tuned[name] = opt.best_estimator_
         summary[name] = {
-            "status": "tuned_original_pattern",
+            "status": "tuned_tabular",
             "best_score": float(opt.best_score_),
             "best_params": opt.best_params_,
         }
 
     return tuned, summary
 
+
 def _make_arbiter(cfg: dict[str, Any]) -> Ridge:
-    arbiter_cfg = cfg.get("model", {}).get("arbiter", {})
+    arbiter_cfg = cfg.get("model", {}).get("arbiter", {}).get("ridge", {})
     return Ridge(alpha=float(arbiter_cfg.get("alpha", 1.0)))
 
 
-def _confidence_from(values: list[float], prediction: float, cfg: dict[str, Any] | None = None) -> tuple[float, float]:
-    """Estimate operational confidence from agreement among base engines.
-
-    The previous formula divided dispersion by the absolute prediction. When the
-    Ridge arbiter produced a small return, confidence collapsed to 0% even when
-    the engines were merely disagreeing around a neutral forecast. This version
-    uses a configurable return scale and never reports a hard zero when base
-    engines exist. It is still an agreement score, not statistical certainty.
+def _confidence_from(
+    values: list[float],
+    prediction: float,
+    cfg: dict[str, Any] | None = None,
+    *,
+    mae: float | None = None,
+    guard_meta: dict[str, Any] | None = None,
+    train_rows: int | None = None,
+) -> tuple[float, float]:
+    """Calibrate operational confidence for D+1 equity forecasts.
+    
+    This version is adjusted for OOF (Out-of-Fold) stacking, which is more honest
+    but naturally has higher errors than biased in-sample training.
     """
     clean = [float(v) for v in values if np.isfinite(float(v))]
     dispersion = float(np.std(clean)) if clean else 0.0
@@ -355,14 +342,49 @@ def _confidence_from(values: list[float], prediction: float, cfg: dict[str, Any]
         return dispersion, 0.0
 
     ccfg = (cfg or {}).get("model", {}).get("confidence", {})
-    scale = max(
-        abs(float(prediction)),
-        float(ccfg.get("agreement_scale_return", 0.010)),
-        float(np.mean(np.abs(clean))) if clean else 0.0,
-    )
-    confidence = float(scale / (scale + dispersion)) if scale > 0 else 0.0
+    
+    # Agreement: how much base engines agree on the direction/magnitude
+    agreement_scale = float(ccfg.get("agreement_scale_return", 0.015)) # Slightly more generous
+    scale = max(agreement_scale, float(np.mean(np.abs(clean))) if clean else 0.0)
+    agreement = float(scale / (scale + dispersion)) if scale > 0 else 0.0
+
+    # MAE Component: uses a Sigmoid-like decay instead of linear to be less punitive to moderate errors
+    mae_scale = float(ccfg.get("mae_reference_return", 0.015)) # Increased from 0.012
+    if mae is None or not np.isfinite(float(mae)) or mae_scale <= 0:
+        mae_component = 0.75
+    else:
+        # Logistic-style decay: errors below mae_scale are forgiven more easily
+        mae_ratio = max(0.0, float(mae)) / mae_scale
+        mae_component = 1.0 / (1.0 + 0.5 * (mae_ratio ** 1.5))
+
+    # Magnitude: predictions near zero are less 'confident' as actions
+    action_scale = float(ccfg.get("action_scale_return", 0.0045))
+    magnitude_ratio = min(1.0, abs(float(prediction)) / action_scale) if action_scale > 0 else 1.0
+    neutral_floor = float(ccfg.get("neutral_prediction_component_floor", 0.40)) # Higher floor
+    magnitude_component = neutral_floor + (1.0 - neutral_floor) * magnitude_ratio
+
+    # Engine component: penalty for neutralized/discarded engines
+    guard_meta = guard_meta or {}
+    used = len(guard_meta.get("used", []) or clean)
+    discarded = len(guard_meta.get("discarded", []) or [])
+    total = max(used + discarded, len(clean), 1)
+    engine_component = max(0.30, used / total)
+    if discarded:
+        engine_component *= float(ccfg.get("discarded_engine_penalty", 0.80)) ** discarded
+
+    # Sample Size: Confidence grows with history
+    if train_rows is None or int(train_rows or 0) <= 0:
+        sample_component = 1.0
+    else:
+        reference_rows = max(1, int(ccfg.get("sample_reference_rows", 800))) # Lowered from 1000
+        sample_component = min(1.0, max(0.50, float(train_rows) / reference_rows)) # Higher floor 0.50
+
+    # Weighted combination
+    confidence = agreement * (0.40 + 0.60 * mae_component) * magnitude_component * engine_component * sample_component
+    
     floor = float(ccfg.get("minimum_when_engines_exist", 0.05))
-    confidence = min(1.0, max(floor, confidence))
+    cap = float(ccfg.get("maximum_confidence", 0.92))
+    confidence = min(cap, max(floor, confidence))
     return dispersion, confidence
 
 
@@ -378,7 +400,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     y_train, y_test = y.iloc[:split], y.iloc[split:]
 
     # Model-preparation contract: features are selected globally, but each engine
-    # may have its own input scaler/subset. This is critical for MLP stability.
+    # may have its own input scaler/subset. This keeps the tabular specialists on a consistent prepared data contract.
     X_latest = X.tail(1)
     base_engines = _make_base_engines(cfg)
     if len(base_engines) < 2:
@@ -404,41 +426,74 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
             tune_summary.update(summary_one)
         base_engines = tuned
 
-    fitted: dict[str, Any] = {}
-    metrics: dict[str, Any] = {}
-    raw_train_cols: list[np.ndarray] = []
-    raw_test_cols: list[np.ndarray] = []
-    raw_latest_values: list[float] = []
-
+    base_order = list(base_engines.keys())
     guards = _prediction_guard_cfg(cfg)
     engine_clip = guards["max_engine_return_abs"]
     final_clip = guards["max_final_return_abs"]
+
+    # --- Stacking with TimeSeriesSplit to avoid leakage ---
+    tscv = TimeSeriesSplit(n_splits=int(cfg.get("model", {}).get("autotune", {}).get("cv", 3)))
+    oof_predictions = {name: np.zeros(len(X_train)) for name in base_order}
+
+    for train_idx, val_idx in tscv.split(X_train):
+        X_fold_train = X_train.iloc[train_idx]
+        y_fold_train = y_train.iloc[train_idx]
+        X_fold_val = X_train.iloc[val_idx]
+
+        for name in base_order:
+            # Fit on fold
+            from sklearn.base import clone
+            fold_engine = clone(base_engines[name])
+            
+            # Prepare fold input (subset of training)
+            cols = engine_inputs[name]["features"]
+            scaler = _make_engine_scaler(cfg, name)
+            fold_train_arr = scaler.fit_transform(X_fold_train[cols])
+            fold_val_arr = scaler.transform(X_fold_val[cols])
+            
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=ConvergenceWarning)
+                fold_engine.fit(fold_train_arr, y_fold_train)
+            
+            # Predict out-of-fold
+            fold_pred = fold_engine.predict(fold_val_arr)
+            oof_predictions[name][val_idx] = fold_pred
+
+    # Only use indices where we have OOF predictions (first fold is skipped by TSS)
+    valid_idx = np.where(np.any([oof_predictions[name] != 0 for name in base_order], axis=0))[0]
+    meta_train_oof = np.column_stack([oof_predictions[name][valid_idx] for name in base_order])
+    y_train_oof = y_train.iloc[valid_idx]
+
+    # --- Final fit of base engines on full X_train ---
+    fitted: dict[str, Any] = {}
+    metrics: dict[str, Any] = {}
+    raw_test_cols: list[np.ndarray] = []
+    raw_latest_values: list[float] = []
 
     for name, engine in base_engines.items():
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
             engine.fit(engine_inputs[name]["train"], y_train)
         fitted[name] = engine
-        raw_train_pred = np.asarray(engine.predict(engine_inputs[name]["train"]), dtype=float)
+        
         raw_test_pred = np.asarray(engine.predict(engine_inputs[name]["test"]), dtype=float)
         raw_latest_pred = float(engine.predict(engine_inputs[name]["latest"])[0])
-        raw_train_cols.append(raw_train_pred)
+        
         raw_test_cols.append(raw_test_pred)
         raw_latest_values.append(raw_latest_pred)
         metrics[name] = {
             "mae_return_raw": float(mean_absolute_error(y_test, raw_test_pred)),
         }
 
-    base_order = list(fitted.keys())
-    raw_meta_train = np.column_stack(raw_train_cols)
     raw_meta_test = np.column_stack(raw_test_cols)
     raw_meta_latest = np.array([raw_latest_values], dtype=float)
 
-    abs_meta_train = _clip_return_array(raw_meta_train, engine_clip)
+    # Apply guards
+    abs_meta_train = _clip_return_array(meta_train_oof, engine_clip)
     abs_meta_test = _clip_return_array(raw_meta_test, engine_clip)
     abs_meta_latest = _clip_return_array(raw_meta_latest, engine_clip)
 
-    meta_train, train_consensus_meta = _apply_consensus_guard(abs_meta_train, cfg)
+    meta_train_guarded, train_consensus_meta = _apply_consensus_guard(abs_meta_train, cfg)
     meta_test, test_consensus_meta = _apply_consensus_guard(abs_meta_test, cfg)
     meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_meta_latest, cfg)
 
@@ -446,6 +501,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     neutralized_pred_latest, latest_discard_meta = _latest_engine_guard(raw_pred_latest, cfg)
     if latest_discard_meta.get("discarded"):
         meta_latest = np.array([[neutralized_pred_latest[name] for name in base_order]], dtype=float)
+    
     pred_latest = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
     abs_pred_latest = {name: float(abs_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
 
@@ -455,14 +511,16 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         metrics[name]["latest_raw_return"] = raw_pred_latest[name]
         metrics[name]["latest_guarded_return"] = pred_latest[name]
 
+    # --- Fit Arbiter on OOF meta-features ---
     arbiter = _make_arbiter(cfg)
-    arbiter.fit(meta_train, y_train)
+    arbiter.fit(meta_train_guarded, y_train_oof)
+    
     arbiter_test_pred = np.asarray(arbiter.predict(meta_test), dtype=float)
     arbiter_latest_raw = float(arbiter.predict(meta_latest)[0])
     arbiter_latest = _clip_return_float(arbiter_latest_raw, final_clip)
     arbiter_mae = float(mean_absolute_error(y_test, arbiter_test_pred))
 
-    dispersion, confidence = _confidence_from(list(pred_latest.values()), arbiter_latest, cfg)
+    dispersion, confidence = _confidence_from(list(pred_latest.values()), arbiter_latest, cfg, mae=arbiter_mae, guard_meta=latest_discard_meta, train_rows=len(X_train))
 
     rid = run_id("train", ticker)
     out_dir = artifact_dir(cfg) / safe_ticker(ticker) / rid
@@ -476,7 +534,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "base_models": fitted,
         "base_order": base_order,
         "arbiter": arbiter,
-        "architecture": "xgb_rf_mlp__ridge_arbiter_original_autotune",
+        "architecture": "xgb_catboost_extratrees__ridge_arbiter",
         "autotune": bool(autotune),
         "tune_summary": tune_summary,
         "pred_latest_by_engine": pred_latest,
@@ -498,7 +556,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "ticker": ticker,
         "model_path": str(model_path),
         "created_at": pd.Timestamp.now().isoformat(),
-        "architecture": "XGB + RandomForest + MLP -> Ridge arbiter",
+        "architecture": "XGB + CatBoost + ExtraTrees -> Ridge arbiter",
         "autotune": bool(autotune),
         "tune_summary": tune_summary,
         "rows": int(len(X)),
@@ -552,6 +610,11 @@ def load_latest_model(cfg: dict[str, Any], ticker: str) -> tuple[dict[str, Any],
 def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dict[str, Any]:
     model, manifest = load_latest_model(cfg, ticker)
     features = model["features"]
+    X = X.copy()
+    missing = [c for c in features if c not in X.columns]
+    recoverable = [c for c in missing if str(c).startswith("sent_")]
+    for col in recoverable:
+        X[col] = 0.0
     missing = [c for c in features if c not in X.columns]
     if missing:
         raise RuntimeError(f"current dataset is missing trained features: {missing[:8]}")
@@ -580,10 +643,13 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
         abs_by_engine = {name: float(abs_values[0, idx]) for idx, name in enumerate(base_order)}
         raw_prediction = float(model["arbiter"].predict(meta_latest)[0])
         prediction = _clip_return_float(raw_prediction, final_clip)
-        dispersion, confidence = _confidence_from(list(by_engine.values()), prediction, cfg)
+        ridge_metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
+        mae = ridge_metrics.get("mae_return")
+        train_rows = manifest.get("train_rows")
+        dispersion, confidence = _confidence_from(list(by_engine.values()), prediction, cfg, mae=mae, guard_meta=latest_engine_guard, train_rows=train_rows)
         return {
             "ticker": normalize_ticker(ticker),
-            "architecture": "XGB + RandomForest + MLP -> Ridge arbiter",
+            "architecture": "XGB + CatBoost + ExtraTrees -> Ridge arbiter",
             "prediction_return": prediction,
             "by_engine": by_engine,
             "raw_by_engine": raw_by_engine,

@@ -9,12 +9,12 @@ def test_fundamentals_disabled_still_report_snapshot():
     assert "Selection controls whether fundamentals enter the model" in text
 
 
-def test_prediction_guards_exist_and_clip_mlp_outliers():
+def test_prediction_guards_exist_and_clip_outliers():
     text = (ROOT / "app" / "models.py").read_text(encoding="utf-8")
     assert "max_engine_return_abs" in text
     assert "max_final_return_abs" in text
     assert "_clip_return_float" in text
-    assert "ConvergenceWarning" in text
+    assert "def _latest_engine_guard" in text
 
 
 def test_policy_confidence_floor_is_conservative():

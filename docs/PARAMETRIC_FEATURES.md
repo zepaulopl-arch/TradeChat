@@ -6,7 +6,7 @@ Preserved:
 
 - `data`, `train`, `predict`, `report`, `daily`
 - `daily = data -> predict -> compact report`, without training
-- base engines: `XGB + RandomForest + MLP`
+- base engines: `XGB + CatBoost + ExtraTrees`
 - arbiter: `Ridge`
 - original `BayesSearchCV` autotune pattern
 
@@ -17,7 +17,7 @@ Added behind `config.yaml`:
 - `sentiment.enabled`: use sentiment without adding a new CLI command
 - `model.autotune.enabled_by_default`: activate autotune from YAML without changing commands
 
-No new command was added. The normal surface remains:
+No new command was added. The normal suextratreesace remains:
 
 ```powershell
 .\run data PETR4

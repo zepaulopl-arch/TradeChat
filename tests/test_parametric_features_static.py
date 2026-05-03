@@ -27,10 +27,11 @@ def test_context_fundamentals_sentiment_are_yaml_controlled():
     assert 'enabled_by_default' in cfg['model']['autotune']
 
 
-def test_original_model_contract_preserved():
+def test_tabular_model_contract_preserved():
     models = (ROOT / 'app' / 'models.py').read_text(encoding='utf-8')
-    assert 'XGB + RandomForest + MLP -> Ridge arbiter' in models
-    assert 'MLPRegressor' in models
-    assert 'RandomForestRegressor' in models
+    assert 'XGB + CatBoost + ExtraTrees -> Ridge arbiter' in models
+    assert 'CatBoostRegressor' in models
+    assert 'ExtraTreesRegressor' in models
+    assert 'MLPRegressor' not in models
     assert 'Ridge' in models
     assert 'BayesSearchCV' in models

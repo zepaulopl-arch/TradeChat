@@ -4,8 +4,8 @@ This patch is intentionally conservative.
 
 ## Preserved
 
-- Existing CLI surface.
-- Existing model architecture: XGB + RandomForest + MLP -> Ridge arbiter.
+- Existing CLI suextratreesace.
+- Existing model architecture: XGB + CatBoost + ExtraTrees -> Ridge arbiter.
 - Existing autotune command and YAML-controlled default.
 - Daily routine without training.
 - Report as TXT artifact.
