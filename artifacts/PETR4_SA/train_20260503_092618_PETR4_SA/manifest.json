@@ -1,0 +1,112 @@
+{
+  "run_id": "train_20260503_092618_PETR4_SA",
+  "ticker": "PETR4.SA",
+  "model_path": "C:\\Users\\zepau\\ML\\projetos\\TradeChat\\artifacts\\PETR4_SA\\train_20260503_092618_PETR4_SA\\model.pkl",
+  "created_at": "2026-05-03T09:26:18.599264",
+  "architecture": "XGB + RandomForest + MLP -> Ridge arbiter",
+  "autotune": false,
+  "tune_summary": {},
+  "rows": 1253,
+  "train_rows": 1002,
+  "test_rows": 251,
+  "features": [
+    "PETR4.SA",
+    "ret_1",
+    "ret_5",
+    "ret_20",
+    "vol_20",
+    "rsi",
+    "sma_ratio",
+    "ema_ratio",
+    "roc_10",
+    "bb_std",
+    "bb_pos",
+    "macro_BZ_F_ret_1",
+    "macro_BZ_F_ret_5",
+    "macro_USDBRL_X_ret_1",
+    "macro_USDBRL_X_ret_5",
+    "macro_BVSP_ret_1",
+    "macro_BVSP_ret_5"
+  ],
+  "latest_price": 49.08000183105469,
+  "latest_date": "2026-05-02",
+  "base_engines": [
+    "xgb",
+    "rf",
+    "mlp"
+  ],
+  "arbiter": "ridge",
+  "metrics": {
+    "xgb": {
+      "mae_return": 0.014122011598149988
+    },
+    "rf": {
+      "mae_return": 0.01695046455418293
+    },
+    "mlp": {
+      "mae_return": 0.06915136898486098
+    },
+    "ridge_arbiter": {
+      "mae_return": 0.012848531987472553
+    }
+  },
+  "latest_prediction_return": -0.014168783879082103,
+  "latest_prediction_by_engine": {
+    "xgb": -0.009233050048351288,
+    "rf": -0.02185563551152812,
+    "mlp": -0.23815731887038286
+  },
+  "engine_dispersion": 0.10506721062853648,
+  "confidence": 0.4606845638515767,
+  "dataset_meta": {
+    "ticker": "PETR4.SA",
+    "rows": 1253,
+    "features": [
+      "PETR4.SA",
+      "ret_1",
+      "ret_5",
+      "ret_20",
+      "vol_20",
+      "rsi",
+      "sma_ratio",
+      "ema_ratio",
+      "roc_10",
+      "bb_std",
+      "bb_pos",
+      "macro_BZ_F_ret_1",
+      "macro_BZ_F_ret_5",
+      "macro_USDBRL_X_ret_1",
+      "macro_USDBRL_X_ret_5",
+      "macro_BVSP_ret_1",
+      "macro_BVSP_ret_5"
+    ],
+    "dropped_correlated_features": [
+      "frac_mem",
+      "sma_10",
+      "sma_50",
+      "ema_20",
+      "ema_100",
+      "bb_mid",
+      "bb_width"
+    ],
+    "context": {
+      "enabled": false,
+      "source": "disabled",
+      "columns": []
+    },
+    "fundamentals": {
+      "enabled": false,
+      "source": "disabled",
+      "cvm_rows": 0
+    },
+    "sentiment": {
+      "enabled": false,
+      "source": "disabled",
+      "items": 0
+    },
+    "latest_price": 49.08000183105469,
+    "latest_date": "2026-05-02",
+    "latest_risk_pct": 2.330587309361496,
+    "sentiment_value": 0.0
+  }
+}

@@ -1,0 +1,13 @@
+pandas
+numpy
+pyyaml
+scikit-learn
+yfinance
+xgboost
+pyarrow
+requests
+feedparser
+nltk
+deep-translator
+
+scikit-optimize

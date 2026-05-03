@@ -1,0 +1,261 @@
+metadata:
+  purpose: Feature families, selection profiles, temporal windows and generation rules
+    for TradeGem.
+  version: 2
+  principle: Each feature family owns its own windows, attributes and defaults. config.yaml
+    remains operational; data.yaml remains cadastral.
+selection:
+  active_profile: default
+  profiles:
+    default:
+      description: 'Balanced default: technical base, asset-linked temporal context,
+        temporal fundamentals when available, and cached temporal sentiment.'
+      families:
+        technical:
+          enabled: true
+          preset: standard
+        context:
+          enabled: true
+          preset: asset_linked
+        fundamentals:
+          enabled: true
+          preset: temporal_cvm_safe
+        sentiment:
+          enabled: true
+          preset: temporal_cache
+    safe_no_sentiment:
+      description: 'Conservative profile: technical + context + fundamentals; sentiment
+        kept out of training.'
+      families:
+        technical:
+          enabled: true
+          preset: standard
+        context:
+          enabled: true
+          preset: asset_linked
+        fundamentals:
+          enabled: true
+          preset: temporal_cvm_safe
+        sentiment:
+          enabled: false
+          preset: report_only
+    technical_only:
+      description: Diagnostic baseline using only price-derived technical features.
+      families:
+        technical:
+          enabled: true
+          preset: standard
+        context:
+          enabled: false
+          preset: asset_linked
+        fundamentals:
+          enabled: false
+          preset: temporal_cvm_safe
+        sentiment:
+          enabled: false
+          preset: report_only
+generation:
+  description: Global generation safety rules. Family-specific generation remains
+    inside each family.
+  protect_target_from_leakage: true
+  missing_value_policy: drop_after_feature_generation
+  multicollinearity_threshold: 0.92
+families:
+  technical:
+    description: Price and volume-derived features from the asset itself. These are
+      the base features and should not depend on external data.
+    presets:
+      standard:
+        enabled: true
+        windows:
+          returns:
+          - 1
+          - 5
+          - 20
+          volatility:
+          - 20
+          rsi: 14
+          sma:
+            short: 10
+            long: 50
+          ema:
+            short: 20
+            long: 100
+          roc: 10
+          bollinger: 20
+          fractional_memory:
+            d: 0.5
+        features:
+          returns: true
+          volatility: true
+          rsi: true
+          moving_averages: true
+          ema: true
+          roc: true
+          bollinger: true
+          fractional_memory: true
+          legacy_macro_features: false
+  context:
+    description: Temporal market and macro context linked to the asset registry in
+      data.yaml. Context must be dynamic by window, not a repeated snapshot.
+    presets:
+      asset_linked:
+        enabled: true
+        source: data_yaml_asset_context
+        benchmark: ^BVSP
+        use_asset_registry: true
+        windows:
+          returns:
+          - 5
+          - 20
+          - 60
+          volatility:
+          - 5
+          - 20
+          - 60
+          correlation:
+          - 5
+          - 20
+          - 60
+          beta:
+          - 20
+          - 60
+          relative_strength:
+            short: 5
+            long: 20
+          alignment:
+            short: 5
+            long: 20
+        features:
+          returns: true
+          volatility: true
+          correlation: true
+          beta: true
+          relative_strength: true
+          alignment: true
+  fundamentals:
+    description: Fundamental features from CVM when historical alignment is available.
+      Snapshot values are report/policy context by default, not repeated training
+      columns.
+    presets:
+      temporal_cvm_safe:
+        enabled: true
+        source_priority:
+        - cvm_historical
+        - yfinance_snapshot_report_only
+        windows:
+          statement_forward_fill: true
+          change:
+          - 1
+          - 4
+          stability:
+          - 4
+          - 8
+          trend:
+          - 4
+          - 8
+        features:
+          valuation: true
+          quality: true
+          yield: true
+          regime_score: true
+          change_features: false
+          stability_features: false
+        thresholds:
+          cheap_pl: 10.0
+          expensive_pl: 22.0
+          weak_roe: 0.04
+          good_roe: 0.12
+          good_dy: 0.06
+        weights:
+          value: 0.35
+          quality: 0.45
+          yield: 0.2
+        safety:
+          require_historical: true
+          use_snapshot_as_features: false
+          snapshot_only_in_report: true
+  sentiment:
+    description: News sentiment as a cached daily time series. It should enter training
+      only as temporal windows built from the cache.
+    presets:
+      temporal_cache:
+        enabled: true
+        mode: temporal_feature
+        provider: rss_vader
+        windows:
+          mean:
+          - 1
+          - 3
+          - 7
+          count:
+          - 1
+          - 3
+          - 7
+          delta:
+          - 3
+          std:
+          - 7
+        features:
+          daily_score: true
+          daily_count: true
+          availability_flag: true
+          rolling_mean: true
+          rolling_count: true
+          delta: true
+          std: true
+        collection:
+          max_news_entries: 20
+          cache_days: 365
+          min_items_for_feature: 1
+          fallback_to_zero: true
+          vader_weight: 1.0
+      report_only:
+        enabled: true
+        mode: report_only
+        provider: rss_vader
+        windows:
+          mean: []
+          count: []
+          delta: []
+          std: []
+        features:
+          daily_score: false
+          daily_count: false
+          availability_flag: false
+          rolling_mean: false
+          rolling_count: false
+          delta: false
+          std: false
+        collection:
+          max_news_entries: 20
+          cache_days: 365
+          min_items_for_feature: 1
+          fallback_to_zero: true
+          vader_weight: 1.0
+preparation:
+  description: Internal preparation step between feature generation and model training.
+    It cleans constants, clips extreme targets, normalizes model inputs and selects
+    a compact low-correlation feature set.
+  enabled: true
+  normalization:
+    enabled: true
+    scaler: standard
+    note: standard | robust | minmax. Applied once to all selected features before
+      engines.
+  target:
+    clip: true
+    max_abs_return_pct: 8.0
+    note: Protects engines from extreme daily returns in very long histories.
+  selection:
+    enabled: true
+    method: target_relevance_low_correlation_greedy
+    max_features: 20
+    correlation_threshold: 0.85
+    family_minimums:
+      technical: 8
+      context: 4
+      fundamentals: 1
+      sentiment: 1
+    note: Ranks features by simple target relevance and rejects candidates too correlated
+      with already selected features.

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cache e Dados Pesados
+data_cache/
+*.parquet
+*.sqlite
+*.pkl
+*.csv
+*.zip
+
+# Ambientes Virtuais
+venv/
+env/
+.venv/
+
+# IDE e Sistema Operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

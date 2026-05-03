@@ -1,0 +1,1072 @@
+version: 1
+description: 'Operational asset registry: metadata for market context, CVM/fundamentals
+  lookup and future sector/index expansion. Keep this file cadastral; keep model parameters
+  in config.yaml.'
+sources:
+  b3_companies_listed: B3 Empresas Listadas
+  b3_sector_classification: B3 Classificacao Setorial
+  cvm: CVM demonstracoes financeiras
+  market_prices: Yahoo Finance tickers used by yfinance
+indices:
+  default_context:
+  - ^BVSP
+  - USDBRL=X
+  - BZ=F
+  available_now:
+    ^BVSP:
+      label: Ibovespa
+      role: benchmark_market
+      provider: yfinance
+    USDBRL=X:
+      label: USD/BRL
+      role: fx
+      provider: yfinance
+    BZ=F:
+      label: Brent crude oil futures
+      role: commodity_oil
+      provider: yfinance
+  future_candidates:
+    IFNC:
+      label: Indice Financeiro
+      role: sector_financials
+      provider: b3/yfinance_if_available
+    IMAT:
+      label: Indice Materiais Basicos
+      role: sector_materials
+      provider: b3/yfinance_if_available
+    IEEX:
+      label: Indice Energia Eletrica
+      role: sector_utilities
+      provider: b3/yfinance_if_available
+    ICON:
+      label: Indice Consumo
+      role: sector_consumption
+      provider: b3/yfinance_if_available
+    INDX:
+      label: Indice Industrial
+      role: sector_industrials
+      provider: b3/yfinance_if_available
+    IMOB:
+      label: Indice Imobiliario
+      role: sector_real_estate
+      provider: b3/yfinance_if_available
+    SMLL:
+      label: Indice Small Cap
+      role: style_small_caps
+      provider: b3/yfinance_if_available
+    IBRX50:
+      label: IBrX 50
+      role: large_caps
+      provider: b3/yfinance_if_available
+defaults:
+  asset_type: stock
+  country: BR
+  currency: BRL
+  context_tickers:
+  - ^BVSP
+  - USDBRL=X
+  - BZ=F
+assets:
+  PETR4.SA:
+    name: PETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 33.000.167/0001-01
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+  VALE3.SA:
+    name: VALE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: 33.592.510/0001-54
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    - IBRX50
+    use_in_reference_sample: true
+  ITUB4.SA:
+    name: ITAU UNIBANCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.872.504/0001-23
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+  BBAS3.SA:
+    name: BANCO DO BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 00.000.000/0001-91
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+  BBDC4.SA:
+    name: BRADESCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+  SANB11.SA:
+    name: SANTANDER BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+  BPAC11.SA:
+    name: BTG PACTUAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: investment_bank
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+  B3SA3.SA:
+    name: B3
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: market_infrastructure
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+  BBSE3.SA:
+    name: BB SEGURIDADE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+  PSSA3.SA:
+    name: PORTO SEGURO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IFNC
+    use_in_reference_sample: true
+  VIVT3.SA:
+    name: TELEFONICA BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: 02.558.157/0001-62
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  TIMS3.SA:
+    name: TIM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  RENT3.SA:
+    name: LOCALIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: car_rental
+    financial_class: non_financial
+    cnpj: 16.670.085/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  VAMO3.SA:
+    name: VAMOS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: truck_equipment_rental
+    financial_class: non_financial
+    cnpj: 23.373.000/0001-32
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  LREN3.SA:
+    name: LOJAS RENNER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 92.754.738/0001-62
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  MGLU3.SA:
+    name: MAGAZINE LUIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_ecommerce
+    financial_class: non_financial
+    cnpj: 47.960.950/0001-21
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  AMER3.SA:
+    name: AMERICANAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_ecommerce
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  ARZZ3.SA:
+    name: AREZZO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  SOMA3.SA:
+    name: GRUPO SOMA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  ABEV3.SA:
+    name: AMBEV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: beverages
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  JBSS3.SA:
+    name: JBS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  BRFS3.SA:
+    name: BRF
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  MRFG3.SA:
+    name: MARFRIG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  SLCE3.SA:
+    name: SLC AGRICOLA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: agriculture
+    financial_class: non_financial
+    cnpj: 89.096.457/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  AGRO3.SA:
+    name: BRASILAGRO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: agriculture
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  SUZB3.SA:
+    name: SUZANO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+  KLBN11.SA:
+    name: KLABIN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+  GGBR4.SA:
+    name: GERDAU
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+  CSNA3.SA:
+    name: CSN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel_mining
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+  USIM5.SA:
+    name: USIMINAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMAT
+    use_in_reference_sample: true
+  BRAP4.SA:
+    name: BRADESPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: holding_mining
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMAT
+    use_in_reference_sample: true
+  PRIO3.SA:
+    name: PRIO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  RRRP3.SA:
+    name: 3R PETROLEUM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  CSAN3.SA:
+    name: COSAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_logistics
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  RAIZ4.SA:
+    name: RAIZEN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  UGPA3.SA:
+    name: ULTRAPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  ELET3.SA:
+    name: ELETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+  ELET6.SA:
+    name: ELETROBRAS PNB
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+  CPFE3.SA:
+    name: CPFL ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IEEX
+    use_in_reference_sample: true
+  CMIG4.SA:
+    name: CEMIG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+  TAEE11.SA:
+    name: TAESA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power_transmission
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IEEX
+    use_in_reference_sample: true
+  EGIE3.SA:
+    name: ENGIE BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IEEX
+    use_in_reference_sample: true
+  SBSP3.SA:
+    name: SABESP
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: water_sanitation
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - UTIL
+    use_in_reference_sample: true
+  CMIN3.SA:
+    name: CSN MINERACAO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMAT
+    use_in_reference_sample: true
+  WEGE3.SA:
+    name: WEG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: capital_goods
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+  EMBR3.SA:
+    name: EMBRAER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: aerospace_defense
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+  RAIL3.SA:
+    name: RUMO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: rail_logistics
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+  CCRO3.SA:
+    name: CCR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_infrastructure
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+  AZUL4.SA:
+    name: AZUL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: airlines
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+  GOLL4.SA:
+    name: GOL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: airlines
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - INDX
+    use_in_reference_sample: true
+  YDUQ3.SA:
+    name: YDUQS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: 08.807.432/0001-10
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  COGN3.SA:
+    name: COGNA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - ICON
+    use_in_reference_sample: true
+  FLRY3.SA:
+    name: FLEURY
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: diagnostics
+    financial_class: non_financial
+    cnpj: 60.840.055/0001-31
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  HAPV3.SA:
+    name: HAPVIDA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: health_plans
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  RADL3.SA:
+    name: RAIA DROGASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: pharmacy_retail
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+  RDOR3.SA:
+    name: REDE D OR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: hospitals
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+  MULT3.SA:
+    name: MULTIPLAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMOB
+    use_in_reference_sample: true
+  IGTI11.SA:
+    name: IGUATEMI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMOB
+    use_in_reference_sample: true
+  CYRE3.SA:
+    name: CYRELA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+  MRVE3.SA:
+    name: MRV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IMOB
+    use_in_reference_sample: true
