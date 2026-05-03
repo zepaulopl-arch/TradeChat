@@ -5,7 +5,7 @@ app:
   data_cache_dir: data_cache
 features_file: features.yaml
 data:
-  period: 5y
+  period: max
   min_rows: 220
   macro_tickers:
   - ^BVSP
@@ -35,6 +35,14 @@ model:
       learning_rate_init: 0.001
       max_iter: 800
       early_stopping: true
+      scaler: robust
+      input:
+        enabled: true
+        scaler: robust
+        max_features: 15
+        families:
+        - technical
+        - context
       activation: relu
       solver: adam
       learning_rate: adaptive

@@ -39,12 +39,14 @@ def _greedy_low_correlation_selection(
     max_features: int,
     threshold: float,
     family_minimums: dict[str, int] | None = None,
+    family_limits: dict[str, dict[str, int]] | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
-    """Select a compact set of useful, non-redundant features.
+    """Select a compact, useful and family-balanced feature set.
 
-    Ranking uses absolute correlation with the target as a simple relevance score.
-    The final list is built greedily, rejecting candidates that are too correlated
-    with features already selected. This keeps the method transparent and cheap.
+    Ranking uses absolute correlation with the target as a transparent relevance
+    score. Candidates that are too correlated with already selected features are
+    rejected. Family limits prevent the context block from occupying the entire
+    feature set and keep the asset's own technical behaviour visible.
     """
     if X.empty:
         return [], {"reason": "empty_X"}
@@ -52,60 +54,84 @@ def _greedy_low_correlation_selection(
     max_features = max(1, int(max_features))
     threshold = float(threshold)
     family_minimums = {str(k): int(v) for k, v in (family_minimums or {}).items() if int(v) > 0}
+    family_limits = family_limits or {}
+    family_maximums: dict[str, int] = {}
+    family_minimums_from_limits: dict[str, int] = {}
+    for family, raw in family_limits.items():
+        if not isinstance(raw, dict):
+            continue
+        fam = str(family)
+        if "min" in raw and int(raw.get("min") or 0) > 0:
+            family_minimums_from_limits[fam] = int(raw.get("min") or 0)
+        if "max" in raw and int(raw.get("max") or 0) > 0:
+            family_maximums[fam] = int(raw.get("max") or 0)
+    family_minimums = {**family_minimums_from_limits, **family_minimums}
 
     relevance = _safe_abs_target_corr(X, y)
     corr = X.corr(numeric_only=True).abs().fillna(0.0)
     selected: list[str] = []
     rejected: dict[str, str] = {}
 
-    def can_add(col: str) -> tuple[bool, str]:
+    def family_count(family: str) -> int:
+        return len([c for c in selected if _family_of(c) == family])
+
+    def can_add(col: str, *, enforce_family_max: bool = True) -> tuple[bool, str]:
         if col in selected:
             return False, "already_selected"
+        fam = _family_of(col)
+        if enforce_family_max and fam in family_maximums and family_count(fam) >= family_maximums[fam]:
+            return False, f"family_limit:{fam}:{family_maximums[fam]}"
         for chosen in selected:
             value = float(corr.loc[col, chosen]) if col in corr.index and chosen in corr.columns else 0.0
             if value > threshold:
                 return False, f"correlated_with:{chosen}:{value:.4f}"
         return True, "ok"
 
-    # First, satisfy small family minimums when possible, still respecting correlation.
+    # First satisfy family minimums, still respecting the correlation rule.
     for family, minimum in family_minimums.items():
         fam_candidates = [c for c in relevance.index if _family_of(c) == family]
         for col in fam_candidates:
-            if len([c for c in selected if _family_of(c) == family]) >= minimum:
+            if family_count(family) >= minimum:
                 break
             if len(selected) >= max_features:
                 break
-            ok, reason = can_add(col)
+            ok, reason = can_add(col, enforce_family_max=False)
             if ok:
                 selected.append(col)
             else:
                 rejected[col] = reason
 
-    # Then fill the remaining slots by global relevance, constrained by correlation.
+    # Then fill by relevance, respecting both correlation and family maximums.
     for col in relevance.index:
         if len(selected) >= max_features:
             break
-        ok, reason = can_add(col)
+        ok, reason = can_add(col, enforce_family_max=True)
         if ok:
             selected.append(col)
         else:
             rejected.setdefault(col, reason)
 
-    # If the correlation rule is too strict, fill remaining slots by relevance so the
-    # model is not starved. Mark them as forced for auditability.
+    # If correlation is too strict, fill remaining slots without violating family maxima.
     forced: list[str] = []
     if len(selected) < min(max_features, len(relevance)):
         for col in relevance.index:
             if len(selected) >= min(max_features, len(relevance)):
                 break
-            if col not in selected:
-                selected.append(col)
-                forced.append(col)
+            if col in selected:
+                continue
+            fam = _family_of(col)
+            if fam in family_maximums and family_count(fam) >= family_maximums[fam]:
+                rejected.setdefault(col, f"family_limit:{fam}:{family_maximums[fam]}")
+                continue
+            selected.append(col)
+            forced.append(col)
 
     meta = {
-        "method": "target_relevance_low_correlation_greedy",
+        "method": "target_relevance_low_correlation_greedy_family_balanced",
         "max_features": max_features,
         "correlation_threshold": threshold,
+        "family_minimums": family_minimums,
+        "family_maximums": family_maximums,
         "selected_count": len(selected),
         "relevance": {k: float(v) for k, v in relevance.loc[selected].items()},
         "families": {fam: len([c for c in selected if _family_of(c) == fam]) for fam in ("technical", "context", "fundamentals", "sentiment")},
@@ -114,7 +140,6 @@ def _greedy_low_correlation_selection(
         "rejected_sample": dict(list(rejected.items())[:20]),
     }
     return selected, meta
-
 
 def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
     """Pre-model data preparation: clean, reduce collinearity, select features.
@@ -166,7 +191,8 @@ def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) 
         max_features = int(select_cfg.get("max_features", 20))
         threshold = float(select_cfg.get("correlation_threshold", fcfg.get("multicollinearity_threshold", 0.88)))
         family_minimums = select_cfg.get("family_minimums", {}) or {}
-        selected, selection_meta = _greedy_low_correlation_selection(X1, y1, max_features, threshold, family_minimums)
+        family_limits = select_cfg.get("family_limits", {}) or {}
+        selected, selection_meta = _greedy_low_correlation_selection(X1, y1, max_features, threshold, family_minimums, family_limits)
         X2 = X1[selected]
         meta["selection"] = selection_meta
     else:

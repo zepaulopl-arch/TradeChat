@@ -11,6 +11,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
+from .feature_audit import feature_family
 from sklearn.exceptions import ConvergenceWarning
 
 from .config import artifact_dir
@@ -30,6 +31,112 @@ def _make_scaler(cfg: dict[str, Any]):
         return MinMaxScaler()
     return StandardScaler()
 
+
+
+def _make_named_scaler(name: str):
+    scaler_name = str(name or "standard").lower()
+    if scaler_name == "robust":
+        return RobustScaler()
+    if scaler_name == "minmax":
+        return MinMaxScaler()
+    return StandardScaler()
+
+
+def _mlp_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
+    return ((cfg.get("model", {}) or {}).get("engines", {}) or {}).get("mlp", {}) or {}
+
+
+def _engine_feature_columns(cfg: dict[str, Any], engine_name: str, all_features: list[str]) -> list[str]:
+    """Return the feature subset used by a given engine.
+
+    Tree engines can handle the full prepared matrix. The MLP is more sensitive to
+    noisy heterogeneous inputs, so it may use a smaller family-filtered subset.
+    """
+    if engine_name != "mlp":
+        return list(all_features)
+    ecfg = _mlp_cfg(cfg)
+    input_cfg = ecfg.get("input", {}) or {}
+    if not bool(input_cfg.get("enabled", True)):
+        return list(all_features)
+    families = input_cfg.get("families", ["technical", "context"])
+    families = {str(f) for f in families}
+    selected = [c for c in all_features if feature_family(c) in families]
+    if not selected:
+        selected = list(all_features)
+    max_features = int(input_cfg.get("max_features", 15) or 0)
+    if max_features > 0:
+        selected = selected[:max_features]
+    return selected
+
+
+def _make_engine_scaler(cfg: dict[str, Any], engine_name: str):
+    if engine_name != "mlp":
+        return _make_scaler(cfg)
+    ecfg = _mlp_cfg(cfg)
+    input_cfg = ecfg.get("input", {}) or {}
+    scaler_name = input_cfg.get("scaler", ecfg.get("scaler", "robust"))
+    return _make_named_scaler(str(scaler_name))
+
+
+def _fit_engine_input(cfg: dict[str, Any], engine_name: str, X_train: pd.DataFrame, X_test: pd.DataFrame, X_latest: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray, Any, list[str]]:
+    cols = _engine_feature_columns(cfg, engine_name, list(X_train.columns))
+    scaler = _make_engine_scaler(cfg, engine_name)
+    train_df = X_train[cols]
+    test_df = X_test[cols]
+    latest_df = X_latest[cols]
+    if scaler is not None:
+        train_arr = scaler.fit_transform(train_df)
+        test_arr = scaler.transform(test_df)
+        latest_arr = scaler.transform(latest_df)
+    else:
+        train_arr = train_df.to_numpy(dtype=float)
+        test_arr = test_df.to_numpy(dtype=float)
+        latest_arr = latest_df.to_numpy(dtype=float)
+    return train_arr, test_arr, latest_arr, scaler, cols
+
+
+def _transform_engine_input(engine_meta: dict[str, Any], engine_name: str, X: pd.DataFrame) -> np.ndarray:
+    meta = engine_meta.get(engine_name, {}) or {}
+    cols = meta.get("features") or list(X.columns)
+    scaler = meta.get("scaler")
+    X_engine = X[cols]
+    if scaler is not None:
+        return scaler.transform(X_engine)
+    return X_engine.to_numpy(dtype=float)
+
+
+def _latest_engine_guard(raw_by_engine: dict[str, float], cfg: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any]]:
+    """Neutralize divergent latest engine predictions before Ridge.
+
+    A clipped MLP should not keep pushing the arbiter. If an engine is outside the
+    absolute return guard or too far from the median, it is replaced by the median
+    of valid engines for this one signal and reported as discarded/neutralized.
+    """
+    if not raw_by_engine:
+        return {}, {"discarded": [], "used": []}
+    guards = _prediction_guard_cfg(cfg)
+    safety = _engine_safety_cfg(cfg)
+    engine_clip = float(guards.get("max_engine_return_abs", 0.12))
+    band = float(safety.get("max_deviation_from_median", 0.025))
+    values = np.array(list(raw_by_engine.values()), dtype=float)
+    median_all = float(np.nanmedian(values)) if values.size else 0.0
+    discarded: list[str] = []
+    for name, value in raw_by_engine.items():
+        extreme = engine_clip > 0 and abs(float(value)) > engine_clip
+        divergent = bool(safety.get("consensus_guard_enabled", True)) and band > 0 and abs(float(value) - median_all) > band
+        if extreme or divergent:
+            discarded.append(name)
+    valid_values = [float(v) for k, v in raw_by_engine.items() if k not in discarded and np.isfinite(float(v))]
+    replacement = float(np.nanmedian(valid_values)) if valid_values else median_all
+    guarded: dict[str, float] = {}
+    for name, value in raw_by_engine.items():
+        guarded[name] = replacement if name in discarded else _clip_return_float(float(value), engine_clip)
+    return guarded, {
+        "discarded": discarded,
+        "used": [k for k in raw_by_engine if k not in discarded],
+        "replacement": replacement,
+        "reason": "extreme_or_divergent_base_prediction" if discarded else "ok",
+    }
 
 def _prediction_guard_cfg(cfg: dict[str, Any]) -> dict[str, float]:
     guards = cfg.get("model", {}).get("prediction_guards", {})
@@ -270,24 +377,32 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     X_train, X_test = X.iloc[:split], X.iloc[split:]
     y_train, y_test = y.iloc[:split], y.iloc[split:]
 
-    # Model-preparation contract: all engines receive the same normalized matrix.
-    scaler = _make_scaler(cfg)
-    if scaler is not None:
-        X_train_s = scaler.fit_transform(X_train)
-        X_test_s = scaler.transform(X_test)
-        X_latest_s = scaler.transform(X.tail(1))
-    else:
-        X_train_s = X_train.to_numpy(dtype=float)
-        X_test_s = X_test.to_numpy(dtype=float)
-        X_latest_s = X.tail(1).to_numpy(dtype=float)
-
+    # Model-preparation contract: features are selected globally, but each engine
+    # may have its own input scaler/subset. This is critical for MLP stability.
+    X_latest = X.tail(1)
     base_engines = _make_base_engines(cfg)
     if len(base_engines) < 2:
         raise RuntimeError("at least two base engines are required for Ridge stacking")
 
+    engine_inputs: dict[str, dict[str, Any]] = {}
+    for name in base_engines:
+        train_arr, test_arr, latest_arr, input_scaler, input_features = _fit_engine_input(cfg, name, X_train, X_test, X_latest)
+        engine_inputs[name] = {
+            "train": train_arr,
+            "test": test_arr,
+            "latest": latest_arr,
+            "scaler": input_scaler,
+            "features": input_features,
+        }
+
     tune_summary: dict[str, Any] = {}
     if autotune:
-        base_engines, tune_summary = _tune_base_engines(cfg, base_engines, X_train_s, y_train)
+        tuned: dict[str, Any] = {}
+        for name, engine in base_engines.items():
+            tuned_one, summary_one = _tune_base_engines(cfg, {name: engine}, engine_inputs[name]["train"], y_train)
+            tuned.update(tuned_one)
+            tune_summary.update(summary_one)
+        base_engines = tuned
 
     fitted: dict[str, Any] = {}
     metrics: dict[str, Any] = {}
@@ -302,11 +417,11 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     for name, engine in base_engines.items():
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
-            engine.fit(X_train_s, y_train)
+            engine.fit(engine_inputs[name]["train"], y_train)
         fitted[name] = engine
-        raw_train_pred = np.asarray(engine.predict(X_train_s), dtype=float)
-        raw_test_pred = np.asarray(engine.predict(X_test_s), dtype=float)
-        raw_latest_pred = float(engine.predict(X_latest_s)[0])
+        raw_train_pred = np.asarray(engine.predict(engine_inputs[name]["train"]), dtype=float)
+        raw_test_pred = np.asarray(engine.predict(engine_inputs[name]["test"]), dtype=float)
+        raw_latest_pred = float(engine.predict(engine_inputs[name]["latest"])[0])
         raw_train_cols.append(raw_train_pred)
         raw_test_cols.append(raw_test_pred)
         raw_latest_values.append(raw_latest_pred)
@@ -328,6 +443,9 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_meta_latest, cfg)
 
     raw_pred_latest = {name: float(raw_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
+    neutralized_pred_latest, latest_discard_meta = _latest_engine_guard(raw_pred_latest, cfg)
+    if latest_discard_meta.get("discarded"):
+        meta_latest = np.array([[neutralized_pred_latest[name] for name in base_order]], dtype=float)
     pred_latest = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
     abs_pred_latest = {name: float(abs_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
 
@@ -353,7 +471,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     payload = {
         "ticker": ticker,
         "features": list(X.columns),
-        "scaler": scaler,
+        "engine_inputs": {name: {"features": engine_inputs[name]["features"], "scaler": engine_inputs[name]["scaler"]} for name in base_order},
         "normalization": (cfg.get("features", {}).get("preparation", {}) or {}).get("normalization", {}),
         "base_models": fitted,
         "base_order": base_order,
@@ -366,6 +484,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "prediction_guards": guards,
         "engine_safety": _engine_safety_cfg(cfg),
         "latest_prediction_by_engine_abs_guarded": abs_pred_latest,
+        "latest_engine_guard": latest_discard_meta,
     }
     with model_path.open("wb") as fh:
         pickle.dump(payload, fh)
@@ -400,6 +519,8 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "prediction_guards": guards,
         "engine_safety": _engine_safety_cfg(cfg),
         "latest_prediction_by_engine_abs_guarded": abs_pred_latest,
+        "latest_engine_guard": latest_discard_meta,
+        "engine_input_features": {name: engine_inputs[name]["features"] for name in base_order},
         "consensus_guard": {
             "train": train_consensus_meta,
             "test": test_consensus_meta,
@@ -440,13 +561,21 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
     # Current architecture: base specialists -> Ridge arbiter.
     if "base_models" in model and "arbiter" in model:
         base_order = model.get("base_order") or list(model["base_models"].keys())
-        latest_input = model["scaler"].transform(latest_X) if model.get("scaler") is not None else latest_X.to_numpy(dtype=float)
         guards = model.get("prediction_guards") or _prediction_guard_cfg(cfg)
         engine_clip = float(guards.get("max_engine_return_abs", 0.12))
         final_clip = float(guards.get("max_final_return_abs", 0.08))
-        raw_by_engine = {name: float(model["base_models"][name].predict(latest_input)[0]) for name in base_order}
+        engine_meta = model.get("engine_inputs") or {}
+        raw_by_engine = {}
+        for name in base_order:
+            engine_input = _transform_engine_input(engine_meta, name, latest_X) if engine_meta else latest_X.to_numpy(dtype=float)
+            raw_by_engine[name] = float(model["base_models"][name].predict(engine_input)[0])
         abs_values = np.array([[_clip_return_float(raw_by_engine[name], engine_clip) for name in base_order]], dtype=float)
-        meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_values, cfg)
+        neutralized_by_engine, latest_engine_guard = _latest_engine_guard(raw_by_engine, cfg)
+        if latest_engine_guard.get("discarded"):
+            meta_latest = np.array([[neutralized_by_engine[name] for name in base_order]], dtype=float)
+            latest_consensus_meta = {"enabled": True, "changed_values": len(latest_engine_guard.get("discarded", [])), "neutralized": True}
+        else:
+            meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_values, cfg)
         by_engine = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
         abs_by_engine = {name: float(abs_values[0, idx]) for idx, name in enumerate(base_order)}
         raw_prediction = float(model["arbiter"].predict(meta_latest)[0])
@@ -461,6 +590,9 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
             "abs_guarded_by_engine": abs_by_engine,
             "raw_prediction_return": raw_prediction,
             "consensus_guard": latest_consensus_meta,
+            "latest_engine_guard": latest_engine_guard,
+            "used_engines": latest_engine_guard.get("used", base_order),
+            "discarded_engines": latest_engine_guard.get("discarded", []),
             "prediction_guards": guards,
             "arbiter": "ridge",
             "dispersion": dispersion,

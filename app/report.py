@@ -12,6 +12,64 @@ def _money(value: float) -> str:
     return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def print_data_summary(status: dict[str, Any]) -> None:
+    """Print data update/cache status using the same compact screen style as train/predict."""
+    ticker = status.get("ticker", "")
+    profile = status.get("asset_profile", {}) or {}
+    context = status.get("context_tickers", []) or []
+    fundamentals = status.get("fundamentals", {}) or {}
+    sentiment = status.get("sentiment", {}) or {}
+    period = status.get("period") or "n/a"
+    min_rows = status.get("min_rows")
+    cache_path = str(status.get("path", ""))
+    cache_display = cache_path
+    if "data_cache" in cache_display:
+        cache_display = cache_display[cache_display.rfind("data_cache"):]
+
+    print("\n" + "=" * 72)
+    print(f"TRADEGEM DATA | {ticker}")
+    print("=" * 72)
+    print(f"status      : {status.get('status', 'updated')}")
+    if status.get("ticker_changed"):
+        requested = status.get("requested_ticker")
+        alias = status.get("alias", {}) or {}
+        reason = alias.get("reason", "ticker_alias")
+        print(f"alias       : {requested} -> {ticker} | reason={reason}")
+    rows = int(status.get("rows", 0) or 0)
+    if min_rows is not None:
+        validation = "ok" if rows >= int(min_rows) else "low_rows"
+        print(f"rows        : {rows} | min={int(min_rows)} | validation={validation}")
+    else:
+        print(f"rows        : {rows}")
+    print(f"range       : {status.get('start')}..{status.get('end')}")
+    print(f"period      : {period}")
+    print(f"cache       : {cache_display}")
+    print("")
+    print("context     : " + (", ".join([str(x) for x in context]) if context else "none"))
+    skipped_context = status.get("unavailable_context_tickers", []) or []
+    if skipped_context:
+        print("ctx skipped : " + ", ".join([str(x) for x in skipped_context[:6]]))
+    group = profile.get("group") or "n/a"
+    subgroup = profile.get("subgroup") or "n/a"
+    klass = profile.get("financial_class") or "n/a"
+    print(f"registry    : group={group} | subgroup={subgroup} | class={klass}")
+    print(f"cnpj        : {profile.get('cnpj') or 'not registered'}")
+    linked = profile.get("linked_indices") or []
+    if linked:
+        print("indices     : " + ", ".join([str(x) for x in linked]))
+    fund_status = fundamentals.get("status", "disabled")
+    fund_source = fundamentals.get("source", "n/a")
+    print(f"fundamentals: {fund_status} | source={fund_source}")
+    sent_status = sentiment.get("status", "disabled")
+    sent_cache = sentiment.get("cache", "n/a")
+    sent_items = sentiment.get("new_items")
+    if sent_items is None:
+        print(f"sentiment   : {sent_status} | daily_cache={sent_cache}")
+    else:
+        print(f"sentiment   : {sent_status} | daily_cache={sent_cache} | entries={sent_items}")
+    print("=" * 72)
+
+
 def print_train_summary(manifest: dict[str, Any]) -> None:
     print("\n" + "=" * 72)
     print(f"TRADEGEM TRAIN | {manifest['ticker']}")
@@ -54,10 +112,14 @@ def print_signal(signal: dict[str, Any]) -> None:
         arbiter = signal.get('prediction', {}).get('arbiter', 'ridge')
         print(f"base engines: {line}")
         raw_engines = signal.get("prediction", {}).get("raw_by_engine", {}) or {}
+        discarded = signal.get("prediction", {}).get("discarded_engines", []) or []
+        used = signal.get("prediction", {}).get("used_engines", []) or []
         if raw_engines and any(abs(float(raw_engines.get(k, 0))) > abs(float(v)) + 1e-12 for k, v in engines.items()):
             raw_line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in raw_engines.items()])
             print(f"raw engines : {raw_line}")
-            print("guard       : extreme base prediction clipped before Ridge")
+        if discarded:
+            print(f"used engines: {', '.join(used) if used else 'none'}")
+            print(f"guard       : {', '.join(discarded)} neutralized before Ridge")
         print(f"arbiter     : {arbiter}")
     print("reasons     : " + "; ".join(policy.get("reasons", [])))
     print(f"train run   : {signal.get('train_run_id')}")

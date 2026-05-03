@@ -9,55 +9,98 @@ sources:
   market_prices: Yahoo Finance tickers used by yfinance
 indices:
   default_context:
-  - ^BVSP
-  - USDBRL=X
-  - BZ=F
-  available_now:
-    ^BVSP:
+  - IBOV
+  - USDBRL
+  - BRENT
+  available_now: &id007
+    IBOV:
       label: Ibovespa
       role: benchmark_market
       provider: yfinance
-    USDBRL=X:
+      yahoo_ticker: ^BVSP
+      enabled: true
+    USDBRL:
       label: USD/BRL
       role: fx
       provider: yfinance
-    BZ=F:
+      yahoo_ticker: USDBRL=X
+      enabled: true
+    BRENT:
       label: Brent crude oil futures
       role: commodity_oil
       provider: yfinance
-  future_candidates:
+      yahoo_ticker: BZ=F
+      enabled: true
     IFNC:
-      label: Indice Financeiro
+      label: Indice Financeiro B3
       role: sector_financials
-      provider: b3/yfinance_if_available
-    IMAT:
-      label: Indice Materiais Basicos
-      role: sector_materials
-      provider: b3/yfinance_if_available
+      provider: yfinance
+      yahoo_ticker: IFNC.SA
+      enabled: true
     IEEX:
-      label: Indice Energia Eletrica
+      label: Indice de Energia Eletrica B3
       role: sector_utilities
-      provider: b3/yfinance_if_available
-    ICON:
-      label: Indice Consumo
-      role: sector_consumption
-      provider: b3/yfinance_if_available
-    INDX:
-      label: Indice Industrial
-      role: sector_industrials
-      provider: b3/yfinance_if_available
-    IMOB:
-      label: Indice Imobiliario
-      role: sector_real_estate
-      provider: b3/yfinance_if_available
-    SMLL:
-      label: Indice Small Cap
-      role: style_small_caps
-      provider: b3/yfinance_if_available
+      provider: yfinance
+      yahoo_ticker: ^IEE
+      enabled: true
     IBRX50:
-      label: IBrX 50
+      label: IBrX 50 B3
       role: large_caps
-      provider: b3/yfinance_if_available
+      provider: yfinance
+      yahoo_ticker: ^IBX50
+      enabled: true
+    IMAT: &id001
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON: &id002
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX: &id003
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB: &id004
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL: &id005
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV: &id006
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+    UTIL:
+      label: Utilities proxy via IEEX
+      role: sector_utilities
+      provider: derived
+      yahoo_ticker: null
+      enabled: false
+      validation_status: use_IEEX_until_direct_provider
+  future_candidates:
+    IMAT: *id001
+    ICON: *id002
+    INDX: *id003
+    IMOB: *id004
+    SMLL: *id005
+    IDIV: *id006
+  catalog: *id007
 defaults:
   asset_type: stock
   country: BR
@@ -81,11 +124,12 @@ assets:
     - ^BVSP
     - USDBRL=X
     - BZ=F
+    - ^IBX50
     linked_indices:
     - IBOV
-    - IEEX
     - IBRX50
     use_in_reference_sample: true
+    registry_status: active
   VALE3.SA:
     name: VALE
     asset_type: stock
@@ -104,6 +148,7 @@ assets:
     - IMAT
     - IBRX50
     use_in_reference_sample: true
+    registry_status: active
   ITUB4.SA:
     name: ITAU UNIBANCO
     asset_type: stock
@@ -116,12 +161,15 @@ assets:
     cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
+    - IFNC.SA
     - USDBRL=X
+    - ^IBX50
     linked_indices:
     - IBOV
     - IFNC
     - IBRX50
     use_in_reference_sample: true
+    registry_status: active
   BBAS3.SA:
     name: BANCO DO BRASIL
     asset_type: stock
@@ -140,6 +188,7 @@ assets:
     - IFNC
     - IBRX50
     use_in_reference_sample: true
+    registry_status: active
   BBDC4.SA:
     name: BRADESCO
     asset_type: stock
@@ -158,6 +207,7 @@ assets:
     - IFNC
     - IBRX50
     use_in_reference_sample: true
+    registry_status: active
   SANB11.SA:
     name: SANTANDER BRASIL
     asset_type: stock
@@ -175,6 +225,7 @@ assets:
     - IBOV
     - IFNC
     use_in_reference_sample: true
+    registry_status: active
   BPAC11.SA:
     name: BTG PACTUAL
     asset_type: stock
@@ -192,6 +243,7 @@ assets:
     - IBOV
     - IFNC
     use_in_reference_sample: true
+    registry_status: active
   B3SA3.SA:
     name: B3
     asset_type: stock
@@ -209,6 +261,7 @@ assets:
     - IBOV
     - IFNC
     use_in_reference_sample: true
+    registry_status: active
   BBSE3.SA:
     name: BB SEGURIDADE
     asset_type: stock
@@ -226,6 +279,7 @@ assets:
     - IBOV
     - IFNC
     use_in_reference_sample: true
+    registry_status: active
   PSSA3.SA:
     name: PORTO SEGURO
     asset_type: stock
@@ -242,6 +296,7 @@ assets:
     linked_indices:
     - IFNC
     use_in_reference_sample: true
+    registry_status: active
   VIVT3.SA:
     name: TELEFONICA BRASIL
     asset_type: stock
@@ -258,6 +313,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   TIMS3.SA:
     name: TIM
     asset_type: stock
@@ -274,6 +330,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   RENT3.SA:
     name: LOCALIZA
     asset_type: stock
@@ -291,6 +348,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   VAMO3.SA:
     name: VAMOS
     asset_type: stock
@@ -307,6 +365,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   LREN3.SA:
     name: LOJAS RENNER
     asset_type: stock
@@ -324,6 +383,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   MGLU3.SA:
     name: MAGAZINE LUIZA
     asset_type: stock
@@ -341,6 +401,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   AMER3.SA:
     name: AMERICANAS
     asset_type: stock
@@ -357,6 +418,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   ARZZ3.SA:
     name: AREZZO
     asset_type: stock
@@ -373,6 +435,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   SOMA3.SA:
     name: GRUPO SOMA
     asset_type: stock
@@ -389,6 +452,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   ABEV3.SA:
     name: AMBEV
     asset_type: stock
@@ -406,6 +470,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   JBSS3.SA:
     name: JBS
     asset_type: stock
@@ -423,6 +488,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   BRFS3.SA:
     name: BRF
     asset_type: stock
@@ -440,6 +506,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   MRFG3.SA:
     name: MARFRIG
     asset_type: stock
@@ -456,6 +523,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   SLCE3.SA:
     name: SLC AGRICOLA
     asset_type: stock
@@ -472,6 +540,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   AGRO3.SA:
     name: BRASILAGRO
     asset_type: stock
@@ -488,6 +557,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   SUZB3.SA:
     name: SUZANO
     asset_type: stock
@@ -505,6 +575,7 @@ assets:
     - IBOV
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   KLBN11.SA:
     name: KLABIN
     asset_type: stock
@@ -522,6 +593,7 @@ assets:
     - IBOV
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   GGBR4.SA:
     name: GERDAU
     asset_type: stock
@@ -539,6 +611,7 @@ assets:
     - IBOV
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   CSNA3.SA:
     name: CSN
     asset_type: stock
@@ -556,6 +629,7 @@ assets:
     - IBOV
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   USIM5.SA:
     name: USIMINAS
     asset_type: stock
@@ -572,6 +646,7 @@ assets:
     linked_indices:
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   BRAP4.SA:
     name: BRADESPAR
     asset_type: stock
@@ -588,6 +663,7 @@ assets:
     linked_indices:
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   PRIO3.SA:
     name: PRIO
     asset_type: stock
@@ -605,6 +681,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   RRRP3.SA:
     name: 3R PETROLEUM
     asset_type: stock
@@ -622,6 +699,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   CSAN3.SA:
     name: COSAN
     asset_type: stock
@@ -639,6 +717,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   RAIZ4.SA:
     name: RAIZEN
     asset_type: stock
@@ -656,6 +735,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   UGPA3.SA:
     name: ULTRAPAR
     asset_type: stock
@@ -673,8 +753,9 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   ELET3.SA:
-    name: ELETROBRAS
+    name: ELETROBRAS (OLD TICKER)
     asset_type: stock
     country: BR
     currency: BRL
@@ -684,14 +765,19 @@ assets:
     cnpj: null
     cnpj_status: pending_lookup
     context_tickers:
-    - ^BVSP
-    - USDBRL=X
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
     linked_indices:
     - IBOV
     - IEEX
+    - IBRX50
     use_in_reference_sample: true
+    registry_status: inactive_alias
+    canonical_ticker: AXIA3.SA
   ELET6.SA:
-    name: ELETROBRAS PNB
+    name: ELETROBRAS PNB (OLD TICKER)
     asset_type: stock
     country: BR
     currency: BRL
@@ -701,12 +787,17 @@ assets:
     cnpj: null
     cnpj_status: pending_lookup
     context_tickers:
-    - ^BVSP
-    - USDBRL=X
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
     linked_indices:
     - IBOV
     - IEEX
+    - IBRX50
     use_in_reference_sample: true
+    registry_status: inactive_alias
+    canonical_ticker: AXIA6.SA
   CPFE3.SA:
     name: CPFL ENERGIA
     asset_type: stock
@@ -723,6 +814,7 @@ assets:
     linked_indices:
     - IEEX
     use_in_reference_sample: true
+    registry_status: active
   CMIG4.SA:
     name: CEMIG
     asset_type: stock
@@ -740,6 +832,7 @@ assets:
     - IBOV
     - IEEX
     use_in_reference_sample: true
+    registry_status: active
   TAEE11.SA:
     name: TAESA
     asset_type: stock
@@ -756,6 +849,7 @@ assets:
     linked_indices:
     - IEEX
     use_in_reference_sample: true
+    registry_status: active
   EGIE3.SA:
     name: ENGIE BRASIL
     asset_type: stock
@@ -772,6 +866,7 @@ assets:
     linked_indices:
     - IEEX
     use_in_reference_sample: true
+    registry_status: active
   SBSP3.SA:
     name: SABESP
     asset_type: stock
@@ -789,6 +884,7 @@ assets:
     - IBOV
     - UTIL
     use_in_reference_sample: true
+    registry_status: active
   CMIN3.SA:
     name: CSN MINERACAO
     asset_type: stock
@@ -805,6 +901,7 @@ assets:
     linked_indices:
     - IMAT
     use_in_reference_sample: true
+    registry_status: active
   WEGE3.SA:
     name: WEG
     asset_type: stock
@@ -822,6 +919,7 @@ assets:
     - IBOV
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   EMBR3.SA:
     name: EMBRAER
     asset_type: stock
@@ -839,6 +937,7 @@ assets:
     - IBOV
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   RAIL3.SA:
     name: RUMO
     asset_type: stock
@@ -856,6 +955,7 @@ assets:
     - IBOV
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   CCRO3.SA:
     name: CCR
     asset_type: stock
@@ -873,6 +973,7 @@ assets:
     - IBOV
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   AZUL4.SA:
     name: AZUL
     asset_type: stock
@@ -891,6 +992,7 @@ assets:
     - IBOV
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   GOLL4.SA:
     name: GOL
     asset_type: stock
@@ -908,6 +1010,7 @@ assets:
     linked_indices:
     - INDX
     use_in_reference_sample: true
+    registry_status: active
   YDUQ3.SA:
     name: YDUQS
     asset_type: stock
@@ -924,6 +1027,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   COGN3.SA:
     name: COGNA
     asset_type: stock
@@ -940,6 +1044,7 @@ assets:
     linked_indices:
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   FLRY3.SA:
     name: FLEURY
     asset_type: stock
@@ -956,6 +1061,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   HAPV3.SA:
     name: HAPVIDA
     asset_type: stock
@@ -972,6 +1078,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   RADL3.SA:
     name: RAIA DROGASIL
     asset_type: stock
@@ -989,6 +1096,7 @@ assets:
     - IBOV
     - ICON
     use_in_reference_sample: true
+    registry_status: active
   RDOR3.SA:
     name: REDE D OR
     asset_type: stock
@@ -1005,6 +1113,7 @@ assets:
     linked_indices:
     - IBOV
     use_in_reference_sample: true
+    registry_status: active
   MULT3.SA:
     name: MULTIPLAN
     asset_type: stock
@@ -1021,6 +1130,7 @@ assets:
     linked_indices:
     - IMOB
     use_in_reference_sample: true
+    registry_status: active
   IGTI11.SA:
     name: IGUATEMI
     asset_type: stock
@@ -1037,6 +1147,7 @@ assets:
     linked_indices:
     - IMOB
     use_in_reference_sample: true
+    registry_status: active
   CYRE3.SA:
     name: CYRELA
     asset_type: stock
@@ -1054,6 +1165,7 @@ assets:
     - IBOV
     - IMOB
     use_in_reference_sample: true
+    registry_status: active
   MRVE3.SA:
     name: MRV
     asset_type: stock
@@ -1070,3 +1182,193 @@ assets:
     linked_indices:
     - IMOB
     use_in_reference_sample: true
+    registry_status: active
+  AXIA3.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: &id008
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    linked_indices: &id009
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    former_tickers: &id010
+    - ELET3.SA
+    - ELET5.SA
+    - ELET6.SA
+    share_class: 'ON'
+  AXIA5.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: *id008
+    linked_indices: *id009
+    use_in_reference_sample: false
+    registry_status: active
+    former_tickers: *id010
+    share_class: PNA
+  AXIA6.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: null
+    cnpj_status: pending_lookup
+    context_tickers: *id008
+    linked_indices: *id009
+    use_in_reference_sample: false
+    registry_status: active
+    former_tickers: *id010
+    share_class: PNB
+context:
+  description: Context baskets by asset group/subgroup. Codes are resolved through
+    indices.catalog to Yahoo tickers when available.
+  global:
+  - IBOV
+  group_defaults:
+    financials:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    utilities:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    energy:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    materials:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    consumer:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    healthcare:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    industrials:
+    - IBOV
+    - USDBRL
+    - INDX
+    - IBRX50
+    real_estate:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+    telecom:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IDIV
+    technology:
+    - IBOV
+    - USDBRL
+    - IBRX50
+  subgroup_defaults:
+    oil_gas:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    fuel_distribution:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    banking:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    - IDIV
+    insurance:
+    - IBOV
+    - IFNC
+    - USDBRL
+    - IDIV
+    electric_power:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    mining:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    retail:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    real_estate_development:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+aliases:
+  ELET3.SA:
+    canonical: AXIA3.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS
+    new_name: AXIA ENERGIA
+  ELET5.SA:
+    canonical: AXIA5.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS PNA
+    new_name: AXIA ENERGIA
+  ELET6.SA:
+    canonical: AXIA6.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+    old_name: ELETROBRAS PNB
+    new_name: AXIA ENERGIA
+  ELET3:
+    canonical: AXIA3.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+  ELET5:
+    canonical: AXIA5.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'
+  ELET6:
+    canonical: AXIA6.SA
+    reason: ticker_migration
+    effective_date: '2025-11-10'

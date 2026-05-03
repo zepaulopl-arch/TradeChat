@@ -249,13 +249,21 @@ preparation:
     note: Protects engines from extreme daily returns in very long histories.
   selection:
     enabled: true
-    method: target_relevance_low_correlation_greedy
+    method: target_relevance_low_correlation_greedy_family_balanced
     max_features: 20
     correlation_threshold: 0.85
-    family_minimums:
-      technical: 8
-      context: 4
-      fundamentals: 1
-      sentiment: 1
-    note: Ranks features by simple target relevance and rejects candidates too correlated
+    family_limits:
+      technical:
+        min: 8
+        max: 10
+      context:
+        min: 3
+        max: 5
+      fundamentals:
+        min: 0
+        max: 3
+      sentiment:
+        min: 0
+        max: 2
+    note: Ranks features by simple target relevance, rejects candidates too correlated, and prevents one family from dominating
       with already selected features.

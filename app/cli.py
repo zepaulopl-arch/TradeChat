@@ -5,30 +5,72 @@ from pathlib import Path
 from typing import Any
 
 from .config import load_config, artifact_dir
-from .data import load_prices, data_status
+from .data import load_prices, data_status, resolve_asset
 from .features import build_dataset
-from .report import print_train_summary, print_signal, write_txt_report
+from .report import print_data_summary, print_train_summary, print_signal, write_txt_report
 from .utils import normalize_ticker, parse_tickers, safe_ticker, write_json, read_json
 
 
+def _canonical_ticker(cfg: dict[str, Any], ticker: str) -> str:
+    return resolve_asset(cfg, ticker)["canonical"]
+
+
 def _build_current_dataset(cfg: dict[str, Any], ticker: str, update: bool = False):
+    ticker = _canonical_ticker(cfg, ticker)
     prices = load_prices(cfg, ticker, update=update)
     return build_dataset(cfg, prices, ticker)
+
+
+def _fundamentals_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
+    fcfg = cfg.get("features", {}).get("fundamentals", {}) or {}
+    if not bool(fcfg.get("enabled", True)):
+        return {"status": "disabled", "source": "features.yaml"}
+    try:
+        from .fundamentals import yahoo_snapshot
+        snap = yahoo_snapshot(ticker)
+        has_values = any(float(snap.get(key, 0) or 0) != 0 for key in ("pl", "dy", "pvp", "roe"))
+        return {
+            "status": "available" if has_values else "metadata_only",
+            "source": str(snap.get("source", "yfinance")),
+        }
+    except Exception as exc:
+        return {"status": "unavailable", "source": str(exc)[:48]}
+
+
+def _sentiment_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
+    scfg = cfg.get("features", {}).get("sentiment", {}) or {}
+    if not bool(scfg.get("enabled", False)):
+        return {"status": "disabled", "cache": "off"}
+    try:
+        from .sentiment import update_sentiment_cache
+        meta = update_sentiment_cache(ticker, cfg)
+        return {
+            "status": "updated",
+            "cache": "ok",
+            "new_items": int(meta.get("new_items", 0) or 0),
+            "cache_rows": int(meta.get("cache_rows", 0) or 0),
+        }
+    except Exception as exc:
+        return {"status": "unavailable", "cache": str(exc)[:48]}
 
 
 def cmd_data(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     for ticker in parse_tickers(args.tickers):
-        df = load_prices(cfg, ticker, update=True)
+        load_prices(cfg, ticker, update=True)
         st = data_status(cfg, ticker)
-        print(
-            f"{st['ticker']}: data updated | rows={st['rows']} | "
-            f"range={st['start']}..{st['end']} | context={','.join(st.get('context_tickers', []))} | cache={st['path']}"
-        )
+        st["status"] = "updated" if st.get("cache_exists") else "not_found"
+        st["period"] = cfg.get("data", {}).get("period", "n/a")
+        st["min_rows"] = cfg.get("data", {}).get("min_rows")
+        canonical = st.get("ticker", ticker)
+        st["fundamentals"] = _fundamentals_data_status(cfg, canonical)
+        st["sentiment"] = _sentiment_data_status(cfg, canonical)
+        print_data_summary(st)
 
 def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     for ticker in parse_tickers(args.tickers):
+        ticker = _canonical_ticker(cfg, ticker)
         X, y, meta = _build_current_dataset(cfg, ticker, update=args.update)
         from .models import train_models
         manifest = train_models(cfg, ticker, X, y, meta, autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)))
@@ -36,6 +78,7 @@ def cmd_train(args: argparse.Namespace) -> None:
 
 
 def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict[str, Any]:
+    ticker = _canonical_ticker(cfg, ticker)
     X, y, meta = _build_current_dataset(cfg, ticker, update=update)
     from .models import predict_with_model
     from .policy import classify_signal
