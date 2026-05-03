@@ -52,6 +52,40 @@ def _clip_return_float(value: float, limit: float) -> float:
     return float(np.clip(float(value), -limit, limit))
 
 
+def _engine_safety_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
+    safety = cfg.get("model", {}).get("engine_safety", {}) or {}
+    return {
+        "consensus_guard_enabled": bool(safety.get("consensus_guard_enabled", True)),
+        "max_deviation_from_median": float(safety.get("max_deviation_from_median", 0.025)),
+    }
+
+
+def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any]]:
+    """Limit one divergent engine without changing the architecture.
+
+    The Ridge arbiter should judge specialists, not be dominated by a single MLP
+    excursion. This guard is row-wise: each engine prediction is clipped to a
+    configurable band around the row median of all base engines. Raw predictions
+    are still audited separately.
+    """
+    arr = np.asarray(matrix, dtype=float)
+    safety = _engine_safety_cfg(cfg)
+    if arr.size == 0 or not safety["consensus_guard_enabled"]:
+        return arr, {"enabled": False, "changed_values": 0}
+    band = float(safety["max_deviation_from_median"])
+    if band <= 0:
+        return arr, {"enabled": False, "changed_values": 0}
+    med = np.nanmedian(arr, axis=1, keepdims=True)
+    guarded = np.clip(arr, med - band, med + band)
+    changed = int(np.sum(np.abs(guarded - arr) > 1e-12))
+    return guarded, {
+        "enabled": True,
+        "max_deviation_from_median": band,
+        "changed_values": changed,
+        "changed_ratio": float(changed / arr.size) if arr.size else 0.0,
+    }
+
+
 def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
     """Create the specialist/base engines.
 
@@ -94,18 +128,27 @@ def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
 
     if engines_cfg.get("mlp", {}).get("enabled", True):
         ecfg = engines_cfg.get("mlp", {})
-        hidden = ecfg.get("hidden_layer_sizes", 64)
+        hidden = ecfg.get("hidden_layer_sizes", [64, 32])
+        # Fixed training config uses the sklearn meaning: [64, 32] = two hidden layers.
+        # Autotune search config may still use scalar alternatives such as [32, 64].
         if isinstance(hidden, list):
-            # Original TradeGem used scalar options such as [32, 64] for BayesSearchCV.
-            # For fixed training, use the last configured option as the default size.
-            hidden = int(hidden[-1]) if hidden else 64
+            hidden_layer_sizes = tuple(int(v) for v in hidden) if hidden else (64,)
+        elif isinstance(hidden, tuple):
+            hidden_layer_sizes = tuple(int(v) for v in hidden) if hidden else (64,)
+        else:
+            hidden_layer_sizes = (int(hidden),)
         engines["mlp"] = MLPRegressor(
-            hidden_layer_sizes=int(hidden),
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=str(ecfg.get("activation", "relu")),
+            solver=str(ecfg.get("solver", "adam")),
             alpha=float(ecfg.get("alpha", 0.0005)),
+            learning_rate=str(ecfg.get("learning_rate", "adaptive")),
             learning_rate_init=float(ecfg.get("learning_rate_init", 0.001)),
-            max_iter=int(ecfg.get("max_iter", 600)),
+            max_iter=int(ecfg.get("max_iter", 800)),
             random_state=random_state,
             early_stopping=bool(ecfg.get("early_stopping", True)),
+            validation_fraction=float(ecfg.get("validation_fraction", 0.12)),
+            n_iter_no_change=int(ecfg.get("n_iter_no_change", 30)),
         )
     return engines
 
@@ -248,14 +291,13 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
 
     fitted: dict[str, Any] = {}
     metrics: dict[str, Any] = {}
-    meta_train_cols = []
-    meta_test_cols = []
-    pred_latest: dict[str, float] = {}
+    raw_train_cols: list[np.ndarray] = []
+    raw_test_cols: list[np.ndarray] = []
+    raw_latest_values: list[float] = []
 
     guards = _prediction_guard_cfg(cfg)
     engine_clip = guards["max_engine_return_abs"]
     final_clip = guards["max_final_return_abs"]
-    raw_pred_latest: dict[str, float] = {}
 
     for name, engine in base_engines.items():
         with warnings.catch_warnings():
@@ -265,22 +307,35 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         raw_train_pred = np.asarray(engine.predict(X_train_s), dtype=float)
         raw_test_pred = np.asarray(engine.predict(X_test_s), dtype=float)
         raw_latest_pred = float(engine.predict(X_latest_s)[0])
-        train_pred = _clip_return_array(raw_train_pred, engine_clip)
-        test_pred = _clip_return_array(raw_test_pred, engine_clip)
-        latest_pred = _clip_return_float(raw_latest_pred, engine_clip)
-        meta_train_cols.append(train_pred)
-        meta_test_cols.append(test_pred)
-        pred_latest[name] = latest_pred
-        raw_pred_latest[name] = raw_latest_pred
+        raw_train_cols.append(raw_train_pred)
+        raw_test_cols.append(raw_test_pred)
+        raw_latest_values.append(raw_latest_pred)
         metrics[name] = {
-            "mae_return": float(mean_absolute_error(y_test, raw_test_pred)),
-            "mae_return_guarded": float(mean_absolute_error(y_test, test_pred)),
+            "mae_return_raw": float(mean_absolute_error(y_test, raw_test_pred)),
         }
 
     base_order = list(fitted.keys())
-    meta_train = np.column_stack(meta_train_cols)
-    meta_test = np.column_stack(meta_test_cols)
-    meta_latest = np.array([[pred_latest[name] for name in base_order]], dtype=float)
+    raw_meta_train = np.column_stack(raw_train_cols)
+    raw_meta_test = np.column_stack(raw_test_cols)
+    raw_meta_latest = np.array([raw_latest_values], dtype=float)
+
+    abs_meta_train = _clip_return_array(raw_meta_train, engine_clip)
+    abs_meta_test = _clip_return_array(raw_meta_test, engine_clip)
+    abs_meta_latest = _clip_return_array(raw_meta_latest, engine_clip)
+
+    meta_train, train_consensus_meta = _apply_consensus_guard(abs_meta_train, cfg)
+    meta_test, test_consensus_meta = _apply_consensus_guard(abs_meta_test, cfg)
+    meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_meta_latest, cfg)
+
+    raw_pred_latest = {name: float(raw_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
+    pred_latest = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
+    abs_pred_latest = {name: float(abs_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
+
+    for idx, name in enumerate(base_order):
+        metrics[name]["mae_return_abs_guarded"] = float(mean_absolute_error(y_test, abs_meta_test[:, idx]))
+        metrics[name]["mae_return_consensus_guarded"] = float(mean_absolute_error(y_test, meta_test[:, idx]))
+        metrics[name]["latest_raw_return"] = raw_pred_latest[name]
+        metrics[name]["latest_guarded_return"] = pred_latest[name]
 
     arbiter = _make_arbiter(cfg)
     arbiter.fit(meta_train, y_train)
@@ -309,6 +364,8 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "pred_latest_by_engine": pred_latest,
         "raw_pred_latest_by_engine": raw_pred_latest,
         "prediction_guards": guards,
+        "engine_safety": _engine_safety_cfg(cfg),
+        "latest_prediction_by_engine_abs_guarded": abs_pred_latest,
     }
     with model_path.open("wb") as fh:
         pickle.dump(payload, fh)
@@ -341,6 +398,13 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "latest_prediction_by_engine_raw": raw_pred_latest,
         "latest_prediction_return_raw": arbiter_latest_raw,
         "prediction_guards": guards,
+        "engine_safety": _engine_safety_cfg(cfg),
+        "latest_prediction_by_engine_abs_guarded": abs_pred_latest,
+        "consensus_guard": {
+            "train": train_consensus_meta,
+            "test": test_consensus_meta,
+            "latest": latest_consensus_meta,
+        },
         "engine_dispersion": dispersion,
         "confidence": confidence,
         "dataset_meta": dataset_meta,
@@ -381,8 +445,10 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
         engine_clip = float(guards.get("max_engine_return_abs", 0.12))
         final_clip = float(guards.get("max_final_return_abs", 0.08))
         raw_by_engine = {name: float(model["base_models"][name].predict(latest_input)[0]) for name in base_order}
-        by_engine = {name: _clip_return_float(value, engine_clip) for name, value in raw_by_engine.items()}
-        meta_latest = np.array([[by_engine[name] for name in base_order]], dtype=float)
+        abs_values = np.array([[_clip_return_float(raw_by_engine[name], engine_clip) for name in base_order]], dtype=float)
+        meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_values, cfg)
+        by_engine = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
+        abs_by_engine = {name: float(abs_values[0, idx]) for idx, name in enumerate(base_order)}
         raw_prediction = float(model["arbiter"].predict(meta_latest)[0])
         prediction = _clip_return_float(raw_prediction, final_clip)
         dispersion, confidence = _confidence_from(list(by_engine.values()), prediction, cfg)
@@ -392,7 +458,9 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
             "prediction_return": prediction,
             "by_engine": by_engine,
             "raw_by_engine": raw_by_engine,
+            "abs_guarded_by_engine": abs_by_engine,
             "raw_prediction_return": raw_prediction,
+            "consensus_guard": latest_consensus_meta,
             "prediction_guards": guards,
             "arbiter": "ridge",
             "dispersion": dispersion,

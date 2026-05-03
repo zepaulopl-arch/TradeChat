@@ -25,5 +25,5 @@ Thumbs.db
 # Logs
 *.log
 
-# Generated artifacts
+# Generated model/report artifacts
 artifacts/

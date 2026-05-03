@@ -195,10 +195,9 @@ def load_data_registry(cfg: dict[str, Any] | None = None, path: str | Path | Non
     if path:
         registry_path = Path(path)
     elif cfg:
-        registry_file = cfg.get("data", {}).get("registry_file", "data.yaml")
-        registry_path = Path(registry_file)
-        if not registry_path.is_absolute():
-            registry_path = Path(cfg.get("_config_dir", CONFIG_DIR)) / registry_path
+        registry_file = Path(cfg.get("data", {}).get("registry_file", "data.yaml"))
+        base = Path(cfg.get("_config_dir", str(CONFIG_DIR)))
+        registry_path = registry_file if registry_file.is_absolute() else base / registry_file
     else:
         registry_path = DATA_REGISTRY_PATH
     return _load_yaml(registry_path)
