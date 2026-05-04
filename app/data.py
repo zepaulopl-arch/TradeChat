@@ -55,18 +55,44 @@ def _download_one_yahoo(ticker: str, period: str, *, is_context: bool) -> pd.Ser
     return None
 
 
-def _download_yahoo(tickers: list[str], period: str) -> pd.DataFrame:
+def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None = None) -> pd.DataFrame:
     """Download asset and context prices with provider validation.
 
     The first ticker is the asset and is mandatory. Remaining tickers are context
-    indices/macros: they are useful, but must degrade gracefully when a provider
-    rejects a period such as ``max`` or temporarily lacks data.
+    indices/macros. Includes polite throttling and ticker stitching for corporate actions.
     """
+    import time
     series: list[pd.Series] = []
+    asset_ticker = tickers[0]
+    
+    # Throttling config
+    dcfg = (cfg or {}).get("data", {})
+    delay = float(dcfg.get("download_delay_seconds", 1.2))
+
     for idx, ticker in enumerate(tickers):
+        if idx > 0 and delay > 0:
+            time.sleep(delay)
+        
         item = _download_one_yahoo(ticker, period, is_context=idx > 0)
+        
+        # Ticker Stitching: If this is the main asset and has a predecessor, merge them.
+        if idx == 0 and item is not None and cfg:
+            profile = get_asset_profile(cfg, ticker)
+            predecessor = profile.get("predecessor_ticker")
+            if predecessor:
+                ratio = float(profile.get("conversion_ratio", 1.0))
+                # Add a small delay before predecessor download
+                if delay > 0: time.sleep(delay)
+                old_data = _download_one_yahoo(predecessor, period, is_context=False)
+                if old_data is not None and not old_data.empty:
+                    # Apply conversion ratio to historical prices to prevent artificial jumps
+                    old_data = old_data * ratio
+                    # Combine: prefer new data for overlapping dates
+                    item = item.combine_first(old_data)
+
         if item is not None and not item.empty:
             series.append(item)
+            
     if not series:
         return pd.DataFrame()
     close = pd.concat(series, axis=1).sort_index().ffill().dropna(how="all")
@@ -216,7 +242,7 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     period = cfg.get("data", {}).get("period", "5y")
     macros = resolve_context_tickers(cfg, canonical)
     tickers = _unique([canonical] + macros)
-    close = _download_yahoo(tickers, period=period)
+    close = _download_yahoo(tickers, period=period, cfg=cfg)
 
     # Remove empty/failed context downloads but fail clearly if the asset itself is absent.
     close = close.dropna(axis=1, how="all")

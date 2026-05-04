@@ -993,6 +993,8 @@ assets:
     financial_class: non_financial
     cnpj: 00.001.180/0001-26
     cnpj_status: verified_seed
+    predecessor_ticker: ELET3.SA
+    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - ^IEE
@@ -1125,6 +1127,8 @@ assets:
     financial_class: non_financial
     cnpj: 09.296.295/0001-60
     cnpj_status: verified_seed
+    predecessor_ticker: AZUL4.SA
+    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1144,6 +1148,7 @@ assets:
     financial_class: non_financial
     cnpj: 06.164.253/0001-87
     cnpj_status: verified_seed
+    registry_status: inactive_delisted
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1162,6 +1167,8 @@ assets:
     financial_class: non_financial
     cnpj: 07.689.002/0001-89
     cnpj_status: verified_seed
+    predecessor_ticker: EMBR3.SA
+    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
