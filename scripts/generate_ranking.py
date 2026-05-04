@@ -11,32 +11,47 @@ def generate_ranking(artifact_dir: Path):
             with open(signal_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-            # Extract all horizons
             horizons = data.get("horizons", {})
+            policy = data.get("policy", {"label": "NEUTRAL", "horizon": "d1"})
+            
+            # Extract basic returns
             d1_ret = float(horizons.get("d1", {}).get("prediction_return", 0.0)) * 100
             d5_ret = float(horizons.get("d5", {}).get("prediction_return", 0.0)) * 100
             d20_ret = float(horizons.get("d20", {}).get("prediction_return", 0.0)) * 100
             
-            # Confidence from d1 (primary)
-            conf = float(horizons.get("d1", {}).get("confidence", 0.0))
-            disp = float(horizons.get("d1", {}).get("dispersion", 0.0)) * 100
+            # Triggered horizon and its metrics
+            trigger_h = policy.get("horizon", "d1")
+            trigger_pred = horizons.get(trigger_h, horizons.get("d1", {}))
             
-            # Opportunity Score based on d1 conviction
-            score = conf * abs(d1_ret) * 100
+            conf_pct = float(policy.get("confidence_pct", 0.0))
+            # Use return of the horizon that triggered the signal for the score
+            triggered_ret = float(trigger_pred.get("prediction_return", 0.0)) * 100
             
-            ticker = data.get("ticker", "N/A")
-            policy = data.get("policy", {"label": "N/A"})
+            # Opportunity Score based on the triggered conviction
+            score = (conf_pct / 100.0) * abs(triggered_ret) * 100
+            
+            # Signal priority for sorting: BUYs at top, SELLs at bottom (or also at top?)
+            # Let's put STRONG signals first, then BUY/SELL, then NEUTRAL
+            priority_map = {
+                "STRONG BUY": 100,
+                "BUY": 80,
+                "STRONG SELL": 70,
+                "SELL": 60,
+                "NEUTRAL": 10
+            }
+            priority = priority_map.get(policy.get("label", "NEUTRAL"), 0)
             
             signals.append({
-                "ticker": ticker,
-                "signal": policy.get("label", "N/A"),
+                "ticker": data.get("ticker", "N/A"),
+                "signal": policy.get("label", "NEUTRAL"),
+                "horizon": trigger_h.upper(),
                 "d1_ret": d1_ret,
                 "d5_ret": d5_ret,
                 "d20_ret": d20_ret,
-                "confidence_pct": conf * 100,
-                "dispersion_pct": disp,
+                "confidence_pct": conf_pct,
                 "score": score,
-                "date": data["latest_date"]
+                "priority": priority,
+                "date": data.get("latest_date", "N/A")
             })
         except Exception:
             continue
@@ -46,28 +61,31 @@ def generate_ranking(artifact_dir: Path):
         return
 
     df = pd.DataFrame(signals)
-    df = df.sort_values(by="score", ascending=False)
+    # Sort by priority desc, then score desc
+    df = df.sort_values(by=["priority", "score"], ascending=[False, False])
     
-    print("\n" + "="*105)
+    print("\n" + "="*115)
     print(f" TRADECHAT MULTI-HORIZON RANKING | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*105)
-    print(f"{'TICKER':<12} {'SIGNAL':<12} {'D1 %':>9} {'D5 %':>9} {'D20 %':>9} {'CONF %':>8} {'OPP SCORE':>12}")
-    print("-" * 105)
+    print("="*115)
+    print(f"{'TICKER':<12} {'SIGNAL':<14} {'H':<4} {'D1 %':>9} {'D5 %':>9} {'D20 %':>9} {'CONF %':>8} {'OPP SCORE':>12}")
+    print("-" * 115)
     
-    for _, row in df.head(25).iterrows():
+    for _, row in df.head(30).iterrows():
         color = ""
+        # Green for BUY, Red for SELL
         if "BUY" in row["signal"]: color = "\033[92m"
         elif "SELL" in row["signal"]: color = "\033[91m"
         reset = "\033[0m"
         
-        print(f"{row['ticker']:<12} {color}{row['signal']:<12}{reset} {row['d1_ret']:>+8.2f}% {row['d5_ret']:>+8.2f}% {row['d20_ret']:>+8.2f}% {row['confidence_pct']:>7.0f}% {row['score']:>12.2f}")
+        sig_display = f"{color}{row['signal']:<14}{reset}"
+        
+        print(f"{row['ticker']:<12} {sig_display} {row['horizon']:<4} {row['d1_ret']:>+8.2f}% {row['d5_ret']:>+8.2f}% {row['d20_ret']:>+8.2f}% {row['confidence_pct']:>7.0f}% {row['score']:>12.2f}")
     
-    print("-" * 105)
-    print("Score = D1_Confidence * |D1_Return|")
-    print("="*105)
+    print("-" * 115)
+    print("Priority: BUY signals first | Score = Trigger_Confidence * |Trigger_Return|")
+    print("="*115)
 
 if __name__ == "__main__":
-    # Assuming standard project structure
     root = Path(__file__).parent.parent
     artifact_path = root / "artifacts"
     generate_ranking(artifact_path)

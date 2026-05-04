@@ -124,7 +124,8 @@ def print_signal(signal: dict[str, Any]) -> None:
     # Block 1: Core Signal
     print(f"LAST PRICE  : {C.BOLD}{_money(price)}{C.RESET}")
     print(f"SIGNAL      : {C.BOLD}{policy['label']}{C.RESET} | POSTURE: {C.CYAN}{policy['posture']}{C.RESET}")
-    print(f"CONFIDENCE  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET} ({C.CYAN}{C.BOLD}D1{C.RESET})")
+    trigger_h = policy.get("horizon", "d1").upper()
+    print(f"CONFIDENCE  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET} ({C.CYAN}{C.BOLD}{trigger_h}{C.RESET})")
     
     print(C.HEADER + "─" * 72 + C.RESET)
     # Block 2: Horizons Table
@@ -158,13 +159,15 @@ def print_signal(signal: dict[str, Any]) -> None:
 
 def write_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> Path:
     ticker = signal["ticker"]
+    policy = signal["policy"]
     path = artifact_dir(cfg) / safe_ticker(ticker) / "latest_signal_audit.txt"
     with open(path, "w", encoding="utf-8") as f:
         f.write(f"TRADECHAT AUDIT | {ticker} | {signal.get('latest_date')}\n")
         f.write("-" * 72 + "\n")
         f.write(f"LAST PRICE : {signal['latest_price']}\n")
         f.write(f"SIGNAL     : {signal['policy']['label']} ({signal['policy']['posture']})\n")
-        f.write(f"CONFIDENCE : {signal['policy']['confidence_pct']}%\n")
+        trigger_h = policy.get("horizon", "d1").upper()
+        f.write(f"CONFIDENCE : {int(policy.get('confidence_pct', 0))}% ({trigger_h})\n")
         f.write("-" * 72 + "\n")
         f.write(f"REASONS:\n")
         for r in signal["policy"].get("reasons", []):
