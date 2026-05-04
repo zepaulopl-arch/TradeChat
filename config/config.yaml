@@ -51,50 +51,36 @@ model:
     max_final_return_abs: 0.08
   autotune:
     enabled_by_default: false
-    n_iter: 5
-    cv: 2
+    n_iter: 25
+    cv: 5
     scoring: neg_mean_absolute_error
     spaces:
       xgb:
-        n_estimators:
-        - 60
-        - 180
-        max_depth:
-        - 2
-        - 7
-        learning_rate:
-        - 0.01
-        - 0.12
+        n_estimators: [60, 300]
+        max_depth: [2, 9]
+        learning_rate: [0.005, 0.2]
+        subsample: [0.7, 1.0]
+        colsample_bytree: [0.7, 1.0]
       catboost:
-        iterations:
-        - 80
-        - 260
-        depth:
-        - 2
-        - 7
-        learning_rate:
-        - 0.01
-        - 0.12
+        iterations: [80, 400]
+        depth: [2, 10]
+        learning_rate: [0.005, 0.2]
+        l2_leaf_reg: [1, 9]
       extratrees:
-        n_estimators:
-        - 120
-        - 360
-        max_depth:
-        - 3
-        - 14
-        min_samples_leaf:
-        - 1
-        - 8
+        n_estimators: [100, 500]
+        max_depth: [3, 25]
+        min_samples_leaf: [1, 15]
+        max_features: ["sqrt", "log2", null]
   engine_safety:
     consensus_guard_enabled: true
     max_deviation_from_median: 0.025
     note: Protects Ridge arbitration from a single divergent tabular engine.
 policy:
   strong_buy_return_pct: 1.5
-  buy_return_pct: 0.45
-  sell_return_pct: -0.45
+  buy_return_pct: 0.20
+  sell_return_pct: -0.20
   strong_sell_return_pct: -1.5
-  min_confidence_pct: 0.55
+  min_confidence_pct: 0.45
   high_confidence_pct: 0.7
   max_risk_pct_for_buy: 4.0
   use_fundamentals_as_filter: true

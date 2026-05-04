@@ -24,6 +24,23 @@ def _frac_diff(series: pd.Series, d: float) -> pd.Series:
     return series.diff() * d + series.shift(1) * (1 - d)
 
 
+def _hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
+    """
+    Simplified rescaled range (R/S) analysis for Hurst exponent.
+    H < 0.5: Mean reverting
+    H = 0.5: Random walk
+    H > 0.5: Trending
+    """
+    def calc_hurst(x):
+        if len(x) < 20: return 0.5
+        lags = range(2, 20)
+        tau = [np.sqrt(np.std(np.subtract(x[lag:], x[:-lag]))) for lag in lags]
+        m = np.polyfit(np.log(lags), np.log(tau), 1)
+        return m[0] * 2.0
+
+    return series.rolling(window).apply(calc_hurst, raw=True)
+
+
 def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
     ticker = normalize_ticker(ticker)
     if ticker not in prices.columns:
@@ -62,6 +79,22 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     dataset["bb_std"] = px.rolling(20).std()
     dataset["bb_width"] = (4 * dataset["bb_std"]) / dataset["bb_mid"]
     dataset["bb_pos"] = (px - (dataset["bb_mid"] - 2 * dataset["bb_std"])) / (4 * dataset["bb_std"])
+    
+    # Advanced / Complex Features
+    dataset["hurst"] = _hurst_exponent(px, 100)
+    
+    # RSI Divergence proxy: Slope of Price vs Slope of RSI
+    px_slope = px.pct_change(5).rolling(5).mean()
+    rsi_slope = dataset["rsi"].diff(5).rolling(5).mean()
+    dataset["rsi_div"] = rsi_slope - px_slope
+    
+    # Relative ATR (Proxy)
+    tr = pd.concat([
+        px - px.shift(1),
+        (px - px.shift(1)).abs(),
+        px.rolling(2).std()
+    ], axis=1).max(axis=1)
+    dataset["atr_rel"] = tr.rolling(14).mean() / px
 
 
     dataset, context_meta = add_market_context_features(dataset, df, ticker, cfg)
