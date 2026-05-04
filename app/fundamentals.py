@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Any
 import numpy as np
 import pandas as pd
+import yfinance as yf
 
 from .utils import normalize_ticker
 from .data import get_asset_profile
+from .cvm_conn import CVMConnector
 
 
 def yahoo_snapshot(ticker: str) -> dict[str, float | str]:
-    import yfinance as yf
     ticker = normalize_ticker(ticker)
     try:
         t = yf.Ticker(ticker)
@@ -89,15 +90,10 @@ def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] 
         })
         return out, meta
 
-    from .cvm_conn import CVMConnector
-    meta["asset_group"] = asset_profile.get("group")
-    meta["asset_subgroup"] = asset_profile.get("subgroup")
-    meta["financial_class"] = asset_profile.get("financial_class")
-    meta["cnpj"] = asset_profile.get("cnpj")
-    meta["cnpj_status"] = asset_profile.get("cnpj_status")
     meta.update({"enabled": True, "snapshot_source": "yfinance", "snapshot_only_in_report": bool(fcfg.get("snapshot_only_in_report", True))})
     try:
-        hist = CVMConnector().fetch_historical_fundamentals(ticker)
+        cnpj = asset_profile.get("cnpj")
+        hist = CVMConnector().fetch_historical_fundamentals(ticker, cnpj=cnpj)
     except Exception as exc:
         hist = pd.DataFrame()
         meta["cvm_error"] = str(exc)

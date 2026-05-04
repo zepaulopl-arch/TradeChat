@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import pandas as pd
 from pathlib import Path
 from typing import Any
 
 from .config import load_config, artifact_dir
-from .data import load_prices, data_status, resolve_asset
+from .data import load_prices, data_status, resolve_asset, get_asset_profile
 from .features import build_dataset
 from .report import print_data_summary, print_train_summary, print_signal, write_txt_report
 from .utils import normalize_ticker, parse_tickers, safe_ticker, write_json, read_json
+from .sentiment import update_sentiment_cache
+from .fundamentals import yahoo_snapshot, add_fundamental_features
+from .models import train_models, predict_multi_horizon
+from .preparation import prepare_training_matrix
+from .policy import classify_signal
+from .cvm_conn import CVMConnector
 
 
 def _canonical_ticker(cfg: dict[str, Any], ticker: str) -> str:
@@ -26,12 +33,22 @@ def _fundamentals_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any
     if not bool(fcfg.get("enabled", True)):
         return {"status": "disabled", "source": "features.yaml"}
     try:
-        from .fundamentals import yahoo_snapshot
+        profile = get_asset_profile(cfg, ticker)
+        cnpj = profile.get("cnpj")
+        
+        # Direct check for CVM data without requiring a full DataFrame
+        conn = CVMConnector()
+        has_cvm = False
+        if cnpj and conn.db is not None and not conn.db.empty:
+            import re
+            clean_cnpj = re.sub(r"\D", "", str(cnpj)).strip()
+            db_cnpjs = conn.db['CNPJ_CLEAN'].astype(str).str.strip()
+            has_cvm = not conn.db[db_cnpjs == clean_cnpj].empty
+            
         snap = yahoo_snapshot(ticker)
-        has_values = any(float(snap.get(key, 0) or 0) != 0 for key in ("pl", "dy", "pvp", "roe"))
         return {
-            "status": "available" if has_values else "metadata_only",
-            "source": str(snap.get("source", "yfinance")),
+            "status": "available" if (has_cvm or snap.get("pl")) else "metadata_only",
+            "source": "cvm" if has_cvm else "yfinance",
         }
     except Exception as exc:
         return {"status": "unavailable", "source": str(exc)[:48]}
@@ -42,13 +59,13 @@ def _sentiment_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
     if not bool(scfg.get("enabled", False)):
         return {"status": "disabled", "cache": "off"}
     try:
-        from .sentiment import update_sentiment_cache
         meta = update_sentiment_cache(ticker, cfg)
         return {
             "status": "updated",
             "cache": "ok",
             "new_items": int(meta.get("new_items", 0) or 0),
             "cache_rows": int(meta.get("cache_rows", 0) or 0),
+            "is_fresh": meta.get("status") == "fresh"
         }
     except Exception as exc:
         return {"status": "unavailable", "cache": str(exc)[:48]}
@@ -75,18 +92,15 @@ def cmd_data(args: argparse.Namespace) -> None:
         
         print_data_summary(st)
 
+
 def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    from .models import train_models
-    from .preparation import prepare_training_matrix
-    
     targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
     
     for ticker in parse_tickers(args.tickers):
         ticker = _canonical_ticker(cfg, ticker)
         raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
         
-        from .report import print_train_summary
         print(f"\nTraining multi-horizon models for {ticker}...")
         for t_col in targets:
             horizon = t_col.split("_")[-1]
@@ -111,8 +125,6 @@ def cmd_train(args: argparse.Namespace) -> None:
 def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict[str, Any]:
     ticker = _canonical_ticker(cfg, ticker)
     raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=update)
-    from .models import predict_multi_horizon
-    from .policy import classify_signal
     
     # We predict for all horizons
     results = predict_multi_horizon(cfg, ticker, raw_X)
@@ -137,6 +149,7 @@ def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict
         "horizons": results,   # All predictions (d1, d5, d20)
         "policy": policy,
         "fundamentals": fundamentals,
+        "sentiment_value": meta.get("sentiment_value", 0.0),
         "features_used": meta.get("features", []),
         "train_run_id": pred_d1.get("train_manifest", {}).get("run_id"),
     }

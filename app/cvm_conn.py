@@ -14,7 +14,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # CVM Connector
 # ==============================================================================
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data_cache")
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data_cache")
 CVM_CACHE_FILE = os.path.join(CACHE_DIR, "cvm_history.parquet")
 
 
@@ -106,12 +106,17 @@ class CVMConnector:
             return True
         return False
 
-    def fetch_historical_fundamentals(self, ticker):
+    def fetch_historical_fundamentals(self, ticker: str, cnpj: str | None = None) -> pd.DataFrame:
         """
         Retorna a série temporal de fundamentos para o ativo em um DataFrame indexado por data.
         Ideal para alimentar as features históricas do motor de Machine Learning.
         """
-        cnpj = self._get_cnpj(ticker)
+        if not cnpj:
+            cnpj = self._get_cnpj(ticker)
+        
+        if cnpj:
+            cnpj = re.sub(r"\D", "", str(cnpj))
+            
         if not cnpj or self.db is None or self.db.empty:
             return pd.DataFrame()
             
@@ -178,7 +183,5 @@ class CVMConnector:
                 return cnpj
         except:
             pass
-
-        return None
 
         return None

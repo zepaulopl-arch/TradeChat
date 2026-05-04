@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import os
+import time
+import warnings
 from pathlib import Path
 from typing import Any
+
 import pandas as pd
+import yfinance as yf
 
 from .config import cache_dir, load_data_registry
 from .utils import normalize_ticker, safe_ticker
 
 
 def _period_fallbacks(period: str, is_context: bool) -> list[str]:
-    """Return safe yfinance period attempts.
-
-    Some B3/index symbols accepted by Yahoo do not support ``max`` even when
-    equities do. Context indices must not break the asset update; they fall
-    back to shorter periods and, if still unavailable, are skipped.
-    """
+    """Return safe yfinance period attempts."""
     period = str(period or "max").strip()
     attempts = [period]
     if is_context and period == "max":
@@ -25,15 +27,8 @@ def _period_fallbacks(period: str, is_context: bool) -> list[str]:
 
 
 def _download_one_yahoo(ticker: str, period: str, *, is_context: bool) -> pd.Series | None:
-    import contextlib
-    import io
-    import warnings
-    import yfinance as yf
-
     for attempt in _period_fallbacks(period, is_context=is_context):
         try:
-            # yfinance prints failed-download diagnostics directly; keep data screen clean
-            # and surface only effective context columns after validation.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -50,22 +45,12 @@ def _download_one_yahoo(ticker: str, period: str, *, is_context: bool) -> pd.Ser
                 return close
         except Exception:
             continue
-    if is_context:
-        return None
     return None
 
 
 def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None = None) -> pd.DataFrame:
-    """Download asset and context prices with provider validation.
-
-    The first ticker is the asset and is mandatory. Remaining tickers are context
-    indices/macros. Includes polite throttling and ticker stitching for corporate actions.
-    """
-    import time
+    """Download asset and context prices with provider validation."""
     series: list[pd.Series] = []
-    asset_ticker = tickers[0]
-    
-    # Throttling config
     dcfg = (cfg or {}).get("data", {})
     delay = float(dcfg.get("download_delay_seconds", 1.2))
 
@@ -81,13 +66,10 @@ def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None 
             predecessor = profile.get("predecessor_ticker")
             if predecessor:
                 ratio = float(profile.get("conversion_ratio", 1.0))
-                # Add a small delay before predecessor download
                 if delay > 0: time.sleep(delay)
                 old_data = _download_one_yahoo(predecessor, period, is_context=False)
                 if old_data is not None and not old_data.empty:
-                    # Apply conversion ratio to historical prices to prevent artificial jumps
                     old_data = old_data * ratio
-                    # Combine: prefer new data for overlapping dates
                     item = item.combine_first(old_data)
 
         if item is not None and not item.empty:
@@ -116,12 +98,6 @@ def _registry(cfg: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
-    """Resolve user ticker to the canonical active ticker defined in data.yaml.
-
-    This handles ticker migrations without lateral CLI growth. Example: ELET3.SA
-    can resolve to AXIA3.SA through data.yaml aliases, so old user habits do not
-    break data loading, training or prediction.
-    """
     requested = normalize_ticker(ticker)
     registry = _registry(cfg)
     assets = registry.get("assets", {}) or {}
@@ -166,16 +142,13 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
 
 
 def get_asset_profile(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
-    """Return cadastral metadata for a ticker from data.yaml."""
     return resolve_asset(cfg, ticker).get("profile", {}) or {}
 
 
 def _index_to_yahoo(registry: dict[str, Any], item: str) -> str | None:
-    """Convert an internal index code from data.yaml to a fetchable Yahoo ticker."""
     if not item:
         return None
     item = str(item).strip()
-    # Direct yfinance symbols should pass through unchanged.
     if item.startswith("^") or item.endswith(".SA") or "=" in item:
         return item
     indices = registry.get("indices", {}) or {}
@@ -189,13 +162,6 @@ def _index_to_yahoo(registry: dict[str, Any], item: str) -> str | None:
 
 
 def resolve_context_tickers(cfg: dict[str, Any], ticker: str) -> list[str]:
-    """Return context tickers associated with an asset through data.yaml.
-
-    Resolution order is deliberately conservative and deterministic:
-    global context -> group defaults -> subgroup defaults -> linked indices ->
-    asset-level context tickers. Codes such as IFNC or IEEX are translated to
-    Yahoo-compatible symbols only when data.yaml marks them as available.
-    """
     resolved = resolve_asset(cfg, ticker)
     profile = resolved.get("profile", {}) or {}
     registry = _registry(cfg)
@@ -208,7 +174,6 @@ def resolve_context_tickers(cfg: dict[str, Any], ticker: str) -> list[str]:
             if yahoo:
                 out.append(yahoo)
 
-    # New structured registry.
     add_many(context_cfg.get("global", []) or registry.get("indices", {}).get("default_context", []))
     group = profile.get("group")
     subgroup = profile.get("subgroup")
@@ -236,23 +201,26 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     resolved = resolve_asset(cfg, ticker)
     canonical = resolved["canonical"]
     path = price_cache_path(cfg, canonical)
-    if path.exists() and not update:
-        return pd.read_parquet(path)
+    
+    if path.exists():
+        if not update:
+            return pd.read_parquet(path)
+        
+        # Speed optimization: skip if file is < 15 minutes old
+        mtime = os.path.getmtime(path)
+        if (time.time() - mtime) < 900: # 15 minutes
+            return pd.read_parquet(path)
 
     period = cfg.get("data", {}).get("period", "5y")
     macros = resolve_context_tickers(cfg, canonical)
     tickers = _unique([canonical] + macros)
     close = _download_yahoo(tickers, period=period, cfg=cfg)
 
-    # Remove empty/failed context downloads but fail clearly if the asset itself is absent.
     close = close.dropna(axis=1, how="all")
     if canonical not in close.columns:
         requested = resolved.get("requested")
         alias_msg = f" (resolved from {requested})" if requested and requested != canonical else ""
-        raise RuntimeError(
-            f"Yahoo did not return close prices for {canonical}{alias_msg}. "
-            "Check data.yaml aliases or the current B3/Yahoo ticker."
-        )
+        raise RuntimeError(f"Yahoo did not return close prices for {canonical}{alias_msg}.")
     close.to_parquet(path)
     return close
 

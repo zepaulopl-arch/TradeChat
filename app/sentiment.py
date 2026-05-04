@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from datetime import datetime, timezone
-import hashlib
+
+import feedparser
+import nltk
 import numpy as np
 import pandas as pd
+from deep_translator import GoogleTranslator
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 from .config import cache_dir
 from .utils import normalize_ticker, safe_ticker
@@ -31,10 +38,6 @@ def _score_titles(ticker: str, cfg: dict[str, Any]) -> pd.DataFrame:
     sent_cfg = cfg.get("features", {}).get("sentiment", {})
     max_entries = int(sent_cfg.get("max_news_entries", 20))
     try:
-        import feedparser
-        import nltk
-        from nltk.sentiment.vader import SentimentIntensityAnalyzer
-        from deep_translator import GoogleTranslator
         nltk.download("vader_lexicon", quiet=True)
         sid = SentimentIntensityAnalyzer()
         translator = GoogleTranslator(source="pt", target="en")
@@ -68,6 +71,14 @@ def update_sentiment_cache(ticker: str, cfg: dict[str, Any]) -> dict[str, Any]:
     ticker = normalize_ticker(ticker)
     sent_cfg = cfg.get("features", {}).get("sentiment", {})
     path = _sentiment_cache_path(cfg, ticker)
+    
+    # Speed optimization: Don't re-scrape if cache is fresh (< 1 hour)
+    if path.exists():
+        mtime = os.path.getmtime(path)
+        if (time.time() - mtime) < 3600: # 1 hour
+            cached = pd.read_csv(path)
+            return {"enabled": True, "source": "rss_vader_cache", "cache_path": str(path), "new_items": 0, "cache_rows": int(len(cached)), "status": "fresh"}
+
     old = pd.read_csv(path) if path.exists() else pd.DataFrame(columns=["date", "score", "count"])
     raw = _score_titles(ticker, cfg)
     if raw.empty:
@@ -134,15 +145,19 @@ def load_sentiment_daily_series(ticker: str, cfg: dict[str, Any], index: pd.Inde
 
 
 def get_sentiment(ticker: str, cfg: dict[str, Any]) -> tuple[float, dict[str, Any]]:
-    """Current operational sentiment for predict/report."""
+    """Current operational sentiment for predict/report (3-day smoothed)."""
     ticker = normalize_ticker(ticker)
     meta = update_sentiment_cache(ticker, cfg)
     path = _sentiment_cache_path(cfg, ticker)
     if path.exists():
         cached = pd.read_csv(path)
         if not cached.empty:
-            value = float(cached.sort_values("date")["score"].iloc[-1])
-            meta["items"] = int(cached.sort_values("date")["count"].iloc[-1])
+            cached = cached.sort_values("date")
+            # Use last 3 days for a more stable "current" sentiment
+            recent = cached.tail(3)
+            value = float(recent["score"].mean())
+            meta["items"] = int(recent["count"].sum())
+            meta["snapshot_days"] = len(recent)
             return value, meta
     meta["items"] = 0
     return 0.0, meta
