@@ -98,28 +98,28 @@ def cmd_train(args: argparse.Namespace) -> None:
     targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
     
     for ticker in parse_tickers(args.tickers):
-        ticker = _canonical_ticker(cfg, ticker)
-        raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
-        
-        print(f"\nTraining multi-horizon models for {ticker}...")
-        for t_col in targets:
-            horizon = t_col.split("_")[-1]
+        try:
+            ticker = _canonical_ticker(cfg, ticker)
+            raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
             
-            # Prepare specific matrix for this target (allows target-specific feature selection)
-            y_series = all_y[t_col].dropna()
-            X_prepared, y_prepared, prep_meta = prepare_training_matrix(raw_X.loc[y_series.index], y_series, cfg)
+            print(f"\nTraining multi-horizon models for {ticker}...")
+            for t_col in targets:
+                horizon = t_col.split("_")[-1]
+                y_series = all_y[t_col].dropna()
+                X_prepared, y_prepared, prep_meta = prepare_training_matrix(raw_X.loc[y_series.index], y_series, cfg)
+                
+                h_meta = meta.copy()
+                h_meta["preparation"] = prep_meta
+                h_meta["horizon"] = horizon
+                
+                manifest = train_models(cfg, ticker, X_prepared, y_prepared, h_meta, 
+                                       autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)),
+                                       horizon=horizon)
+                print_train_summary(manifest)
             
-            # Enrich meta with specific preparation for this horizon
-            h_meta = meta.copy()
-            h_meta["preparation"] = prep_meta
-            h_meta["horizon"] = horizon
-            
-            manifest = train_models(cfg, ticker, X_prepared, y_prepared, h_meta, 
-                                   autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)),
-                                   horizon=horizon)
-            print_train_summary(manifest)
-        
-        print(f"All horizons trained for {ticker}.")
+            print(f"All horizons trained for {ticker}.")
+        except Exception as exc:
+            print(f"\nERROR: Failed to train {ticker}: {exc}")
 
 
 def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict[str, Any]:
