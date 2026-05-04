@@ -89,7 +89,7 @@ def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] 
         })
         return out, meta
 
-    from src.connectors.cvm_conn import CVMConnector
+    from .cvm_conn import CVMConnector
     meta["asset_group"] = asset_profile.get("group")
     meta["asset_subgroup"] = asset_profile.get("subgroup")
     meta["financial_class"] = asset_profile.get("financial_class")

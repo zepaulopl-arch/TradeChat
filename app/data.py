@@ -232,7 +232,7 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
 
 
 def update_cvm_database(years: list[int] | None = None) -> bool:
-    from src.connectors.cvm_conn import CVMConnector
+    from .cvm_conn import CVMConnector
     return CVMConnector().update_cvm_database(years=years)
 
 

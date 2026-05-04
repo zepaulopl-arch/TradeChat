@@ -55,11 +55,6 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     dataset["bb_width"] = (4 * dataset["bb_std"]) / dataset["bb_mid"]
     dataset["bb_pos"] = (px - (dataset["bb_mid"] - 2 * dataset["bb_std"])) / (4 * dataset["bb_std"])
 
-    if bool(tech.get("legacy_macro_features", fcfg.get("legacy_macro_features", True))):
-        for macro in [c for c in df.columns if c != ticker]:
-            clean = str(macro).replace("^", "").replace("=", "_").replace("-", "_")
-            dataset[f"macro_{clean}_ret_1"] = df[macro].pct_change(1)
-            dataset[f"macro_{clean}_ret_5"] = df[macro].pct_change(5)
 
     dataset, context_meta = add_market_context_features(dataset, df, ticker, cfg)
     dataset, fundamental_meta = add_fundamental_features(dataset, ticker, cfg)
