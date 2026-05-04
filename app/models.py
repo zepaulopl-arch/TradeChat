@@ -269,31 +269,18 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
     summary: dict[str, Any] = {}
 
     for name, engine in base_engines.items():
-        if name == "xgb":
-            raw = spaces.get("xgb", {})
-            search_space = {
-                "n_estimators": _space_from_pair(raw.get("n_estimators", [60, 180]), "int"),
-                "max_depth": _space_from_pair(raw.get("max_depth", [2, 7]), "int"),
-                "learning_rate": _space_from_pair(raw.get("learning_rate", [0.01, 0.12]), "real"),
-            }
-        elif name == "catboost":
-            raw = spaces.get("catboost", {})
-            search_space = {
-                "iterations": _space_from_pair(raw.get("iterations", [80, 260]), "int"),
-                "depth": _space_from_pair(raw.get("depth", [2, 7]), "int"),
-                "learning_rate": _space_from_pair(raw.get("learning_rate", [0.01, 0.12]), "real"),
-            }
-        elif name == "extratrees":
-            raw = spaces.get("extratrees", {})
-            search_space = {
-                "n_estimators": _space_from_pair(raw.get("n_estimators", [120, 360]), "int"),
-                "max_depth": _space_from_pair(raw.get("max_depth", [3, 14]), "int"),
-                "min_samples_leaf": _space_from_pair(raw.get("min_samples_leaf", [1, 8]), "int"),
-            }
-        else:
+        raw_space = spaces.get(name, {})
+        if not raw_space:
             tuned[name] = engine
-            summary[name] = {"status": "skipped", "reason": "no search space"}
+            summary[name] = {"status": "skipped", "reason": "no search space in config"}
             continue
+
+        search_space = {}
+        for param, values in raw_space.items():
+            kind = "real"
+            if param in ["n_estimators", "max_depth", "iterations", "depth", "l2_leaf_reg", "min_samples_leaf"]:
+                kind = "int"
+            search_space[param] = _space_from_pair(values, kind)
 
         opt = BayesSearchCV(
             estimator=engine,

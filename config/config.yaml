@@ -51,8 +51,8 @@ model:
     max_final_return_abs: 0.08
   autotune:
     enabled_by_default: false
-    n_iter: 25
-    cv: 5
+    n_iter: 15
+    cv: 3
     scoring: neg_mean_absolute_error
     spaces:
       xgb:
@@ -80,7 +80,7 @@ policy:
   buy_return_pct: 0.20
   sell_return_pct: -0.20
   strong_sell_return_pct: -1.5
-  min_confidence_pct: 0.45
+  min_confidence_pct: 0.50
   high_confidence_pct: 0.7
   max_risk_pct_for_buy: 4.0
   use_fundamentals_as_filter: true

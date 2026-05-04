@@ -135,9 +135,14 @@ def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict
         # Fallback to empty prediction if d1 is missing
         pred_d1 = {"prediction_return": 0.0, "confidence": 0.0, "error": pred_d1["error"]}
         
-    policy = classify_signal(cfg, pred_d1, meta)
+    policy = classify_signal(cfg, results, meta)
+    
+    # Use the predicted return of the horizon that triggered the signal for the target price
+    trigger_h = policy.get("horizon", "d1")
+    pred_trigger = results.get(trigger_h, results.get("d1", {}))
+    
     latest_price = float(meta["latest_price"])
-    target_price = latest_price * (1 + float(pred_d1.get("prediction_return", 0.0)))
+    target_price = latest_price * (1 + float(pred_trigger.get("prediction_return", 0.0)))
     
     fundamentals = meta.get("fundamentals", {})
     signal = {
