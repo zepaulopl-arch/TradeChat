@@ -1,3 +1,4 @@
+import argparse
 import csv
 import json
 import sys
@@ -150,7 +151,6 @@ def _diagnose_one(cfg: dict[str, Any], ticker: str, args: argparse.Namespace) ->
         return row
     raw_X, all_y, meta = built
     
-    # Train all 3 horizons
     targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
     for t_col in targets:
         horizon = t_col.split("_")[-1]
@@ -168,7 +168,6 @@ def _diagnose_one(cfg: dict[str, Any], ticker: str, args: argparse.Namespace) ->
             return row
             
         if horizon == "d1":
-            # Keep D1 metrics for the main CSV columns to maintain backward compatibility
             metrics = manifest.get("metrics", {}) or {}
             ridge_metrics = metrics.get("ridge_arbiter", {}) or {}
             row.update({
@@ -187,7 +186,6 @@ def _diagnose_one(cfg: dict[str, Any], ticker: str, args: argparse.Namespace) ->
     signal = _safe_stage(row, "predict", lambda: _make_signal(cfg, canonical, update=False))
     if signal is None:
         return row
-    pred = signal.get("prediction", {}) or {}
     policy = signal.get("policy", {}) or {}
     horizons = signal.get("horizons", {}) or {}
     row.update({
@@ -255,12 +253,12 @@ def _write_outputs(cfg: dict[str, Any], rows: list[dict[str, Any]], run_id: str)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run multi-horizon diagnostics for registered assets.")
-    parser.add_argument("--config", default=None, help="optional config.yaml path")
-    parser.add_argument("--assets", default="", help="comma separated ticker subset")
-    parser.add_argument("--limit", type=int, default=0, help="limit assets")
-    parser.add_argument("--no-data", action="store_true", help="skip data refresh")
-    parser.add_argument("--autotune", action="store_true", help="use autotune; slow")
+    parser = argparse.ArgumentParser(description="Run multi-horizon diagnostics.")
+    parser.add_argument("--config", default=None)
+    parser.add_argument("--assets", default="")
+    parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--no-data", action="store_true")
+    parser.add_argument("--autotune", action="store_true")
     args = parser.parse_args(argv)
 
     cfg = load_config(args.config)
