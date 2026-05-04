@@ -11,35 +11,8 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==============================================================================
-# Mapeamento de Segurança (Dicionário Imutável para Fallback)
-# 
-# POR QUE ISSO EXISTE:
-# O conector original tentava fazer o pareamento automático usando regex na 
-# tag `longBusinessSummary` da API do Yahoo Finance para extrair o CNPJ da empresa. 
-# Recentemente, o Yahoo removeu silenciosamente o summary/description da API padrão 
-# (.info), cegando o crawler. Este dicionário assegura que os ativos mais 
-# negociados da B3 encontrem seu arquivo CVM local mesmo com a API do Yahoo quebrada.
+# CVM Connector
 # ==============================================================================
-FALLBACK_CNPJ = {
-    "PETR4": "33000167000101",
-    "PETR3": "33000167000101",
-    "VALE3": "33592510000154",
-    "BBAS3": "00000000000191",
-    "ITUB4": "60872504000123",
-    "BBDC4": "60746948000112",
-    "B3SA3": "09346601000125",
-    "ABEV3": "07526557000100",
-    "WEGE3": "84429695000111",
-    "LREN3": "92754738000162",
-    "MGLU3": "47960950000121",
-    "SUZB3": "16404287000155",
-    "RENT3": "16670085000155",
-    "JBSS3": "02916265000160",
-    "ELET3": "00001180000126",
-    "RADL3": "61585865000151",
-    "PRIO3": "10839932000174",
-    "EQTL3": "03220438000173",
-}
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data_cache")
 CVM_CACHE_FILE = os.path.join(CACHE_DIR, "cvm_history.parquet")
@@ -82,13 +55,19 @@ class CVMConnector:
                         
                     z = zipfile.ZipFile(io.BytesIO(r.content))
                     
+                    # Determine safety lag based on document type
+                    # ITR (Quarterly): ~45 days, DFP (Annual): ~90 days
+                    lag_days = 45 if doc_type == 'ITR' else 90
+                    
                     # DRE Consolidado (3.11 = Lucro Liquido)
                     dre_file = f'{doc_type.lower()}_cia_aberta_DRE_con_{year}.csv'
                     if dre_file in z.namelist():
                         dre = pd.read_csv(z.open(dre_file), sep=';', encoding='iso-8859-1')
                         dre = dre[(dre['CD_CONTA'] == '3.11') & (dre['ORDEM_EXERC'] == 'ÚLTIMO')]
                         dre['INDICADOR'] = 'LUCRO_LIQUIDO'
-                        frames.append(dre[['CNPJ_CIA', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
+                        dre['DT_FIM_EXERC'] = pd.to_datetime(dre['DT_FIM_EXERC'])
+                        dre['DT_DISPONIVEL'] = dre['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
+                        frames.append(dre[['CNPJ_CIA', 'DT_DISPONIVEL', 'VL_CONTA', 'INDICADOR']])
                         
                     # BPP Consolidado (2.03 = Patrimonio Liquido)
                     bpp_file = f'{doc_type.lower()}_cia_aberta_BPP_con_{year}.csv'
@@ -96,7 +75,9 @@ class CVMConnector:
                         bpp = pd.read_csv(z.open(bpp_file), sep=';', encoding='iso-8859-1')
                         bpp = bpp[(bpp['CD_CONTA'] == '2.03') & (bpp['ORDEM_EXERC'] == 'ÚLTIMO')]
                         bpp['INDICADOR'] = 'PATRIMONIO_LIQUIDO'
-                        frames.append(bpp[['CNPJ_CIA', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
+                        bpp['DT_FIM_EXERC'] = pd.to_datetime(bpp['DT_FIM_EXERC'])
+                        bpp['DT_DISPONIVEL'] = bpp['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
+                        frames.append(bpp[['CNPJ_CIA', 'DT_DISPONIVEL', 'VL_CONTA', 'INDICADOR']])
                 except Exception as e:
                     logging.error(f"Erro ao processar {doc_type} {year}: {e}")
                     
@@ -109,14 +90,14 @@ class CVMConnector:
             
             # Fazer pivot para ter LUCRO_LIQUIDO e PATRIMONIO_LIQUIDO como colunas
             df_pivot = df.pivot_table(
-                index=['CNPJ_CLEAN', 'DT_FIM_EXERC'], 
+                index=['CNPJ_CLEAN', 'DT_DISPONIVEL'], 
                 columns='INDICADOR', 
                 values='VL_CONTA',
-                aggfunc='last'  # Em caso de re-publicação, pega a última
+                aggfunc='last'
             ).reset_index()
             
             # Ordenar cronologicamente
-            df_pivot = df_pivot.sort_values(by=['CNPJ_CLEAN', 'DT_FIM_EXERC'])
+            df_pivot = df_pivot.sort_values(by=['CNPJ_CLEAN', 'DT_DISPONIVEL'])
             
             # Salvar cache
             df_pivot.to_parquet(CVM_CACHE_FILE)
@@ -138,7 +119,7 @@ class CVMConnector:
         if df_ticker.empty:
             return pd.DataFrame()
             
-        df_ticker = df_ticker.set_index('DT_FIM_EXERC')
+        df_ticker = df_ticker.set_index('DT_DISPONIVEL')
         
         # Preencher possíveis NAs se uma das planilhas faltar num trimestre
         df_ticker = df_ticker.ffill()
@@ -198,9 +179,6 @@ class CVMConnector:
         except:
             pass
 
-        if clean_ticker in FALLBACK_CNPJ:
-            cnpj = FALLBACK_CNPJ[clean_ticker]
-            self._cache_cnpj[clean_ticker] = cnpj
-            return cnpj
+        return None
 
         return None
