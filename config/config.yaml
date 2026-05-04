@@ -6,7 +6,7 @@ app:
 features_file: features.yaml
 data:
   period: max
-  min_rows: 220
+  min_rows: 150
   macro_tickers:
   - ^BVSP
   - USDBRL=X
