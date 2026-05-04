@@ -440,8 +440,8 @@ assets:
     - ICON
     use_in_reference_sample: true
     registry_status: active
-  JBSS3.SA:
-    name: JBS
+  JBSS32.SA:
+    name: JBS (BDR)
     asset_type: stock
     country: BR
     currency: BRL
@@ -1139,7 +1139,8 @@ assets:
     registry_status: active
     note: quotation factor / standard lot adjusted by B3
   GOLL54.SA:
-    name: GOL
+    name: GOL (DELISTED)
+    registry_status: inactive
     asset_type: stock
     country: BR
     currency: BRL
