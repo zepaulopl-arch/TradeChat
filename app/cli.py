@@ -87,7 +87,7 @@ def cmd_data(args: argparse.Namespace) -> None:
         h_status = []
         for h in ["d1", "d5", "d20"]:
             p = artifact_dir(cfg) / safe_ticker(canonical) / f"latest_train_{h}.json"
-            h_status.append(f"{h.upper()}:{'Ok' if p.exists() else 'miss'}")
+            h_status.append(f"{h.upper()}: {'Ok' if p.exists() else 'None'}")
         st["models"] = " | ".join(h_status)
         
         print_data_summary(st)

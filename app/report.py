@@ -63,14 +63,17 @@ def print_data_summary(status: dict[str, Any]) -> None:
     
     print(C.HEADER + "─" * 72 + C.RESET)
     # Block 4: Models
-    models_str = status.get('models', 'n/a')
-    if "ok" in models_str:
-        m1 = f"{C.CYAN}{C.BOLD}D1{C.RESET}: Ok"
-        m5 = f"{C.CYAN}{C.BOLD}D5{C.RESET}: Ok"
-        m20 = f"{C.CYAN}{C.BOLD}D20{C.RESET}: Ok"
-        models_display = f"{m1} | {m5} | {m20}"
-    else:
-        models_display = models_str
+    m_list = []
+    for part in status.get('models', 'n/a').split(" | "):
+        if ":" in part:
+            h, val = part.split(":", 1)
+            h = h.strip().upper()
+            val = val.strip()
+            # If val is 'miss' or 'None', we show it clearly
+            m_list.append(f"{C.GREEN}{C.BOLD}{h}{C.RESET}: {val}")
+        else:
+            m_list.append(part)
+    models_display = " | ".join(m_list)
     print(f"MODELS      : {models_display}")
     print(C.HEADER + "─" * 72 + C.RESET)
 
