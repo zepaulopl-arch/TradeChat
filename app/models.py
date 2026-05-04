@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 import pickle
@@ -393,7 +394,7 @@ def _confidence_from(
     return dispersion, confidence
 
 
-def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series, dataset_meta: dict[str, Any], autotune: bool = False) -> dict[str, Any]:
+def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series, dataset_meta: dict[str, Any], autotune: bool = False, horizon: str = "d1") -> dict[str, Any]:
     ticker = normalize_ticker(ticker)
     min_rows = int(cfg.get("data", {}).get("min_rows", 220))
     if len(X) < min_rows:
@@ -527,10 +528,10 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
 
     dispersion, confidence = _confidence_from(list(pred_latest.values()), arbiter_latest, cfg, mae=arbiter_mae, guard_meta=latest_discard_meta, train_rows=len(X_train))
 
-    rid = run_id("train", ticker)
+    rid = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{horizon}_{safe_ticker(ticker)}"
     out_dir = artifact_dir(cfg) / safe_ticker(ticker) / rid
     out_dir.mkdir(parents=True, exist_ok=True)
-    model_path = out_dir / "model.pkl"
+    model_path = out_dir / f"model_{horizon}.pkl"
     payload = {
         "ticker": ticker,
         "features": list(X.columns),
@@ -559,6 +560,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     manifest = {
         "run_id": rid,
         "ticker": ticker,
+        "horizon": horizon,
         "model_path": str(model_path),
         "created_at": pd.Timestamp.now().isoformat(),
         "architecture": "XGB + CatBoost + ExtraTrees -> Ridge arbiter",
@@ -594,17 +596,20 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "dataset_meta": dataset_meta,
     }
     write_json(out_dir / "manifest.json", manifest)
-    write_json(artifact_dir(cfg) / safe_ticker(ticker) / "latest_train.json", manifest)
+    write_json(artifact_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json", manifest)
     return manifest
 
 
-def load_latest_model(cfg: dict[str, Any], ticker: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def load_latest_model(cfg: dict[str, Any], ticker: str, horizon: str = "d1") -> tuple[dict[str, Any], dict[str, Any]]:
     ticker = normalize_ticker(ticker)
-    latest = artifact_dir(cfg) / safe_ticker(ticker) / "latest_train.json"
+    latest = artifact_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json"
     if not latest.exists():
-        alt = latest_file(artifact_dir(cfg) / safe_ticker(ticker), "train_*/manifest.json")
+        alt = latest_file(artifact_dir(cfg) / safe_ticker(ticker), f"train_*_{horizon}_*/manifest.json")
         if not alt:
-            raise FileNotFoundError(f"no trained model found for {ticker}; run train first")
+            # Fallback to generic search if suffix not found (for legacy models)
+            alt = latest_file(artifact_dir(cfg) / safe_ticker(ticker), "train_*/manifest.json")
+            if not alt:
+                raise FileNotFoundError(f"no trained model found for {ticker} horizon {horizon}; run train first")
         latest = alt
     manifest = read_json(latest)
     with Path(manifest["model_path"]).open("rb") as fh:
@@ -612,8 +617,8 @@ def load_latest_model(cfg: dict[str, Any], ticker: str) -> tuple[dict[str, Any],
     return model, manifest
 
 
-def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dict[str, Any]:
-    model, manifest = load_latest_model(cfg, ticker)
+def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizon: str = "d1") -> dict[str, Any]:
+    model, manifest = load_latest_model(cfg, ticker, horizon=horizon)
     features = model["features"]
     X = X.copy()
     missing = [c for c in features if c not in X.columns]
@@ -684,3 +689,14 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dic
         "confidence": confidence,
         "train_manifest": manifest,
     }
+
+def predict_multi_horizon(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dict[str, dict[str, Any]]:
+    """Generate predictions for all available horizons."""
+    horizons = ["d1", "d5", "d20"]
+    results = {}
+    for h in horizons:
+        try:
+            results[h] = predict_with_model(cfg, ticker, X, horizon=h)
+        except Exception as exc:
+            results[h] = {"error": str(exc)}
+    return results

@@ -11,28 +11,31 @@ def generate_ranking(artifact_dir: Path):
             with open(signal_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-            ticker = data["ticker"]
-            pred = data["prediction"]
-            policy = data["policy"]
+            # Extract all horizons
+            horizons = data.get("horizons", {})
+            d1_ret = float(horizons.get("d1", {}).get("prediction_return", 0.0)) * 100
+            d5_ret = float(horizons.get("d5", {}).get("prediction_return", 0.0)) * 100
+            d20_ret = float(horizons.get("d20", {}).get("prediction_return", 0.0)) * 100
             
-            # Core metrics
-            ret = float(pred["prediction_return"]) * 100
-            conf = float(pred["confidence"])
-            disp = float(pred.get("dispersion", 0)) * 100
+            # Confidence from d1 (primary)
+            conf = float(horizons.get("d1", {}).get("confidence", 0.0))
+            disp = float(horizons.get("d1", {}).get("dispersion", 0.0)) * 100
             
-            # Opportunity Score: Confidence * Magnitude of move
-            # We want high confidence on significant moves.
-            score = conf * abs(ret)
+            # Opportunity Score based on d1 conviction
+            score = conf * abs(d1_ret) * 100
+            
+            ticker = data.get("ticker", "N/A")
+            policy = data.get("policy", {"label": "N/A"})
             
             signals.append({
                 "ticker": ticker,
-                "signal": policy["label"],
-                "return_pct": ret,
-                "confidence_pct": conf * 100, # Multiply by 100 for display
+                "signal": policy.get("label", "N/A"),
+                "d1_ret": d1_ret,
+                "d5_ret": d5_ret,
+                "d20_ret": d20_ret,
+                "confidence_pct": conf * 100,
                 "dispersion_pct": disp,
-                "score": score * 100, # Score scale adjustment
-                "target": data["target_price"],
-                "last_price": data["latest_price"],
+                "score": score,
                 "date": data["latest_date"]
             })
         except Exception:
@@ -43,27 +46,25 @@ def generate_ranking(artifact_dir: Path):
         return
 
     df = pd.DataFrame(signals)
-    
-    # Sort by Opportunity Score
     df = df.sort_values(by="score", ascending=False)
     
-    print("\n" + "="*90)
-    print(f" TRADECHAT OPPORTUNITY RANKING | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*90)
-    print(f"{'TICKER':<12} {'SIGNAL':<12} {'RETURN %':>10} {'CONF %':>8} {'DISP %':>8} {'OPP SCORE':>12}")
-    print("-" * 90)
+    print("\n" + "="*105)
+    print(f" TRADECHAT MULTI-HORIZON RANKING | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*105)
+    print(f"{'TICKER':<12} {'SIGNAL':<12} {'D1 %':>9} {'D5 %':>9} {'D20 %':>9} {'CONF %':>8} {'OPP SCORE':>12}")
+    print("-" * 105)
     
-    for _, row in df.head(20).iterrows():
+    for _, row in df.head(25).iterrows():
         color = ""
-        if "BUY" in row["signal"]: color = "\033[92m" # Green
-        elif "SELL" in row["signal"]: color = "\033[91m" # Red
+        if "BUY" in row["signal"]: color = "\033[92m"
+        elif "SELL" in row["signal"]: color = "\033[91m"
         reset = "\033[0m"
         
-        print(f"{row['ticker']:<12} {color}{row['signal']:<12}{reset} {row['return_pct']:>+9.2f}% {row['confidence_pct']:>7.0f}% {row['dispersion_pct']:>7.2f}% {row['score']:>12.2f}")
+        print(f"{row['ticker']:<12} {color}{row['signal']:<12}{reset} {row['d1_ret']:>+8.2f}% {row['d5_ret']:>+8.2f}% {row['d20_ret']:>+8.2f}% {row['confidence_pct']:>7.0f}% {row['score']:>12.2f}")
     
-    print("-" * 90)
-    print("Opp Score = Confidence * |Expected Return|")
-    print("="*90)
+    print("-" * 105)
+    print("Score = D1_Confidence * |D1_Return|")
+    print("="*105)
 
 if __name__ == "__main__":
     # Assuming standard project structure

@@ -36,7 +36,15 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
 
     dataset = pd.DataFrame(index=df.index)
     dataset[ticker] = px
-    dataset["target_return_d1"] = px.pct_change().shift(-1)
+    
+    # Target: returns for different horizons
+    # d1: Next day return
+    # d5: Return after 5 trading days (approx. 1 week)
+    # d20: Return after 20 trading days (approx. 1 month)
+    dataset["target_return_d1"] = px.shift(-1) / px - 1
+    dataset["target_return_d5"] = px.shift(-5) / px - 1
+    dataset["target_return_d20"] = px.shift(-20) / px - 1
+
     dataset["frac_mem"] = _frac_diff(px, float(tech.get("frac_diff_d", 0.5)))
     dataset["ret_1"] = px.pct_change(1)
     dataset["ret_5"] = px.pct_change(5)
@@ -94,24 +102,23 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
             .fillna(0.0)
         )
 
-    raw_X = dataset.drop(columns=["target_return_d1"]).replace([np.inf, -np.inf], np.nan).dropna()
-    raw_y = dataset.loc[raw_X.index, "target_return_d1"].dropna()
-    raw_X = raw_X.loc[raw_y.index]
-
-    X, y, preparation_meta = prepare_training_matrix(raw_X, raw_y, cfg)
-
+    # We want to keep all targets but not as features
+    target_cols = ["target_return_d1", "target_return_d5", "target_return_d20"]
+    raw_X = dataset.drop(columns=target_cols).replace([np.inf, -np.inf], np.nan).dropna()
+    
+    # We return the raw X and a dataframe of all targets
+    all_y = dataset.loc[raw_X.index, target_cols]
+    
     asset_profile = get_asset_profile(cfg, ticker)
 
     meta = {
         "ticker": ticker,
         "asset_profile": asset_profile,
-        "rows": int(len(X)),
+        "rows": int(len(raw_X)),
         "generated_features": list(raw_X.columns),
         "generated_feature_count": len(raw_X.columns),
-        "features": list(X.columns),
-        "selected_features": list(X.columns),
-        "preparation": preparation_meta,
-        "dropped_correlated_features": preparation_meta.get("selection", {}).get("rejected_sample", {}),
+        "features": list(raw_X.columns),
+        "selected_features": list(raw_X.columns),
         "context": context_meta,
         "fundamentals": fundamental_meta,
         "sentiment": sentiment_meta,
@@ -120,4 +127,4 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
         "latest_risk_pct": float(dataset["ret_1"].tail(20).std() * 100) if len(dataset) >= 20 else 0.0,
         "sentiment_value": float(sentiment_value),
     }
-    return X, y, meta
+    return raw_X, all_y, meta

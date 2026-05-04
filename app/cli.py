@@ -65,38 +65,80 @@ def cmd_data(args: argparse.Namespace) -> None:
         canonical = st.get("ticker", ticker)
         st["fundamentals"] = _fundamentals_data_status(cfg, canonical)
         st["sentiment"] = _sentiment_data_status(cfg, canonical)
+        
+        # Check horizons trained
+        h_status = []
+        for h in ["d1", "d5", "d20"]:
+            p = artifact_dir(cfg) / safe_ticker(canonical) / f"latest_train_{h}.json"
+            h_status.append(f"{h}:{'ok' if p.exists() else 'miss'}")
+        st["models"] = " | ".join(h_status)
+        
         print_data_summary(st)
 
 def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
+    from .models import train_models
+    from .preparation import prepare_training_matrix
+    
+    targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
+    
     for ticker in parse_tickers(args.tickers):
         ticker = _canonical_ticker(cfg, ticker)
-        X, y, meta = _build_current_dataset(cfg, ticker, update=args.update)
-        from .models import train_models
-        manifest = train_models(cfg, ticker, X, y, meta, autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)))
-        print_train_summary(manifest)
+        raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
+        
+        from .report import print_train_summary
+        print(f"\nTraining multi-horizon models for {ticker}...")
+        for t_col in targets:
+            horizon = t_col.split("_")[-1]
+            
+            # Prepare specific matrix for this target (allows target-specific feature selection)
+            y_series = all_y[t_col].dropna()
+            X_prepared, y_prepared, prep_meta = prepare_training_matrix(raw_X.loc[y_series.index], y_series, cfg)
+            
+            # Enrich meta with specific preparation for this horizon
+            h_meta = meta.copy()
+            h_meta["preparation"] = prep_meta
+            h_meta["horizon"] = horizon
+            
+            manifest = train_models(cfg, ticker, X_prepared, y_prepared, h_meta, 
+                                   autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)),
+                                   horizon=horizon)
+            print_train_summary(manifest)
+        
+        print(f"All horizons trained for {ticker}.")
 
 
 def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict[str, Any]:
     ticker = _canonical_ticker(cfg, ticker)
-    X, y, meta = _build_current_dataset(cfg, ticker, update=update)
-    from .models import predict_with_model
+    raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=update)
+    from .models import predict_multi_horizon
     from .policy import classify_signal
-    pred = predict_with_model(cfg, ticker, X)
-    policy = classify_signal(cfg, pred, meta)
+    
+    # We predict for all horizons
+    results = predict_multi_horizon(cfg, ticker, raw_X)
+    
+    # Operational signal is based on d1 (next day)
+    pred_d1 = results.get("d1", {})
+    if "error" in pred_d1:
+        # Fallback to empty prediction if d1 is missing
+        pred_d1 = {"prediction_return": 0.0, "confidence": 0.0, "error": pred_d1["error"]}
+        
+    policy = classify_signal(cfg, pred_d1, meta)
     latest_price = float(meta["latest_price"])
-    target_price = latest_price * (1 + float(pred["prediction_return"]))
+    target_price = latest_price * (1 + float(pred_d1.get("prediction_return", 0.0)))
+    
     fundamentals = meta.get("fundamentals", {})
     signal = {
         "ticker": normalize_ticker(ticker),
         "latest_date": meta.get("latest_date"),
         "latest_price": latest_price,
         "target_price": float(target_price),
-        "prediction": pred,
+        "prediction": pred_d1, # Primary prediction
+        "horizons": results,   # All predictions (d1, d5, d20)
         "policy": policy,
         "fundamentals": fundamentals,
         "features_used": meta.get("features", []),
-        "train_run_id": pred.get("train_manifest", {}).get("run_id"),
+        "train_run_id": pred_d1.get("train_manifest", {}).get("run_id"),
     }
     out_dir = artifact_dir(cfg) / safe_ticker(ticker)
     write_json(out_dir / "latest_signal.json", signal)

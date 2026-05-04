@@ -31,6 +31,8 @@ def print_data_summary(status: dict[str, Any]) -> None:
     profile = status.get("asset_profile", {}) or {}
     context = status.get("context_tickers", []) or []
     fundamentals = status.get("fundamentals", {}) or {}
+    fund_status = fundamentals.get("status", "disabled")
+    fund_source = fundamentals.get("source", "n/a")
     sentiment = status.get("sentiment", {}) or {}
     period = status.get("period") or "n/a"
     min_rows = status.get("min_rows")
@@ -70,8 +72,6 @@ def print_data_summary(status: dict[str, Any]) -> None:
     linked = profile.get("linked_indices") or []
     if linked:
         print("indices     : " + ", ".join([str(x) for x in linked]))
-    fund_status = fundamentals.get("status", "disabled")
-    fund_source = fundamentals.get("source", "n/a")
     print(f"fundamentals: {fund_status} | source={fund_source}")
     sent_status = sentiment.get("status", "disabled")
     sent_cache = sentiment.get("cache", "n/a")
@@ -80,61 +80,55 @@ def print_data_summary(status: dict[str, Any]) -> None:
         print(f"sentiment   : {sent_status} | daily_cache={sent_cache}")
     else:
         print(f"sentiment   : {sent_status} | daily_cache={sent_cache} | entries={sent_items}")
+    print(f"models      : {status.get('models', 'n/a')}")
     print("=" * 72)
 
 
 def print_train_summary(manifest: dict[str, Any]) -> None:
-    print("\n" + C.HEADER + "=" * 72 + C.RESET)
-    print(f"{C.BOLD}TRADECHAT TRAIN{C.RESET} | {C.BLUE}{manifest['ticker']}{C.RESET}")
-    print(C.HEADER + "=" * 72 + C.RESET)
-    print(f"run_id      : {manifest['run_id']}")
-    print(f"rows        : {manifest['rows']} ({manifest['train_rows']} train / {manifest['test_rows']} test)")
-    base_engines = manifest.get('base_engines', manifest.get('engines', []))
-    print(f"base engines: {', '.join(base_engines)}")
-    print(f"arbiter     : {manifest.get('arbiter', 'ridge')}")
-    print(f"features    : {len(manifest['features'])}")
-    top_feats = manifest.get("top_features") or []
-    if top_feats:
-        print("top feats   : " + ", ".join([str(item.get("short") or abbreviate_feature_name(item.get("name", ""))) for item in top_feats[:5]]))
-    arbiter_metrics = manifest.get('metrics', {}).get('ridge_arbiter') or manifest.get('metrics', {}).get('ensemble', {})
-    print(f"mae arbiter : {arbiter_metrics.get('mae_return', 0.0):.5f}")
-    print(f"prediction  : {manifest['latest_prediction_return']*100:+.2f}% D+1")
-    print(f"confidence  : {manifest['confidence']*100:.0f}%")
-    print(f"artifact    : {manifest['model_path']}")
-    print("=" * 72)
+    horizon = manifest.get("horizon", "d1")
+    ticker = manifest.get("ticker", "N/A")
+    print(f"  {C.BLUE}{ticker}{C.RESET} | {C.CYAN}{horizon.upper()}{C.RESET} | mae: {C.YELLOW}{manifest.get('metrics', {}).get('ridge_arbiter', {}).get('mae_return', 0.0):.5f}{C.RESET} | conf: {C.GREEN}{manifest.get('confidence', 0.0)*100:.0f}%{C.RESET} | features: {len(manifest.get('features', []))}")
 
 
 def print_signal(signal: dict[str, Any]) -> None:
     ticker = signal["ticker"]
     price = signal["latest_price"]
-    target = signal["target_price"]
     policy = signal["policy"]
     fundamentals = signal.get("fundamentals", {})
-    engines = signal.get("prediction", {}).get("by_engine", {})
+    horizons = signal.get("horizons", {})
+    
     print("\n" + C.HEADER + "=" * 72 + C.RESET)
-    print(f"{C.BOLD}TRADECHAT SIGNAL{C.RESET} | {C.BLUE}{ticker}{C.RESET}")
+    print(f"{C.BOLD}TRADECHAT SIGNAL{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {signal.get('latest_date')}")
     print(C.HEADER + "=" * 72 + C.RESET)
-    print(f"date        : {signal.get('latest_date')}")
-    print(f"last price  : {_money(price)}")
-    print(f"target D+1  : {_money(target)} ({policy['score_pct']:+.2f}%)")
+    print(f"last price  : {C.BOLD}{_money(price)}{C.RESET}")
     print(f"signal      : {C.BOLD}{policy['label']}{C.RESET} | posture: {C.CYAN}{policy['posture']}{C.RESET}")
-    print(f"confidence  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET}")
+    print(f"confidence  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET} (D+1)")
+    print("-" * 72)
+    
+    # Table of Horizons
+    print(f"{'HORIZON':<12} {'EXP. RETURN':>14} {'TARGET PRICE':>14} {'CONFIDENCE':>12}")
+    for h in ["d1", "d5", "d20"]:
+        h_data = horizons.get(h, {})
+        if "error" in h_data:
+            print(f"{h:<12} {C.RED}{'n/a':>14}{C.RESET} {'-':>14} {'-':>12}")
+            continue
+            
+        ret = float(h_data.get("prediction_return", 0.0))
+        conf = float(h_data.get("confidence", 0.0)) * 100
+        t_price = price * (1 + ret)
+        
+        color = C.GREEN if ret > 0 else C.RED if ret < 0 else C.RESET
+        print(f"{h:<12} {color}{ret*100:>+13.2f}%{C.RESET} {_money(t_price):>14} {conf:>11.0f}%")
+    
+    print("-" * 72)
     print(f"fundamentals: P/L {C.DIM}{float(fundamentals.get('pl', 0) or 0):.2f}{C.RESET} | DY {C.DIM}{float(fundamentals.get('dy', 0) or 0)*100:.1f}%{C.RESET} | P/VP {C.DIM}{float(fundamentals.get('pvp', 0) or 0):.2f}{C.RESET} | ROE {C.DIM}{float(fundamentals.get('roe', 0) or 0)*100:.1f}%{C.RESET}")
-    if engines:
-        line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in engines.items()])
-        arbiter = signal.get('prediction', {}).get('arbiter', 'ridge')
-        print(f"base engines: {C.DIM}{line}{C.RESET}")
-        raw_engines = signal.get("prediction", {}).get("raw_by_engine", {}) or {}
-        discarded = signal.get("prediction", {}).get("discarded_engines", []) or []
-        used = signal.get("prediction", {}).get("used_engines", []) or []
-        if raw_engines and any(abs(float(raw_engines.get(k, 0))) > abs(float(v)) + 1e-12 for k, v in engines.items()):
-            raw_line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in raw_engines.items()])
-            print(f"raw engines : {C.DIM}{raw_line}{C.RESET}")
-        if discarded:
-            print(f"used engines: {', '.join(used) if used else 'none'}")
-            print(f"guard       : {C.YELLOW}{', '.join(discarded)} neutralized before Ridge{C.RESET}")
-        print(f"arbiter     : {arbiter}")
-    print("reasons     : " + "; ".join(policy.get("reasons", [])))
+    
+    d1_engines = horizons.get("d1", {}).get("by_engine", {})
+    if d1_engines:
+        line = " | ".join([f"{k} {v*100:+.2f}%" for k, v in d1_engines.items()])
+        print(f"base (d1)   : {C.DIM}{line}{C.RESET}")
+    
+    print(f"reasons     : " + "; ".join(policy.get("reasons", [])))
     print(f"train run   : {C.DIM}{signal.get('train_run_id')}{C.RESET}")
     print(C.HEADER + "=" * 72 + C.RESET)
 
@@ -179,11 +173,24 @@ def render_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> str:
     lines.append("SIGNAL")
     lines.append("-" * 80)
     lines.append(f"last_price    : {_money(float(signal.get('latest_price', 0) or 0))}")
-    lines.append(f"target_d1     : {_money(float(signal.get('target_price', 0) or 0))}")
-    lines.append(f"return_d1_pct : {float(policy.get('score_pct', 0) or 0):+.2f}%")
-    lines.append(f"label         : {policy.get('label')}")
-    lines.append(f"posture       : {policy.get('posture')}")
-    lines.append(f"confidence    : {float(policy.get('confidence_pct', 0) or 0):.0f}%")
+    lines.append(f"label_d1      : {policy.get('label')}")
+    lines.append(f"posture_d1    : {policy.get('posture')}")
+    lines.append(f"confidence_d1 : {float(policy.get('confidence_pct', 0) or 0):.0f}%")
+    lines.append("")
+    lines.append("HORIZONS PREDICTION TABLE")
+    lines.append("-" * 80)
+    lines.append(f"{'HORIZON':<12} {'EXP. RETURN':>14} {'TARGET PRICE':>14} {'CONFIDENCE':>12}")
+    horizons = signal.get("horizons", {})
+    for h in ["d1", "d5", "d20"]:
+        h_data = horizons.get(h, {})
+        if "error" in h_data:
+            lines.append(f"{h:<12} {'error':>14} {'-':>14} {'-':>12}")
+            continue
+        ret = float(h_data.get("prediction_return", 0.0))
+        conf = float(h_data.get("confidence", 0.0)) * 100
+        t_price = float(signal.get('latest_price', 0)) * (1 + ret)
+        lines.append(f"{h:<12} {ret*100:>+13.2f}% {_money(t_price):>14} {conf:>11.0f}%")
+    lines.append("-" * 80)
     lines.append("reasons       : " + "; ".join(policy.get("reasons", [])))
     lines.append("")
     lines.append("BASE ENGINES AND ARBITER")
