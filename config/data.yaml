@@ -196,8 +196,8 @@ assets:
     group: financials
     subgroup: banking
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 60.746.948/0001-12
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -215,8 +215,8 @@ assets:
     group: financials
     subgroup: banking
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 90.400.888/0001-42
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -233,8 +233,8 @@ assets:
     group: financials
     subgroup: investment_bank
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 30.306.294/0001-45
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -251,8 +251,8 @@ assets:
     group: financials
     subgroup: market_infrastructure
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 09.346.601/0001-25
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -269,8 +269,8 @@ assets:
     group: financials
     subgroup: insurance
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 17.344.597/0001-94
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -287,8 +287,8 @@ assets:
     group: financials
     subgroup: insurance
     financial_class: financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.149.205/0001-69
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -321,8 +321,8 @@ assets:
     group: communication
     subgroup: telecom
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.421.421/0001-11
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -413,8 +413,8 @@ assets:
     group: consumer_discretionary
     subgroup: retail_ecommerce
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 00.776.574/0001-56
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -430,8 +430,8 @@ assets:
     group: consumer_staples
     subgroup: beverages
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 07.526.557/0001-00
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -448,8 +448,8 @@ assets:
     group: consumer_staples
     subgroup: food_protein
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.916.265/0001-60
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -484,8 +484,8 @@ assets:
     group: consumer_staples
     subgroup: agriculture
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 07.628.522/0001-59
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -501,8 +501,8 @@ assets:
     group: materials
     subgroup: pulp_paper
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 16.404.287/0001-55
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -519,8 +519,8 @@ assets:
     group: materials
     subgroup: pulp_paper
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 89.637.490/0001-45
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -537,8 +537,8 @@ assets:
     group: materials
     subgroup: steel
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 33.611.500/0001-19
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -555,8 +555,8 @@ assets:
     group: materials
     subgroup: steel_mining
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 33.042.730/0001-04
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -573,8 +573,8 @@ assets:
     group: materials
     subgroup: steel
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 60.894.730/0001-05
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -590,8 +590,8 @@ assets:
     group: materials
     subgroup: holding_mining
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 03.847.461/0001-92
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -607,8 +607,8 @@ assets:
     group: energy
     subgroup: oil_gas
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 01.378.898/0001-55
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -625,8 +625,8 @@ assets:
     group: energy
     subgroup: fuel_logistics
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 50.746.577/0001-15
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -643,8 +643,8 @@ assets:
     group: energy
     subgroup: fuel_distribution
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 33.453.598/0001-23
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -661,8 +661,8 @@ assets:
     group: energy
     subgroup: fuel_distribution
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 33.256.439/0001-06
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -679,8 +679,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.429.144/0001-93
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -696,8 +696,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 17.155.730/0001-64
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -714,8 +714,8 @@ assets:
     group: utilities
     subgroup: electric_power_transmission
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 07.859.971/0001-30
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -731,8 +731,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.474.971/0001-90
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -748,8 +748,8 @@ assets:
     group: utilities
     subgroup: water_sanitation
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 43.776.517/0001-80
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -766,8 +766,8 @@ assets:
     group: materials
     subgroup: mining
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 08.902.291/0001-15
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -783,8 +783,8 @@ assets:
     group: industrials
     subgroup: capital_goods
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 84.429.695/0001-11
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -801,8 +801,8 @@ assets:
     group: industrials
     subgroup: rail_logistics
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.392.766/0001-02
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -836,8 +836,8 @@ assets:
     group: consumer_discretionary
     subgroup: education
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.846.056/0001-97
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -870,8 +870,8 @@ assets:
     group: health_care
     subgroup: health_plans
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 63.554.067/0001-98
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -887,8 +887,8 @@ assets:
     group: health_care
     subgroup: pharmacy_retail
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 61.585.865/0001-51
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -905,8 +905,8 @@ assets:
     group: health_care
     subgroup: hospitals
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 40.654.926/0001-40
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -922,8 +922,8 @@ assets:
     group: real_estate
     subgroup: shopping_centers
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 07.816.890/0001-53
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -939,8 +939,8 @@ assets:
     group: real_estate
     subgroup: shopping_centers
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 09.346.392/0001-30
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -956,8 +956,8 @@ assets:
     group: real_estate
     subgroup: homebuilding
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 73.178.600/0001-12
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -974,8 +974,8 @@ assets:
     group: real_estate
     subgroup: homebuilding
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 08.343.492/0001-20
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -991,8 +991,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - ^IEE
@@ -1013,8 +1013,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - ^IEE
@@ -1032,8 +1032,8 @@ assets:
     group: utilities
     subgroup: electric_power
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - ^IEE
@@ -1051,8 +1051,8 @@ assets:
     group: consumer_discretionary
     subgroup: retail_apparel
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 16.590.234/0001-76
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1068,8 +1068,8 @@ assets:
     group: industrials
     subgroup: transport_infrastructure
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 02.846.056/0001-97
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1086,8 +1086,8 @@ assets:
     group: energy
     subgroup: oil_gas
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 12.091.809/0001-55
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - BZ=F
@@ -1105,8 +1105,8 @@ assets:
     group: consumer_staples
     subgroup: food_protein
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 03.853.896/0001-40
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1115,7 +1115,7 @@ assets:
     - ICON
     use_in_reference_sample: true
     registry_status: active
-  AZUL54.SA:
+  AZUL3.SA:
     name: AZUL
     asset_type: stock
     country: BR
@@ -1123,8 +1123,8 @@ assets:
     group: industrials
     subgroup: airlines
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 09.296.295/0001-60
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1142,8 +1142,8 @@ assets:
     group: industrials
     subgroup: airlines
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 06.164.253/0001-87
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1160,8 +1160,8 @@ assets:
     group: industrials
     subgroup: aerospace_defense
     financial_class: non_financial
-    cnpj: null
-    cnpj_status: pending_lookup
+    cnpj: 07.689.002/0001-89
+    cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
     - USDBRL=X

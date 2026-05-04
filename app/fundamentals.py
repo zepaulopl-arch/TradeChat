@@ -27,10 +27,12 @@ def yahoo_snapshot(ticker: str) -> dict[str, float | str]:
             pass
             
     dy = info.get("dividendYield") or 0.0
-    # yfinance sometimes returns yield as a whole number (e.g. 5.5 instead of 0.055)
-    # but info["dividendYield"] is usually 0.0xx. Checking for sanity.
-    if price and dy and dy > 1.0:
-        dy = dy / 100.0 if dy > 100 else dy / price if dy > price else dy
+    # yfinance sanity check: sometimes it's 0.05 (decimal), sometimes 5.0 (percent)
+    if dy > 1.0:
+        dy = dy / 100.0
+    # Last resort: if it's still huge, it's likely an error in the data provider
+    if dy > 2.0: # More than 200% yield is likely a bug
+        dy = 0.0
 
     market_cap = float(info.get("marketCap") or 0.0)
     shares = float(info.get("sharesOutstanding") or 0.0)

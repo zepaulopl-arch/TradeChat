@@ -344,46 +344,51 @@ def _confidence_from(
     ccfg = (cfg or {}).get("model", {}).get("confidence", {})
     
     # Agreement: how much base engines agree on the direction/magnitude
-    agreement_scale = float(ccfg.get("agreement_scale_return", 0.015)) # Slightly more generous
+    agreement_scale = float(ccfg.get("agreement_scale_return", 0.025)) # Increased from 0.015
     scale = max(agreement_scale, float(np.mean(np.abs(clean))) if clean else 0.0)
     agreement = float(scale / (scale + dispersion)) if scale > 0 else 0.0
 
-    # MAE Component: uses a Sigmoid-like decay instead of linear to be less punitive to moderate errors
-    mae_scale = float(ccfg.get("mae_reference_return", 0.015)) # Increased from 0.012
+    # MAE Component: more forgiving sigmoid
+    mae_scale = float(ccfg.get("mae_reference_return", 0.020)) # Increased from 0.015
     if mae is None or not np.isfinite(float(mae)) or mae_scale <= 0:
-        mae_component = 0.75
+        mae_component = 0.80
     else:
-        # Logistic-style decay: errors below mae_scale are forgiven more easily
         mae_ratio = max(0.0, float(mae)) / mae_scale
-        mae_component = 1.0 / (1.0 + 0.5 * (mae_ratio ** 1.5))
+        mae_component = 1.0 / (1.0 + 0.4 * (mae_ratio ** 1.2))
 
-    # Magnitude: predictions near zero are less 'confident' as actions
-    action_scale = float(ccfg.get("action_scale_return", 0.0045))
+    # Magnitude: predictions near zero are less 'confident'
+    action_scale = float(ccfg.get("action_scale_return", 0.0050))
     magnitude_ratio = min(1.0, abs(float(prediction)) / action_scale) if action_scale > 0 else 1.0
-    neutral_floor = float(ccfg.get("neutral_prediction_component_floor", 0.40)) # Higher floor
+    neutral_floor = float(ccfg.get("neutral_prediction_component_floor", 0.60)) # Higher floor 0.60
     magnitude_component = neutral_floor + (1.0 - neutral_floor) * magnitude_ratio
 
-    # Engine component: penalty for neutralized/discarded engines
+    # Engine component
     guard_meta = guard_meta or {}
     used = len(guard_meta.get("used", []) or clean)
     discarded = len(guard_meta.get("discarded", []) or [])
     total = max(used + discarded, len(clean), 1)
-    engine_component = max(0.30, used / total)
-    if discarded:
-        engine_component *= float(ccfg.get("discarded_engine_penalty", 0.80)) ** discarded
+    engine_component = max(0.50, used / total) # Higher floor 0.50
 
-    # Sample Size: Confidence grows with history
+    # Sample Size
     if train_rows is None or int(train_rows or 0) <= 0:
         sample_component = 1.0
     else:
-        reference_rows = max(1, int(ccfg.get("sample_reference_rows", 800))) # Lowered from 1000
-        sample_component = min(1.0, max(0.50, float(train_rows) / reference_rows)) # Higher floor 0.50
+        reference_rows = max(1, int(ccfg.get("sample_reference_rows", 600))) # Lowered from 800
+        sample_component = min(1.0, max(0.65, float(train_rows) / reference_rows)) # Higher floor 0.65
 
-    # Weighted combination
-    confidence = agreement * (0.40 + 0.60 * mae_component) * magnitude_component * engine_component * sample_component
+    # New Weighted Combination: Less aggressive multiplication
+    # We mix Agreement and MAE as the 'Core Quality'
+    core_quality = (0.60 * agreement) + (0.40 * mae_component)
     
-    floor = float(ccfg.get("minimum_when_engines_exist", 0.05))
-    cap = float(ccfg.get("maximum_confidence", 0.92))
+    # Then we multiply by situational factors
+    confidence = core_quality * magnitude_component * engine_component * sample_component
+    
+    # Final scaling to mapping it to a more useful range
+    # Boost by a factor to utilize the 0-100 range better
+    confidence = confidence * 1.15
+    
+    floor = float(ccfg.get("minimum_when_engines_exist", 0.10))
+    cap = float(ccfg.get("maximum_confidence", 0.95))
     confidence = min(cap, max(floor, confidence))
     return dispersion, confidence
 

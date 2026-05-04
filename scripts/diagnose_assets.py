@@ -184,6 +184,7 @@ def _diagnose_one(cfg: dict[str, Any], ticker: str, args: argparse.Namespace) ->
         "top_features": _top_feature_line(manifest.get("top_features", []) or []),
         "feature_family_profile": json.dumps(manifest.get("feature_family_profile", {}) or {}, ensure_ascii=False),
         "mae_arbiter": ridge_metrics.get("mae_return", ""),
+        "engine_dispersion": manifest.get("engine_dispersion", 0.0),
         "train_prediction_pct": _fmt_pct(manifest.get("latest_prediction_return", 0.0)),
         "train_confidence_pct": float(manifest.get("confidence", 0.0) or 0.0) * 100.0,
         "train_raw_engines": _join_dict_pct(manifest.get("latest_prediction_by_engine_raw", {}) or {}),
@@ -307,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
     tickers = _asset_list(cfg, args)
     run_id = f"diag_{_now_id()}"
     print("=" * 80)
-    print(f"TRADEGEM DIAGNOSTIC | assets={len(tickers)} | run_id={run_id}")
+    print(f"TRADECHAT DIAGNOSTIC | assets={len(tickers)} | run_id={run_id}")
     print("=" * 80)
     rows: list[dict[str, Any]] = []
     for idx, ticker in enumerate(tickers, start=1):
@@ -318,8 +319,8 @@ def main(argv: list[str] | None = None) -> int:
         if status == "ok":
             print(
                 f"          ok | pred={row.get('prediction_pct', 0):+6.2f}% | "
-                f"conf={row.get('confidence_pct', 0):5.0f}% | mae={row.get('mae_arbiter')} | "
-                f"discarded={row.get('predict_discarded_engines') or '-'}",
+                f"conf={row.get('confidence_pct', 0):5.0f}% | mae={row.get('mae_arbiter'):.5f} | "
+                f"disp={float(row.get('engine_dispersion', 0) or 0)*100:4.2f}%",
                 flush=True,
             )
         else:
