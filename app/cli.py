@@ -16,6 +16,7 @@ from .models import train_models, predict_multi_horizon
 from .preparation import prepare_training_matrix
 from .policy import classify_signal
 from .cvm_conn import CVMConnector
+from .execution import virtual_buy, load_portfolio, update_portfolio_prices
 
 
 def _canonical_ticker(cfg: dict[str, Any], ticker: str) -> str:
@@ -194,6 +195,7 @@ def cmd_report(args: argparse.Namespace) -> None:
 def cmd_daily(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     rows = []
+    prices_map = {}
     for ticker in _resolve_tickers(cfg, args.tickers):
         try:
             # Daily intentionally does not train. It refreshes data, predicts with the saved model,
@@ -201,9 +203,14 @@ def cmd_daily(args: argparse.Namespace) -> None:
             signal = _make_signal(cfg, ticker, update=True)
             if cfg.get("daily", {}).get("generate_report", False):
                 write_txt_report(cfg, signal)
-            rows.append((signal["ticker"], signal["policy"]["label"], signal["policy"]["score_pct"], signal["policy"]["confidence_pct"], signal["target_price"]))
+            
+            ticker_norm = signal["ticker"]
+            prices_map[ticker_norm] = float(signal["latest_price"])
+            
+            rows.append((ticker_norm, signal["policy"]["label"], signal["policy"]["score_pct"], signal["policy"]["confidence_pct"], signal["target_price"]))
         except Exception as exc:
             rows.append((normalize_ticker(ticker), "ERROR", 0.0, 0.0, str(exc)))
+            
     print("\nTRADECHAT DAILY")
     print("-" * 80)
     print(f"{'ticker':<12} {'signal':<14} {'return':>9} {'conf':>8} {'target/error':>24}")
@@ -215,6 +222,47 @@ def cmd_daily(args: argparse.Namespace) -> None:
             target_s = str(target)[:24]
         print(f"{t:<12} {label:<14} {ret:>+8.2f}% {conf:>7.0f}% {target_s:>24}")
     print("-" * 80)
+    
+    # Portfolio monitoring
+    events = update_portfolio_prices(cfg, prices_map)
+    if events:
+        print("\nPORTFOLIO EVENTS")
+        for e in events:
+            print(f"-> {e}")
+        print("-" * 80)
+
+
+def cmd_buy(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    ticker = normalize_ticker(args.ticker)
+    # Generate a fresh signal to have latest prices and policy
+    signal = _make_signal(cfg, ticker, update=True)
+    try:
+        pos = virtual_buy(cfg, ticker, signal)
+        print(f"\n{ticker} added to virtual portfolio!")
+        print(f"Entry: R$ {pos['entry_price']:.2f} | Shares: {pos['shares']} | Stop: R$ {pos['stop_loss']:.2f}")
+    except Exception as exc:
+        print(f"\nERROR: Could not execute virtual buy: {exc}")
+
+
+def cmd_portfolio(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    p = load_portfolio(cfg)
+    acc = p["account"]
+    
+    print("\nVIRTUAL PORTFOLIO")
+    print("=" * 60)
+    print(f"CASH: R$ {acc['cash']:,.2f} | INITIAL: R$ {acc['initial_capital']:,.2f}")
+    print("-" * 60)
+    
+    positions = p["positions"]
+    if not positions:
+        print("No active positions.")
+    else:
+        print(f"{'TICKER':<10} {'SHARES':<8} {'ENTRY':<10} {'TARGET':<10} {'STOP':<10}")
+        for t, pos in positions.items():
+            print(f"{t:<10} {pos['shares']:<8} {pos['entry_price']:<10.2f} {pos['target_final']:<10.2f} {pos['stop_loss']:<10.2f}")
+    print("=" * 60)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -246,6 +294,14 @@ def build_parser() -> argparse.ArgumentParser:
     daily = sub.add_parser("daily", help="run data -> predict, without training")
     daily.add_argument("tickers", nargs="+")
     daily.set_defaults(func=cmd_daily)
+
+    buy = sub.add_parser("buy", help="simulated buy order")
+    buy.add_argument("ticker")
+    buy.set_defaults(func=cmd_buy)
+
+    port = sub.add_parser("portfolio", help="show virtual portfolio")
+    port.set_defaults(func=cmd_portfolio)
+    
     return parser
 
 

@@ -128,10 +128,58 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
             if best_signal["label"] == "STRONG BUY":
                 best_signal["label"] = "BUY"
                 best_signal["posture"] = best_signal["posture"].replace("aggressive", "selective")
-            else:
-                # If it was already just BUY and failed risk, we could neutralize, but let's keep it selective BUY for now
-                # unless risk is really high.
-                pass
             best_signal["reasons"].extend(filters)
+
+    # --- Risk Management Calculation ---
+    latest_price = float(dataset_meta.get("latest_price", 0.0))
+    risk_pct = float(dataset_meta.get("latest_risk_pct", 2.0))
+    
+    rm_cfg = pcfg.get("risk_management", {})
+    agg_mult = float(rm_cfg.get("aggressive_multiplier", 1.2))
+    sel_mult = float(rm_cfg.get("selective_multiplier", 1.8))
+    
+    risk_multiplier = agg_mult if "aggressive" in best_signal["posture"] else sel_mult
+    stop_dist_pct = (risk_pct * risk_multiplier) / 100.0
+    
+    score_pct = best_signal["score_pct"] / 100.0
+    
+    if "BUY" in best_signal["label"]:
+        best_signal["target_price"] = latest_price * (1 + score_pct)
+        best_signal["stop_loss_price"] = latest_price * (1 - stop_dist_pct)
+    elif "SELL" in best_signal["label"]:
+        best_signal["target_price"] = latest_price * (1 + score_pct) # score_pct is negative
+        best_signal["stop_loss_price"] = latest_price * (1 + stop_dist_pct)
+    else:
+        best_signal["target_price"] = latest_price
+        best_signal["stop_loss_price"] = latest_price * (1 - stop_dist_pct)
+
+    # --- Position Sizing & Maneuver ---
+    tcfg = cfg.get("trading", {})
+    capital = float(tcfg.get("capital", 10000.0))
+    max_loss = capital * (float(tcfg.get("risk_per_trade_pct", 1.0)) / 100.0)
+    
+    risk_per_share = abs(latest_price - best_signal["stop_loss_price"])
+    if risk_per_share > 0:
+        # Round down to integers (or multiples of 100 if you prefer, but let's keep it flexible)
+        best_signal["position_size"] = int(max_loss / risk_per_share)
+    else:
+        best_signal["position_size"] = 0
+
+    # Partial Targets (Scale-Out logic)
+    # Target 1 is at 50% of the predicted move
+    move_pct = score_pct * 0.5
+    if "BUY" in best_signal["label"]:
+        best_signal["target_partial"] = latest_price * (1 + move_pct)
+        best_signal["breakeven_trigger"] = best_signal["target_partial"] # Move stop to entry when partial hit
+    elif "SELL" in best_signal["label"]:
+        best_signal["target_partial"] = latest_price * (1 + move_pct)
+        best_signal["breakeven_trigger"] = best_signal["target_partial"]
+    else:
+        best_signal["target_partial"] = latest_price
+        best_signal["breakeven_trigger"] = latest_price
+
+    # Risk/Reward Ratio based on final target
+    reward_amt = abs(best_signal["target_price"] - latest_price)
+    best_signal["risk_reward_ratio"] = reward_amt / risk_per_share if risk_per_share > 0 else 0.0
 
     return best_signal

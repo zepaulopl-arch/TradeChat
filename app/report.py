@@ -127,6 +127,19 @@ def print_signal(signal: dict[str, Any]) -> None:
     trigger_h = policy.get("horizon", "d1").upper()
     print(f"CONFIDENCE  : {C.YELLOW}{policy['confidence_pct']:.0f}%{C.RESET} ({C.CYAN}{C.BOLD}{trigger_h}{C.RESET})")
     
+    # Risk/Reward Block
+    target = policy.get("target_price", 0.0)
+    stop = policy.get("stop_loss_price", 0.0)
+    rr = policy.get("risk_reward_ratio", 0.0)
+    rr_color = C.GREEN if rr >= 1.5 else C.YELLOW if rr >= 1.0 else C.RED
+    print(f"TARGET/STOP : {C.GREEN}{_money(target)}{C.RESET} / {C.RED}{_money(stop)}{C.RESET} (R/R: {rr_color}{rr:.2f}{C.RESET})")
+    
+    # Maneuver Block
+    pos_size = policy.get("position_size", 0)
+    partial = policy.get("target_partial", 0.0)
+    be_trigger = policy.get("breakeven_trigger", 0.0)
+    print(f"SUGG. SIZE  : {C.BOLD}{pos_size}{C.RESET} units | PARTIAL: {C.CYAN}{_money(partial)}{C.RESET} (Move to BE)")
+    
     print(C.HEADER + "─" * 72 + C.RESET)
     # Block 2: Horizons Table
     print(f"{'HORIZON':<12} {'EXP. RETURN':>14} {'TARGET PRICE':>14} {'CONFIDENCE':>12}")
@@ -168,6 +181,12 @@ def write_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> Path:
         f.write(f"SIGNAL     : {signal['policy']['label']} ({signal['policy']['posture']})\n")
         trigger_h = policy.get("horizon", "d1").upper()
         f.write(f"CONFIDENCE : {int(policy.get('confidence_pct', 0))}% ({trigger_h})\n")
+        f.write(f"SUGG. SIZE : {policy.get('position_size', 0)} units\n")
+        f.write(f"PARTIAL T1 : R$ {policy.get('target_partial', 0.0):.2f} (Realize 50%)\n")
+        f.write(f"TARGET T2  : R$ {policy.get('target_price', 0.0):.2f}\n")
+        f.write(f"STOP-LOSS  : R$ {policy.get('stop_loss_price', 0.0):.2f}\n")
+        f.write(f"BE TRIGGER : R$ {policy.get('breakeven_trigger', 0.0):.2f} (Move Stop to Entry)\n")
+        f.write(f"R/R RATIO  : {policy.get('risk_reward_ratio', 0.0):.2f}\n")
         f.write("-" * 72 + "\n")
         f.write(f"REASONS:\n")
         for r in signal["policy"].get("reasons", []):
