@@ -450,6 +450,8 @@ assets:
     financial_class: non_financial
     cnpj: 02.916.265/0001-60
     cnpj_status: verified_seed
+    predecessor_ticker: JBSS3.SA
+    conversion_ratio: 2.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -836,7 +838,7 @@ assets:
     group: consumer_discretionary
     subgroup: education
     financial_class: non_financial
-    cnpj: 02.846.056/0001-97
+    cnpj: 02.800.026/0001-40
     cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
@@ -1072,6 +1074,8 @@ assets:
     financial_class: non_financial
     cnpj: 02.846.056/0001-97
     cnpj_status: verified_seed
+    predecessor_ticker: CCRO3.SA
+    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1156,7 +1160,7 @@ assets:
     linked_indices:
     - INDX
     use_in_reference_sample: true
-    registry_status: active
+    registry_status: inactive_low_data
     note: restructuring code after Chapter 11 process
   EMBJ3.SA:
     name: EMBRAER
@@ -1177,6 +1181,56 @@ assets:
     linked_indices:
     - IBOV
     - INDX
+    use_in_reference_sample: true
+    registry_status: active
+  TOTS3.SA:
+    name: TOTVS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: technology
+    subgroup: software_services
+    financial_class: non_financial
+    cnpj: 53.113.791/0001-22
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+  POMO4.SA:
+    name: MARCOPOLO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_equipment
+    financial_class: non_financial
+    cnpj: 88.611.835/0001-29
+    context_tickers:
+    - ^BVSP
+    - INDX
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+  SMTO3.SA:
+    name: SAO MARTINHO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: agriculture
+    financial_class: non_financial
+    cnpj: 51.466.860/0001-56
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
     use_in_reference_sample: true
     registry_status: active
 context:

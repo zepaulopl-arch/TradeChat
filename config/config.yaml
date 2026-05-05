@@ -2,7 +2,7 @@ app:
   name: TradeChat
   default_horizon_days: 1
   artifact_dir: artifacts
-  data_cache_dir: data_cache
+  data_cache_dir: data/cache
 features_file: features.yaml
 data:
   period: max

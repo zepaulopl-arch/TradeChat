@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
-from .config import cache_dir, load_data_registry
+from .config import cache_dir, historical_dir, load_data_registry
 from .utils import normalize_ticker, safe_ticker
 
 
@@ -194,7 +194,7 @@ def resolve_context_tickers(cfg: dict[str, Any], ticker: str) -> list[str]:
 
 def price_cache_path(cfg: dict[str, Any], ticker: str) -> Path:
     canonical = resolve_asset(cfg, ticker).get("canonical", normalize_ticker(ticker))
-    return cache_dir(cfg) / f"prices_{safe_ticker(canonical)}.parquet"
+    return historical_dir(cfg) / f"prices_{safe_ticker(canonical)}.parquet"
 
 
 def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.DataFrame:

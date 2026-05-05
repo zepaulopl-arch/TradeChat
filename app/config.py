@@ -210,6 +210,24 @@ def artifact_dir(cfg: dict[str, Any]) -> Path:
 
 
 def cache_dir(cfg: dict[str, Any]) -> Path:
-    path = ROOT / cfg.get("app", {}).get("data_cache_dir", "data_cache")
+    path = ROOT / cfg.get("app", {}).get("data_cache_dir", "data/cache")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def historical_dir(cfg: dict[str, Any]) -> Path:
+    path = ROOT / "data" / "historical"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def models_dir(cfg: dict[str, Any]) -> Path:
+    path = artifact_dir(cfg) / "models"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def reports_dir(cfg: dict[str, Any]) -> Path:
+    path = artifact_dir(cfg) / "reports"
     path.mkdir(parents=True, exist_ok=True)
     return path

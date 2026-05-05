@@ -15,7 +15,7 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 from sklearn.exceptions import ConvergenceWarning
 from .feature_audit import feature_family
 
-from .config import artifact_dir
+from .config import models_dir
 from .feature_audit import top_selected_features, feature_family_profile
 from .utils import latest_file, normalize_ticker, run_id, safe_ticker, write_json, read_json
 
@@ -516,7 +516,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     dispersion, confidence = _confidence_from(list(pred_latest.values()), arbiter_latest, cfg, mae=arbiter_mae, guard_meta=latest_discard_meta, train_rows=len(X_train))
 
     rid = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{horizon}_{safe_ticker(ticker)}"
-    out_dir = artifact_dir(cfg) / safe_ticker(ticker) / rid
+    out_dir = models_dir(cfg) / safe_ticker(ticker) / rid
     out_dir.mkdir(parents=True, exist_ok=True)
     model_path = out_dir / f"model_{horizon}.pkl"
     payload = {
@@ -583,18 +583,18 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "dataset_meta": dataset_meta,
     }
     write_json(out_dir / "manifest.json", manifest)
-    write_json(artifact_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json", manifest)
+    write_json(models_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json", manifest)
     return manifest
 
 
 def load_latest_model(cfg: dict[str, Any], ticker: str, horizon: str = "d1") -> tuple[dict[str, Any], dict[str, Any]]:
     ticker = normalize_ticker(ticker)
-    latest = artifact_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json"
+    latest = models_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json"
     if not latest.exists():
-        alt = latest_file(artifact_dir(cfg) / safe_ticker(ticker), f"train_*_{horizon}_*/manifest.json")
+        alt = latest_file(models_dir(cfg) / safe_ticker(ticker), f"train_*_{horizon}_*/manifest.json")
         if not alt:
             # Fallback to generic search if suffix not found (for legacy models)
-            alt = latest_file(artifact_dir(cfg) / safe_ticker(ticker), "train_*/manifest.json")
+            alt = latest_file(models_dir(cfg) / safe_ticker(ticker), "train_*/manifest.json")
             if not alt:
                 raise FileNotFoundError(f"no trained model found for {ticker} horizon {horizon}; run train first")
         latest = alt

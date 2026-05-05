@@ -14,14 +14,19 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # CVM Connector
 # ==============================================================================
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data_cache")
-CVM_CACHE_FILE = os.path.join(CACHE_DIR, "cvm_history.parquet")
+from .config import historical_dir, load_config
+
+def _get_cvm_cache_path() -> str:
+    # Use the same historical directory as other data
+    cfg = load_config()
+    return str(historical_dir(cfg) / "cvm_history.parquet")
+
+CVM_CACHE_FILE = _get_cvm_cache_path()
 
 
 class CVMConnector:
     def __init__(self):
         self._cache_cnpj = {}
-        os.makedirs(CACHE_DIR, exist_ok=True)
         self.db = None
         self._load_db()
 

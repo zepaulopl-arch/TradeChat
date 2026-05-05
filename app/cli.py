@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Any
 
-from .config import load_config, artifact_dir
+from .config import load_config, models_dir, reports_dir
 from .data import load_prices, data_status, resolve_asset, get_asset_profile
 from .features import build_dataset
 from .report import print_data_summary, print_train_summary, print_signal, write_txt_report
@@ -71,9 +71,18 @@ def _sentiment_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         return {"status": "unavailable", "cache": str(exc)[:48]}
 
 
+def _resolve_tickers(cfg: dict[str, Any], raw_tickers: list[str]) -> list[str]:
+    if "ALL" in [t.upper() for t in raw_tickers]:
+        from .config import load_data_registry
+        reg = load_data_registry(cfg)
+        assets = reg.get("assets", {})
+        return [t for t, meta in assets.items() if isinstance(meta, dict) and meta.get("registry_status") == "active"]
+    return parse_tickers(raw_tickers)
+
+
 def cmd_data(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    for ticker in parse_tickers(args.tickers):
+    for ticker in _resolve_tickers(cfg, args.tickers):
         load_prices(cfg, ticker, update=True)
         st = data_status(cfg, ticker)
         st["status"] = "updated" if st.get("cache_exists") else "not_found"
@@ -86,7 +95,7 @@ def cmd_data(args: argparse.Namespace) -> None:
         # Check horizons trained
         h_status = []
         for h in ["d1", "d5", "d20"]:
-            p = artifact_dir(cfg) / safe_ticker(canonical) / f"latest_train_{h}.json"
+            p = models_dir(cfg) / safe_ticker(canonical) / f"latest_train_{h}.json"
             h_status.append(f"{h.upper()}: {'Ok' if p.exists() else 'None'}")
         st["models"] = " | ".join(h_status)
         
@@ -97,7 +106,7 @@ def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
     
-    for ticker in parse_tickers(args.tickers):
+    for ticker in _resolve_tickers(cfg, args.tickers):
         try:
             ticker = _canonical_ticker(cfg, ticker)
             raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
@@ -158,22 +167,22 @@ def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict
         "features_used": meta.get("features", []),
         "train_run_id": pred_d1.get("train_manifest", {}).get("run_id"),
     }
-    out_dir = artifact_dir(cfg) / safe_ticker(ticker)
+    out_dir = models_dir(cfg) / safe_ticker(ticker)
     write_json(out_dir / "latest_signal.json", signal)
     return signal
 
 
 def cmd_predict(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    for ticker in parse_tickers(args.tickers):
+    for ticker in _resolve_tickers(cfg, args.tickers):
         signal = _make_signal(cfg, ticker, update=args.update)
         print_signal(signal)
 
 
 def cmd_report(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    for ticker in parse_tickers(args.tickers):
-        path = artifact_dir(cfg) / safe_ticker(ticker) / "latest_signal.json"
+    for ticker in _resolve_tickers(cfg, args.tickers):
+        path = models_dir(cfg) / safe_ticker(ticker) / "latest_signal.json"
         if not path.exists() or args.refresh:
             signal = _make_signal(cfg, ticker, update=args.update)
         else:
@@ -185,7 +194,7 @@ def cmd_report(args: argparse.Namespace) -> None:
 def cmd_daily(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     rows = []
-    for ticker in parse_tickers(args.tickers):
+    for ticker in _resolve_tickers(cfg, args.tickers):
         try:
             # Daily intentionally does not train. It refreshes data, predicts with the saved model,
             # saves latest_signal.json and prints only the compact operational prediction table.

@@ -19,7 +19,8 @@ from .utils import normalize_ticker, safe_ticker
 
 
 def _sentiment_cache_path(cfg: dict[str, Any], ticker: str) -> Path:
-    path = cache_dir(cfg) / "sentiment"
+    from .config import ROOT
+    path = ROOT / "data" / "sentiment"
     path.mkdir(parents=True, exist_ok=True)
     return path / f"{safe_ticker(ticker)}_sentiment_daily.csv"
 

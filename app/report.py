@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .config import artifact_dir
+from .config import reports_dir
 from .feature_audit import abbreviate_feature_name, feature_family, selected_feature_scores, top_selected_features
 from .utils import run_id, safe_ticker, write_json
 
@@ -33,7 +33,7 @@ def print_data_summary(status: dict[str, Any]) -> None:
     fund_source = "cvm" if "cvm" in str(fundamentals.get("source", "")) else "yfinance"
     sentiment = status.get("sentiment", {}) or {}
     cache_path = str(status.get("path", ""))
-    cache_display = cache_path[cache_path.rfind("data_cache"):] if "data_cache" in cache_path else cache_path
+    cache_display = cache_path[cache_path.rfind("data/cache"):] if "data/cache" in cache_path else cache_path
 
     print("\n" + C.HEADER + "─" * 72 + C.RESET)
     print(f"{C.BOLD}DATA REPORT{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {status.get('end')}")
@@ -160,7 +160,7 @@ def print_signal(signal: dict[str, Any]) -> None:
 def write_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> Path:
     ticker = signal["ticker"]
     policy = signal["policy"]
-    path = artifact_dir(cfg) / safe_ticker(ticker) / "latest_signal_audit.txt"
+    path = reports_dir(cfg) / f"{safe_ticker(ticker)}_audit.txt"
     with open(path, "w", encoding="utf-8") as f:
         f.write(f"TRADECHAT AUDIT | {ticker} | {signal.get('latest_date')}\n")
         f.write("-" * 72 + "\n")
