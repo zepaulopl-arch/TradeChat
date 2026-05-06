@@ -120,7 +120,7 @@ def main():
         print(gray_line)
         return
 
-    print(f"{'TICKER':<12} | {'ENTRY':>10} | {'CURRENT':>10} | {'P/L %':>9} | {'TARGET':>10} | {'STOP':>10} | {'SIGNAL'}")
+    print(f"{'TICKER':<12} | {'ENTRY':>10} | {'CURRENT':>10} | {'P/L %':>9} | {'R/R':>5} | {'TARGET':>10} | {'STOP':>10} | {'SIGNAL'}")
     print(gray_line)
     
     for ticker, pos in positions.items():
@@ -139,13 +139,15 @@ def main():
         stop = policy.get("stop_loss_price", 0.0)
         current_signal = policy.get("label", "N/A")
         
-        pl_color = C.GREEN if pl_pct >= 0 else C.RED
-        sig_color = C.RESET
-        if "BUY" in current_signal: sig_color = C.GREEN
-        elif "SELL" in current_signal: sig_color = C.RED
+        # Calculate R/R on the fly if missing
+        rr = policy.get("rr_ratio", 0.0)
+        if rr <= 0 and abs(entry_price - stop) > 0.001:
+            rr = abs(target - entry_price) / abs(entry_price - stop)
         
+        pl_color = C.GREEN if pl_pct >= 0 else C.RED
+        side_str = f"{C.RED}SHORT{C.RESET}   " if shares < 0 else f"{C.GREEN}LONG {C.RESET}   "
         price_tag = "LIVE" if live_price is not None else "LAST"
-        print(f"{C.BOLD}{ticker:<12}{C.RESET} | {entry_price:>10.2f} | {current_price:>10.2f} | {pl_color}{pl_pct:>8.2f}%{C.RESET} | {C.CYAN}{target:>10.2f}{C.RESET} | {C.YELLOW}{stop:>10.2f}{C.RESET} | {sig_color}{current_signal:<10}{C.RESET} ({C.DIM}{price_tag}{C.RESET})")
+        print(f"{C.BOLD}{ticker:<12}{C.RESET} | {entry_price:>10.2f} | {current_price:>10.2f} | {pl_color}{pl_pct:>8.2f}%{C.RESET} | {rr:>5.1f} | {C.CYAN}{target:>10.2f}{C.RESET} | {C.YELLOW}{stop:>10.2f}{C.RESET} | {side_str} | ({C.DIM}{price_tag}{C.RESET})")
 
     print(gray_line)
     print(f"{C.DIM}Status: Monitoring active positions. Targets/Stops will auto-trigger on next consultation.{C.RESET}")

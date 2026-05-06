@@ -115,7 +115,7 @@ def main():
         s["_temp_score"] = score
         total_score += score
 
-    print(f"{'STATUS':<10} | {'TICKER':<12} | {'SIDE':<8} | {'WEIGHT':>8} | {'SHARES':>10} | {'PRICE':>10}")
+    print(f"{'STATUS':<10} | {'TICKER':<12} | {'SIDE':<8} | {'R/R':>5} | {'WEIGHT':>8} | {'SHARES':>10} | {'PRICE':>10}")
     print(gray_line)
 
     final_positions = {}
@@ -143,9 +143,18 @@ def main():
                 status, stat_color = "ADJUST", C.CYAN
             else:
                 status, stat_color = "KEEP", C.DIM
+            
+            policy = s.get("policy", {})
+            target = policy.get("target_price", 0.0)
+            stop = policy.get("stop_loss_price", 0.0)
+            
+            # Calculate R/R on the fly
+            rr = policy.get("rr_ratio", 0.0)
+            if rr <= 0 and abs(price - stop) > 0.001:
+                rr = abs(target - price) / abs(price - stop)
                 
-            side_str = f"{C.RED}SHORT{C.RESET}" if is_short else f"{C.GREEN}LONG {C.RESET}"
-            print(f"{stat_color}{status:<10}{C.RESET} | {C.BOLD}{ticker:<12}{C.RESET} | {side_str} | {weight*100:>7.1f}% | {display_shares:>10} | {price:>10.2f}")
+            side_str = f"{C.RED}SHORT{C.RESET}   " if is_short else f"{C.GREEN}LONG {C.RESET}   "
+            print(f"{stat_color}{status:<10}{C.RESET} | {C.BOLD}{ticker:<12}{C.RESET} | {side_str} | {rr:>5.1f} | {weight*100:>7.1f}% | {display_shares:>10} | {price:>10.2f}")
 
     # Update portfolio.json
     portfolio["positions"] = final_positions
