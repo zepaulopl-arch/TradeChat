@@ -3,6 +3,18 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 
+class C:
+    """Discrete, opaque color palette for professional CLI."""
+    HEADER = '\033[90m'  # Dark Gray
+    BLUE = '\033[38;5;67m'  # Steel Blue (discrete)
+    CYAN = '\033[38;5;109m' # Muted Cyan
+    GREEN = '\033[38;5;108m' # Sage Green
+    YELLOW = '\033[38;5;144m' # Sand/Beige
+    RED = '\033[38;5;131m'   # Muted Red
+    DIM = '\033[2m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
 def generate_ranking(artifact_dir: Path):
     signals = []
     # Search recursively in all artifact folders
@@ -23,15 +35,18 @@ def generate_ranking(artifact_dir: Path):
             trigger_h = policy.get("horizon", "d1")
             trigger_pred = horizons.get(trigger_h, horizons.get("d1", {}))
             
+            # Horizon mapping for normalization
+            h_days_map = {"d1": 1, "d5": 5, "d20": 20}
+            h_days = h_days_map.get(trigger_h.lower(), 1)
+            
             conf_pct = float(policy.get("confidence_pct", 0.0))
-            # Use return of the horizon that triggered the signal for the score
             triggered_ret = float(trigger_pred.get("prediction_return", 0.0)) * 100
             
-            # Opportunity Score based on the triggered conviction
-            score = (conf_pct / 100.0) * abs(triggered_ret) * 100
+            # Intelligent Score: Intensity normalized by time (Annualized logic)
+            # Score = Confidence * (|Return| / sqrt(Days))
+            import math
+            score = conf_pct * (abs(triggered_ret) / math.sqrt(h_days))
             
-            # Signal priority for sorting: BUYs at top, SELLs at bottom (or also at top?)
-            # Let's put STRONG signals first, then BUY/SELL, then NEUTRAL
             priority_map = {
                 "STRONG BUY": 100,
                 "BUY": 80,
@@ -51,6 +66,7 @@ def generate_ranking(artifact_dir: Path):
                 "confidence_pct": conf_pct,
                 "score": score,
                 "priority": priority,
+                "rr": float(policy.get("risk_reward_ratio", 0.0)),
                 "date": data.get("latest_date", "N/A")
             })
         except Exception:
@@ -61,29 +77,28 @@ def generate_ranking(artifact_dir: Path):
         return
 
     df = pd.DataFrame(signals)
-    # Sort by priority desc, then score desc
     df = df.sort_values(by=["priority", "score"], ascending=[False, False])
     
-    print("\n" + "="*115)
-    print(f" TRADECHAT MULTI-HORIZON RANKING | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*115)
-    print(f"{'TICKER':<12} {'SIGNAL':<14} {'H':<4} {'D1 %':>9} {'D5 %':>9} {'D20 %':>9} {'CONF %':>8} {'OPP SCORE':>12}")
-    print("-" * 115)
+    gray_line = C.DIM + "-" * 115 + C.RESET
     
-    for _, row in df.head(30).iterrows():
-        color = ""
-        # Green for BUY, Red for SELL
-        if "BUY" in row["signal"]: color = "\033[92m"
-        elif "SELL" in row["signal"]: color = "\033[91m"
-        reset = "\033[0m"
-        
-        sig_display = f"{color}{row['signal']:<14}{reset}"
-        
-        print(f"{row['ticker']:<12} {sig_display} {row['horizon']:<4} {row['d1_ret']:>+8.2f}% {row['d5_ret']:>+8.2f}% {row['d20_ret']:>+8.2f}% {row['confidence_pct']:>7.0f}% {row['score']:>12.2f}")
+    print("\n" + gray_line)
+    print(f"{C.BOLD}TRADECHAT MULTI-HORIZON RANKING{C.RESET} | {C.BLUE}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{C.RESET}")
+    print(gray_line)
+    print(f"{'TICKER':<12} | {'SIGNAL':<14} | {'H':<3} | {'D1 %':>9} | {'D5 %':>9} | {'D20 %':>9} | {'CONF':>5} | {'R/R':>5} | {'SCORE':>8}")
+    print(gray_line)
     
-    print("-" * 115)
-    print("Priority: BUY signals first | Score = Trigger_Confidence * |Trigger_Return|")
-    print("="*115)
+    for _, row in df.head(40).iterrows():
+        color = C.RESET
+        if "BUY" in row["signal"]: color = C.GREEN
+        elif "SELL" in row["signal"]: color = C.RED
+        
+        sig_display = f"{color}{row['signal']:<14}{C.RESET}"
+        
+        print(f"{C.BOLD}{row['ticker']:<12}{C.RESET} | {sig_display} | {C.CYAN}{row['horizon']:<3}{C.RESET} | {row['d1_ret']:>+8.2f}% | {row['d5_ret']:>+8.2f}% | {row['d20_ret']:>+8.2f}% | {C.YELLOW}{row['confidence_pct']:>4.0f}%{C.RESET} | {row['rr']:>5.1f} | {C.BOLD}{row['score']:>8.1f}{C.RESET}")
+    
+    print(gray_line)
+    print(f"{C.DIM}Priority: BUY signals first | Score = Conf % * |Return| | R/R > 1.5 is ideal{C.RESET}")
+    print(gray_line)
 
 if __name__ == "__main__":
     root = Path(__file__).parent.parent

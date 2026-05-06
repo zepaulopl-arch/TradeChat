@@ -8,7 +8,7 @@ from typing import Any
 from .config import load_config, models_dir, reports_dir
 from .data import load_prices, data_status, resolve_asset, get_asset_profile
 from .features import build_dataset
-from .report import print_data_summary, print_train_summary, print_signal, write_txt_report
+from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, print_signal_brief, write_txt_report
 from .utils import normalize_ticker, parse_tickers, safe_ticker, write_json, read_json
 from .sentiment import update_sentiment_cache
 from .fundamentals import yahoo_snapshot, add_fundamental_features
@@ -113,6 +113,7 @@ def cmd_train(args: argparse.Namespace) -> None:
             raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
             
             print(f"\nTraining multi-horizon models for {ticker}...")
+            all_manifests = []
             for t_col in targets:
                 horizon = t_col.split("_")[-1]
                 y_series = all_y[t_col].dropna()
@@ -125,9 +126,10 @@ def cmd_train(args: argparse.Namespace) -> None:
                 manifest = train_models(cfg, ticker, X_prepared, y_prepared, h_meta, 
                                        autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)),
                                        horizon=horizon)
-                print_train_summary(manifest)
+                all_manifests.append(manifest)
             
-            print(f"All horizons trained for {ticker}.")
+            print_multi_horizon_train_summary(all_manifests)
+            print(f"All horizons trained and consolidated for {ticker}.")
         except Exception as exc:
             print(f"\nERROR: Failed to train {ticker}: {exc}")
 
@@ -198,8 +200,6 @@ def cmd_daily(args: argparse.Namespace) -> None:
     prices_map = {}
     for ticker in _resolve_tickers(cfg, args.tickers):
         try:
-            # Daily intentionally does not train. It refreshes data, predicts with the saved model,
-            # saves latest_signal.json and prints only the compact operational prediction table.
             signal = _make_signal(cfg, ticker, update=True)
             if cfg.get("daily", {}).get("generate_report", False):
                 write_txt_report(cfg, signal)
@@ -207,21 +207,11 @@ def cmd_daily(args: argparse.Namespace) -> None:
             ticker_norm = signal["ticker"]
             prices_map[ticker_norm] = float(signal["latest_price"])
             
-            rows.append((ticker_norm, signal["policy"]["label"], signal["policy"]["score_pct"], signal["policy"]["confidence_pct"], signal["target_price"]))
-        except Exception as exc:
-            rows.append((normalize_ticker(ticker), "ERROR", 0.0, 0.0, str(exc)))
+            # Print the compact tactical block
+            print_signal_brief(signal)
             
-    print("\nTRADECHAT DAILY")
-    print("-" * 80)
-    print(f"{'ticker':<12} {'signal':<14} {'return':>9} {'conf':>8} {'target/error':>24}")
-    print("-" * 80)
-    for t, label, ret, conf, target in rows:
-        if isinstance(target, float):
-            target_s = f"R$ {target:.2f}"
-        else:
-            target_s = str(target)[:24]
-        print(f"{t:<12} {label:<14} {ret:>+8.2f}% {conf:>7.0f}% {target_s:>24}")
-    print("-" * 80)
+        except Exception as exc:
+            print(f"{C.RED}ERRO {normalize_ticker(ticker)}: {exc}{C.RESET}")
     
     # Portfolio monitoring
     events = update_portfolio_prices(cfg, prices_map)

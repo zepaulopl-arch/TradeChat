@@ -180,6 +180,7 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
 
     # Risk/Reward Ratio based on final target
     reward_amt = abs(best_signal["target_price"] - latest_price)
-    best_signal["risk_reward_ratio"] = reward_amt / risk_per_share if risk_per_share > 0 else 0.0
+    rr = reward_amt / risk_per_share if risk_per_share > 0 else 0.0
+    best_signal["risk_reward_ratio"] = rr
 
     return best_signal

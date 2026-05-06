@@ -559,6 +559,8 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "features": list(X.columns),
         "top_features": top_features,
         "feature_family_profile": family_profile,
+        "preparation": prep_meta,
+        "autotune_performed": bool(autotune),
         "latest_price": dataset_meta.get("latest_price"),
         "latest_date": dataset_meta.get("latest_date"),
         "base_engines": base_order,

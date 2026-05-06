@@ -21,6 +21,18 @@ from app.models import train_models
 from app.utils import normalize_ticker, parse_tickers
 from app.preparation import prepare_training_matrix
 
+class C:
+    """Discrete, opaque color palette for professional CLI."""
+    HEADER = '\033[90m'  # Dark Gray
+    BLUE = '\033[38;5;67m'  # Steel Blue (discrete)
+    CYAN = '\033[38;5;109m' # Muted Cyan
+    GREEN = '\033[38;5;108m' # Sage Green
+    YELLOW = '\033[38;5;144m' # Sand/Beige
+    RED = '\033[38;5;131m'   # Muted Red
+    DIM = '\033[2m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
 
 def _now_id() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -227,27 +239,27 @@ def _write_outputs(cfg: dict[str, Any], rows: list[dict[str, Any]], run_id: str)
     ok = [r for r in rows if r.get("status") == "ok"]
     err = [r for r in rows if r.get("status") != "ok"]
     
+    gray_line = C.DIM + "-" * 72 + C.RESET
+    
     lines: list[str] = []
-    lines.append("TRADECHAT ASSET DIAGNOSTIC (MULTI-HORIZON)")
-    lines.append("=" * 80)
-    lines.append(f"run_id        : {run_id}")
-    lines.append(f"assets        : {len(rows)}")
-    lines.append(f"ok            : {len(ok)}")
-    lines.append(f"errors        : {len(err)}")
-    lines.append("")
+    lines.append(gray_line)
+    lines.append(f"{C.BOLD}ASSET DIAGNOSTIC SUMMARY{C.RESET} | {C.BLUE}{run_id}{C.RESET}")
+    lines.append(gray_line)
+    lines.append(f"TOTAL ASSETS  : {len(rows)}")
+    lines.append(f"OK            : {C.GREEN}{len(ok)}{C.RESET}")
+    lines.append(f"ERRORS        : {C.RED}{len(err)}{C.RESET}")
+    lines.append(gray_line)
     if err:
-        lines.append("ERRORS")
-        lines.append("-" * 80)
+        lines.append("ERROR LOG")
         for r in err[:30]:
-            lines.append(f"{r.get('ticker') or r.get('input_ticker')}: stage={r.get('failed_stage')} | {r.get('error')}")
-        lines.append("")
+            lines.append(f"{C.BOLD}{r.get('ticker') or r.get('input_ticker'):<12}{C.RESET} | STAGE: {r.get('failed_stage'):<10} | {C.RED}{r.get('error')}{C.RESET}")
+        lines.append(gray_line)
         
-    lines.append("OUTPUTS")
-    lines.append("-" * 80)
-    lines.append(f"csv : {csv_path}")
-    lines.append(f"json: {json_path}")
-    lines.append(f"txt : {txt_path}")
-    lines.append("=" * 80)
+    lines.append("OUTPUT FILES")
+    lines.append(f"CSV : {C.DIM}{csv_path}{C.RESET}")
+    lines.append(f"JSON: {C.DIM}{json_path}{C.RESET}")
+    lines.append(f"TXT : {C.DIM}{txt_path}{C.RESET}")
+    lines.append(gray_line)
     txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"csv": csv_path, "json": json_path, "txt": txt_path}
 
@@ -264,29 +276,29 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config(args.config)
     tickers = _asset_list(cfg, args)
     run_id = f"diag_{_now_id()}"
-    print("=" * 80)
-    print(f"TRADECHAT MULTI-HORIZON DIAGNOSTIC | assets={len(tickers)} | run_id={run_id}")
-    print("=" * 80)
+    gray_line = C.DIM + "-" * 80 + C.RESET
+    
+    print("\n" + gray_line)
+    print(f"{C.BOLD}TRADECHAT MULTI-HORIZON DIAGNOSTIC{C.RESET} | assets={len(tickers)} | run_id={run_id}")
+    print(gray_line)
+    
     rows: list[dict[str, Any]] = []
     for idx, ticker in enumerate(tickers, start=1):
-        print(f"[{idx:>3}/{len(tickers):<3}] {ticker:<12} data -> train(D1,D5,D20) -> predict", flush=True)
+        print(f"[{C.DIM}{idx:>3}/{len(tickers):<3}{C.RESET}] {C.BOLD}{ticker:<12}{C.RESET} data -> train -> predict", end=" ", flush=True)
         row = _diagnose_one(cfg, ticker, args)
         rows.append(row)
         status = row.get("status", "ok")
         if status == "ok":
-            print(
-                f"          ok | D1:{row.get('prediction_pct', 0):+6.2f}% | "
-                f"D5:{row.get('d5_ret', 0):+6.2f}% | D20:{row.get('d20_ret', 0):+6.2f}% | "
-                f"conf={row.get('confidence_pct', 0):5.0f}%",
-                flush=True,
-            )
+            print(f"| {C.GREEN}OK{C.RESET}")
+            # Optional sub-line with details if verbose
+            # print(f"          D1:{row.get('prediction_pct', 0):+5.2f}% | D5:{row.get('d5_ret', 0):+5.2f}% | conf={row.get('confidence_pct', 0):.0f}%")
         else:
-            print(f"          ERROR at {row.get('failed_stage')}: {row.get('error')}", flush=True)
+            print(f"| {C.RED}FAIL{C.RESET} at {row.get('failed_stage')}")
+            
     paths = _write_outputs(cfg, rows, run_id)
-    print("=" * 80)
-    print("diagnostic summary:")
-    print(f"txt : {paths['txt']}")
-    print("=" * 80)
+    print(gray_line)
+    print(f"SUMMARY: {C.BLUE}{paths['txt']}{C.RESET}")
+    print(gray_line)
     return 0 if all(r.get("status") == "ok" for r in rows) else 1
 
 

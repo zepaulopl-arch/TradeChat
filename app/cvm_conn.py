@@ -44,7 +44,7 @@ class CVMConnector:
         e consolida num banco de dados Parquet local.
         """
         if years is None:
-            years = [2022, 2023, 2024]
+            years = list(range(2022, 2027))
         
         frames = []
         for year in years:
@@ -55,45 +55,39 @@ class CVMConnector:
                     
                     r = requests.get(url, verify=False, timeout=30)
                     if r.status_code != 200:
-                        logging.warning(f"CVM: {doc_type} {year} não encontrado (HTTP {r.status_code})")
                         continue
                         
                     z = zipfile.ZipFile(io.BytesIO(r.content))
-                    
-                    # Determine safety lag based on document type
-                    # ITR (Quarterly): ~45 days, DFP (Annual): ~90 days
                     lag_days = 45 if doc_type == 'ITR' else 90
                     
                     # DRE Consolidado (3.11 = Lucro Liquido)
                     dre_file = f'{doc_type.lower()}_cia_aberta_DRE_con_{year}.csv'
                     if dre_file in z.namelist():
                         dre = pd.read_csv(z.open(dre_file), sep=';', encoding='iso-8859-1')
-                        dre = dre[(dre['CD_CONTA'] == '3.11') & (dre['ORDEM_EXERC'] == 'ÚLTIMO')]
-                        dre['INDICADOR'] = 'LUCRO_LIQUIDO'
-                        dre['DT_FIM_EXERC'] = pd.to_datetime(dre['DT_FIM_EXERC'])
-                        dre['DT_DISPONIVEL'] = dre['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
-                        frames.append(dre[['CNPJ_CIA', 'DT_DISPONIVEL', 'VL_CONTA', 'INDICADOR']])
+                        if 'DT_FIM_EXERC' in dre.columns:
+                            dre = dre[(dre['CD_CONTA'] == '3.11') & (dre['ORDEM_EXERC'] == 'ÚLTIMO')]
+                            dre['INDICADOR'] = 'LUCRO_LIQUIDO'
+                            dre['DT_FIM_EXERC'] = pd.to_datetime(dre['DT_FIM_EXERC'])
+                            dre['DT_DISPONIVEL'] = dre['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
+                            frames.append(dre[['CNPJ_CIA', 'DT_DISPONIVEL', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
                         
                     # BPP Consolidado (2.03 = Patrimonio Liquido)
                     bpp_file = f'{doc_type.lower()}_cia_aberta_BPP_con_{year}.csv'
                     if bpp_file in z.namelist():
                         bpp = pd.read_csv(z.open(bpp_file), sep=';', encoding='iso-8859-1')
-                        bpp = bpp[(bpp['CD_CONTA'] == '2.03') & (bpp['ORDEM_EXERC'] == 'ÚLTIMO')]
-                        bpp['INDICADOR'] = 'PATRIMONIO_LIQUIDO'
-                        bpp['DT_FIM_EXERC'] = pd.to_datetime(bpp['DT_FIM_EXERC'])
-                        bpp['DT_DISPONIVEL'] = bpp['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
-                        frames.append(bpp[['CNPJ_CIA', 'DT_DISPONIVEL', 'VL_CONTA', 'INDICADOR']])
+                        if 'DT_FIM_EXERC' in bpp.columns:
+                            bpp = bpp[(bpp['CD_CONTA'] == '2.03') & (bpp['ORDEM_EXERC'] == 'ÚLTIMO')]
+                            bpp['INDICADOR'] = 'PATRIMONIO_LIQUIDO'
+                            bpp['DT_FIM_EXERC'] = pd.to_datetime(bpp['DT_FIM_EXERC'])
+                            bpp['DT_DISPONIVEL'] = bpp['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
+                            frames.append(bpp[['CNPJ_CIA', 'DT_DISPONIVEL', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
                 except Exception as e:
                     logging.error(f"Erro ao processar {doc_type} {year}: {e}")
                     
         if frames:
             df = pd.concat(frames)
-            
-            # Limpar CNPJ para o formato 'apenas números'
             df['CNPJ_CLEAN'] = df['CNPJ_CIA'].str.replace(r'\D', '', regex=True)
-            df['DT_FIM_EXERC'] = pd.to_datetime(df['DT_FIM_EXERC'])
             
-            # Fazer pivot para ter LUCRO_LIQUIDO e PATRIMONIO_LIQUIDO como colunas
             df_pivot = df.pivot_table(
                 index=['CNPJ_CLEAN', 'DT_DISPONIVEL'], 
                 columns='INDICADOR', 
@@ -101,13 +95,10 @@ class CVMConnector:
                 aggfunc='last'
             ).reset_index()
             
-            # Ordenar cronologicamente
             df_pivot = df_pivot.sort_values(by=['CNPJ_CLEAN', 'DT_DISPONIVEL'])
-            
-            # Salvar cache
             df_pivot.to_parquet(CVM_CACHE_FILE)
             self.db = df_pivot
-            logging.info("Banco de dados CVM atualizado e salvo em cache.")
+            logging.info(f"Banco de dados CVM atualizado ({len(df_pivot)} registros).")
             return True
         return False
 

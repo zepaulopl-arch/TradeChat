@@ -1142,26 +1142,6 @@ assets:
     use_in_reference_sample: true
     registry_status: active
     note: quotation factor / standard lot adjusted by B3
-  GOLL54.SA:
-    name: GOL (DELISTED)
-    registry_status: inactive
-    asset_type: stock
-    country: BR
-    currency: BRL
-    group: industrials
-    subgroup: airlines
-    financial_class: non_financial
-    cnpj: 06.164.253/0001-87
-    cnpj_status: verified_seed
-    registry_status: inactive_delisted
-    context_tickers:
-    - ^BVSP
-    - USDBRL=X
-    linked_indices:
-    - INDX
-    use_in_reference_sample: true
-    registry_status: inactive_low_data
-    note: restructuring code after Chapter 11 process
   EMBJ3.SA:
     name: EMBRAER
     asset_type: stock
