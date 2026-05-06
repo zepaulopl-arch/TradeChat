@@ -97,7 +97,7 @@ def generate_ranking(artifact_dir: Path):
         print(f"{C.BOLD}{row['ticker']:<12}{C.RESET} | {sig_display} | {C.CYAN}{row['horizon']:<3}{C.RESET} | {row['d1_ret']:>+8.2f}% | {row['d5_ret']:>+8.2f}% | {row['d20_ret']:>+8.2f}% | {C.YELLOW}{row['confidence_pct']:>4.0f}%{C.RESET} | {row['rr']:>5.1f} | {C.BOLD}{row['score']:>8.1f}{C.RESET}")
     
     print(gray_line)
-    print(f"{C.DIM}Priority: BUY signals first | Score = Conf % * |Return| | R/R > 1.5 is ideal{C.RESET}")
+    print(f"{C.DIM}Priority: BUY Signals | Score: Time-Weighted Signal Intensity | R/R Target: 1.5+{C.RESET}")
     print(gray_line)
 
 if __name__ == "__main__":
