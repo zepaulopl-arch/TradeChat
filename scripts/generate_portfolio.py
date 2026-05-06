@@ -71,8 +71,8 @@ def main():
         policy = signal_data.get("policy", {})
         target = policy.get("target_price", 0.0)
         stop = policy.get("stop_loss_price", 0.0)
-        shares = pos.get("shares", 0)
-        is_long = shares > 0
+        m_shares = pos.get("shares", 0)
+        is_long = m_shares > 0
         
         exit_reason = None
         if is_long:
@@ -84,13 +84,14 @@ def main():
             
         if exit_reason:
             entry_price = pos.get("entry_price", 0.0)
-            pl_cash = (live_price - entry_price) * shares
-            account["cash"] += (entry_price * abs(shares)) + pl_cash
+            pl_cash = (live_price - entry_price) * m_shares
+            account["cash"] += (entry_price * abs(m_shares)) + pl_cash
             
             trade_record = {
                 "ticker": ticker,
-                "exit_price": live_price,
-                "exit_reason": exit_reason,
+                "action": exit_reason,
+                "price": live_price,
+                "shares": m_shares,
                 "pl_cash": pl_cash,
                 "date": datetime.now().strftime('%Y-%m-%d %H:%M')
             }
@@ -102,17 +103,41 @@ def main():
         save_portfolio(portfolio)
 
     # --- PHASE 2: TACTICAL REPORTING ---
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    today_activity = [h for h in history if h.get('date', '').startswith(today_str)]
+
+    total_stock_value = 0
+    for ticker, pos in positions.items():
+        signal_data = get_latest_signal(ticker)
+        live_price = get_live_price(ticker)
+        curr_p = live_price if live_price is not None else (signal_data.get("latest_price", 0.0) if signal_data else 0.0)
+        v_shares = pos.get("shares", 0)
+        total_stock_value += abs(v_shares) * curr_p
+
+    total_nav = account['cash'] + total_stock_value
+    perf_pct = (total_nav / account['initial_capital'] - 1) * 100
+    perf_color = C.GREEN if perf_pct >= 0 else C.RED
+
     print("\n" + gray_line)
     print(f"{C.BOLD}TRADECHAT TACTICAL PORTFOLIO{C.RESET} | {C.BLUE}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{C.RESET}")
     print(gray_line)
-    print(f"CASH: R$ {account['cash']:,.2f} | EQUITY: R$ {account['initial_capital']:,.2f}")
+    print(f"CASH: R$ {account['cash']:,.2f} | STOCK: R$ {total_stock_value:,.2f} | {C.BOLD}TOTAL: {perf_color}R$ {total_nav:,.2f} ({perf_pct:+.2f}%){C.RESET}")
     print(gray_line)
 
-    if closed_this_run:
-        print(f"{C.BOLD}{C.YELLOW}>>> RECENT EXITS EXECUTED:{C.RESET}")
-        for c in closed_this_run:
-            color = C.GREEN if c['pl_cash'] >= 0 else C.RED
-            print(f"   {c['ticker']:<12} | {c['exit_reason']:<8} | P/L: {color}R$ {c['pl_cash']:>8.2f}{C.RESET}")
+    if today_activity:
+        print(f"{C.BOLD}{C.CYAN}>>> TODAY'S ACTIVITY:{C.RESET}")
+        print(f"   {'ACTION':<10} | {'TICKER':<12} | {'PRICE':>10} | {'SHARES':>8} | {'P/L CASH'}")
+        print(f"   " + "-" * 70)
+        for h in today_activity:
+            h_action = h.get('action', h.get('exit_reason', 'N/A'))
+            h_price = h.get('price', h.get('exit_price', 0.0))
+            h_shares = h.get('shares', 'N/A')
+            shares_str = f"{h_shares:>8}" if h_shares != 'N/A' else f"{'N/A':>8}"
+            h_pl = h.get('pl_cash', 0)
+            pl_c = C.GREEN if h_pl >= 0 else C.RED
+            pl_info = f"{pl_c}R$ {h_pl:>9.2f}{C.RESET}" if 'pl_cash' in h else f"{C.DIM}N/A{C.RESET}"
+            
+            print(f"   {h_action:<10} | {C.BOLD}{h['ticker']:<12}{C.RESET} | {h_price:>10.2f} | {shares_str} | {pl_info}")
         print(gray_line)
 
     if not positions:
@@ -120,7 +145,7 @@ def main():
         print(gray_line)
         return
 
-    print(f"{'TICKER':<12} | {'ENTRY':>10} | {'CURRENT':>10} | {'P/L %':>9} | {'R/R':>5} | {'TARGET':>10} | {'STOP':>10} | {'SIGNAL'}")
+    print(f"{'TICKER':<12} | {'SHARES':>6} | {'ENTRY':>10} | {'CURRENT':>10} | {'P/L %':>9} | {'R/R':>5} | {'SIGNAL':<8} | {'TARGET':>10} | {'STOP':>10}")
     print(gray_line)
     
     for ticker, pos in positions.items():
@@ -129,9 +154,9 @@ def main():
         current_price = live_price if live_price is not None else (signal_data.get("latest_price", 0.0) if signal_data else 0.0)
         
         entry_price = pos.get("entry_price", 0.0)
+        p_shares = pos.get("shares", 0)
         pl_pct = ((current_price / entry_price) - 1) * 100 if entry_price > 0 else 0.0
-        # Correct P/L for Short positions
-        if pos.get("shares", 0) < 0:
+        if p_shares < 0:
             pl_pct = ((entry_price / current_price) - 1) * 100 if current_price > 0 else 0.0
         
         policy = signal_data.get("policy", {}) if signal_data else {}
@@ -139,15 +164,15 @@ def main():
         stop = policy.get("stop_loss_price", 0.0)
         current_signal = policy.get("label", "N/A")
         
-        # Calculate R/R on the fly if missing
         rr = policy.get("rr_ratio", 0.0)
         if rr <= 0 and abs(entry_price - stop) > 0.001:
             rr = abs(target - entry_price) / abs(entry_price - stop)
         
         pl_color = C.GREEN if pl_pct >= 0 else C.RED
-        side_str = f"{C.RED}SHORT{C.RESET}   " if shares < 0 else f"{C.GREEN}LONG {C.RESET}   "
+        sig_color = C.GREEN if "BUY" in current_signal else (C.RED if "SELL" in current_signal else C.RESET)
         price_tag = "LIVE" if live_price is not None else "LAST"
-        print(f"{C.BOLD}{ticker:<12}{C.RESET} | {entry_price:>10.2f} | {current_price:>10.2f} | {pl_color}{pl_pct:>8.2f}%{C.RESET} | {rr:>5.1f} | {C.CYAN}{target:>10.2f}{C.RESET} | {C.YELLOW}{stop:>10.2f}{C.RESET} | {side_str} | ({C.DIM}{price_tag}{C.RESET})")
+        
+        print(f"{C.BOLD}{ticker:<12}{C.RESET} | {p_shares:>6} | {entry_price:>10.2f} | {current_price:>10.2f} | {pl_color}{pl_pct:>8.2f}%{C.RESET} | {rr:>5.1f} | {sig_color}{current_signal:<8}{C.RESET} | {C.CYAN}{target:>10.2f}{C.RESET} | {C.YELLOW}{stop:>10.2f}{C.RESET}")
 
     print(gray_line)
     print(f"{C.DIM}Status: Monitoring active positions. Targets/Stops will auto-trigger on next consultation.{C.RESET}")

@@ -84,6 +84,20 @@ def main():
             exit_price = sig.get("latest_price") if sig else pos.get("entry_price")
             pl_cash = (exit_price - pos.get("entry_price", 0.0)) * shares
             account["cash"] += (pos.get("entry_price", 0.0) * abs(shares)) + pl_cash
+            
+            # Record exit in history
+            history = portfolio.get("history", [])
+            history.append({
+                "ticker": ticker,
+                "action": "CLOSE",
+                "price": exit_price,
+                "shares": shares,
+                "pl_cash": pl_cash,
+                "reason": reason,
+                "date": datetime.now().strftime('%Y-%m-%d %H:%M')
+            })
+            portfolio["history"] = history
+            
             print(f"   {C.RED}CLOSE{C.RESET}: {C.BOLD}{ticker:<12}{C.RESET} | Reason: {C.DIM}{reason}{C.RESET}")
             closed_count += 1
             del current_positions[ticker]
@@ -157,8 +171,33 @@ def main():
             print(f"{stat_color}{status:<10}{C.RESET} | {C.BOLD}{ticker:<12}{C.RESET} | {side_str} | {rr:>5.1f} | {weight*100:>7.1f}% | {display_shares:>10} | {price:>10.2f}")
 
     # Update portfolio.json
+    # Record history of changes made during this rebalance
+    history = portfolio.get("history", [])
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+    
+    # Track what was closed at the beginning
+    # (This is already handled in the closed_count loop, but let's make it explicit in the file)
+    
     portfolio["positions"] = final_positions
     portfolio["account"]["cash"] = total_to_allocate - sum([abs(p['shares']) * p['entry_price'] for p in final_positions.values()])
+    
+    # Add new entries/reverses to history for daily tracking
+    for ticker, pos in final_positions.items():
+        old_pos = current_positions.get(ticker)
+        action = None
+        if not old_pos: action = "ENTER"
+        elif (old_pos['shares'] > 0 and pos['shares'] < 0) or (old_pos['shares'] < 0 and pos['shares'] > 0): action = "REVERSE"
+        
+        if action:
+            history.append({
+                "ticker": ticker,
+                "action": action,
+                "price": pos['entry_price'],
+                "shares": pos['shares'],
+                "date": now_str
+            })
+    
+    portfolio["history"] = history
     
     with open("data/portfolio.json", "w") as f:
         json.dump(portfolio, f, indent=2)

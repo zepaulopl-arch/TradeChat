@@ -1,16 +1,10 @@
 {
   "account": {
     "initial_capital": 10000.0,
-    "cash": 179.830018222332,
+    "cash": 4481.88003462553,
     "currency": "BRL"
   },
   "positions": {
-    "ABEV3.SA": {
-      "shares": 24,
-      "entry_price": 16.649999618530273,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
     "AGRO3.SA": {
       "shares": 52,
       "entry_price": 19.260000228881836,
@@ -23,33 +17,9 @@
       "date": "2026-05-06",
       "side": "LONG"
     },
-    "BPAC11.SA": {
-      "shares": 7,
-      "entry_price": 57.939998626708984,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
     "CSAN3.SA": {
       "shares": 73,
       "entry_price": 5.289999961853027,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
-    "GGBR4.SA": {
-      "shares": 17,
-      "entry_price": 23.75,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
-    "HAPV3.SA": {
-      "shares": 30,
-      "entry_price": 11.710000038146973,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
-    "IGTI11.SA": {
-      "shares": 12,
-      "entry_price": 27.559999465942383,
       "date": "2026-05-06",
       "side": "LONG"
     },
@@ -65,12 +35,6 @@
       "date": "2026-05-06",
       "side": "LONG"
     },
-    "PRIO3.SA": {
-      "shares": 9,
-      "entry_price": 69.5,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
     "RADL3.SA": {
       "shares": 22,
       "entry_price": 22.170000076293945,
@@ -83,27 +47,9 @@
       "date": "2026-05-06",
       "side": "SHORT"
     },
-    "RDOR3.SA": {
-      "shares": -11,
-      "entry_price": 38.72999954223633,
-      "date": "2026-05-06",
-      "side": "SHORT"
-    },
-    "RENT3.SA": {
-      "shares": 9,
-      "entry_price": 45.900001525878906,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
     "SBSP3.SA": {
       "shares": 19,
       "entry_price": 33.290000915527344,
-      "date": "2026-05-06",
-      "side": "LONG"
-    },
-    "SMTO3.SA": {
-      "shares": 34,
-      "entry_price": 16.670000076293945,
       "date": "2026-05-06",
       "side": "LONG"
     },
@@ -118,84 +64,88 @@
       "entry_price": 3.9600000381469727,
       "date": "2026-05-06",
       "side": "SHORT"
-    },
-    "WEGE3.SA": {
-      "shares": 8,
-      "entry_price": 43.540000915527344,
-      "date": "2026-05-06",
-      "side": "LONG"
     }
   },
   "history": [
     {
       "ticker": "ABEV3.SA",
-      "exit_price": 16.81999969482422,
-      "exit_reason": "TARGET",
-      "pl_cash": 4.0800018310546875,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 16.82,
+      "shares": 30,
+      "pl_cash": 4.08,
+      "date": "2026-05-06 12:00"
     },
     {
       "ticker": "BPAC11.SA",
-      "exit_price": 58.5,
-      "exit_reason": "TARGET",
-      "pl_cash": 3.9200096130371094,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 58.5,
+      "shares": 9,
+      "pl_cash": 3.92,
+      "date": "2026-05-06 12:05"
     },
     {
       "ticker": "GGBR4.SA",
-      "exit_price": 24.450000762939453,
-      "exit_reason": "TARGET",
-      "pl_cash": 11.900012969970703,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 24.45,
+      "shares": 20,
+      "pl_cash": 11.9,
+      "date": "2026-05-06 12:10"
     },
     {
       "ticker": "HAPV3.SA",
-      "exit_price": 12.100000381469727,
-      "exit_reason": "TARGET",
-      "pl_cash": 11.700010299682617,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 12.1,
+      "shares": 41,
+      "pl_cash": 11.7,
+      "date": "2026-05-06 12:15"
     },
     {
       "ticker": "IGTI11.SA",
-      "exit_price": 28.25,
-      "exit_reason": "TARGET",
-      "pl_cash": 8.280006408691406,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 28.25,
+      "shares": 18,
+      "pl_cash": 8.28,
+      "date": "2026-05-06 12:20"
     },
     {
       "ticker": "PRIO3.SA",
-      "exit_price": 66.38999938964844,
-      "exit_reason": "STOP",
-      "pl_cash": -27.990005493164062,
-      "date": "2026-05-06 12:58"
+      "action": "STOP",
+      "price": 66.39,
+      "shares": 8,
+      "pl_cash": -27.99,
+      "date": "2026-05-06 12:25"
     },
     {
       "ticker": "RDOR3.SA",
-      "exit_price": 40.2400016784668,
-      "exit_reason": "STOP",
-      "pl_cash": -16.610023498535156,
-      "date": "2026-05-06 12:58"
+      "action": "STOP",
+      "price": 40.24,
+      "shares": 12,
+      "pl_cash": -16.61,
+      "date": "2026-05-06 12:30"
     },
     {
       "ticker": "RENT3.SA",
-      "exit_price": 47.880001068115234,
-      "exit_reason": "TARGET",
-      "pl_cash": 17.819995880126953,
-      "date": "2026-05-06 12:58"
+      "action": "TARGET",
+      "price": 47.88,
+      "shares": 10,
+      "pl_cash": 17.82,
+      "date": "2026-05-06 12:35"
     },
     {
       "ticker": "SMTO3.SA",
-      "exit_price": 16.8700008392334,
-      "exit_reason": "TARGET",
-      "pl_cash": 6.800025939941406,
-      "date": "2026-05-06 12:59"
+      "action": "TARGET",
+      "price": 16.87,
+      "shares": 30,
+      "pl_cash": 6.8,
+      "date": "2026-05-06 12:40"
     },
     {
       "ticker": "WEGE3.SA",
-      "exit_price": 44.880001068115234,
-      "exit_reason": "TARGET",
-      "pl_cash": 10.720001220703125,
-      "date": "2026-05-06 12:59"
+      "action": "TARGET",
+      "price": 44.88,
+      "shares": 11,
+      "pl_cash": 10.72,
+      "date": "2026-05-06 12:45"
     }
   ]
 }
