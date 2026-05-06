@@ -1,9 +1,170 @@
 {
   "account": {
     "initial_capital": 10000.0,
-    "cash": 10000.0,
+    "cash": 0.0,
     "currency": "BRL"
   },
-  "positions": {},
+  "positions": {
+    "ABEV3.SA": {
+      "shares": 24,
+      "entry_price": 16.649999618530273,
+      "date": "2026-05-06",
+      "allocated_capital": 409.41,
+      "score_weight": 4.09,
+      "side": "LONG"
+    },
+    "AGRO3.SA": {
+      "shares": 52,
+      "entry_price": 19.260000228881836,
+      "date": "2026-05-06",
+      "allocated_capital": 1012.16,
+      "score_weight": 10.12,
+      "side": "LONG"
+    },
+    "BBDC4.SA": {
+      "shares": 23,
+      "entry_price": 19.190000534057617,
+      "date": "2026-05-06",
+      "allocated_capital": 459.35,
+      "score_weight": 4.59,
+      "side": "LONG"
+    },
+    "BPAC11.SA": {
+      "shares": 7,
+      "entry_price": 57.939998626708984,
+      "date": "2026-05-06",
+      "allocated_capital": 420.37,
+      "score_weight": 4.2,
+      "side": "LONG"
+    },
+    "CSAN3.SA": {
+      "shares": 73,
+      "entry_price": 5.289999961853027,
+      "date": "2026-05-06",
+      "allocated_capital": 389.38,
+      "score_weight": 3.89,
+      "side": "LONG"
+    },
+    "GGBR4.SA": {
+      "shares": 17,
+      "entry_price": 23.75,
+      "date": "2026-05-06",
+      "allocated_capital": 405.25,
+      "score_weight": 4.05,
+      "side": "LONG"
+    },
+    "HAPV3.SA": {
+      "shares": 30,
+      "entry_price": 11.710000038146973,
+      "date": "2026-05-06",
+      "allocated_capital": 352.08,
+      "score_weight": 3.52,
+      "side": "LONG"
+    },
+    "IGTI11.SA": {
+      "shares": 12,
+      "entry_price": 27.559999465942383,
+      "date": "2026-05-06",
+      "allocated_capital": 348.54,
+      "score_weight": 3.49,
+      "side": "LONG"
+    },
+    "ITUB4.SA": {
+      "shares": 11,
+      "entry_price": 42.459999084472656,
+      "date": "2026-05-06",
+      "allocated_capital": 473.89,
+      "score_weight": 4.74,
+      "side": "LONG"
+    },
+    "KLBN11.SA": {
+      "shares": 25,
+      "entry_price": 17.399999618530273,
+      "date": "2026-05-06",
+      "allocated_capital": 447.62,
+      "score_weight": 4.48,
+      "side": "LONG"
+    },
+    "PRIO3.SA": {
+      "shares": 9,
+      "entry_price": 69.5,
+      "date": "2026-05-06",
+      "allocated_capital": 633.69,
+      "score_weight": 6.34,
+      "side": "LONG"
+    },
+    "RADL3.SA": {
+      "shares": 22,
+      "entry_price": 22.170000076293945,
+      "date": "2026-05-06",
+      "allocated_capital": 498.37,
+      "score_weight": 4.98,
+      "side": "LONG"
+    },
+    "RAIZ4.SA": {
+      "shares": -995,
+      "entry_price": 0.47999998927116394,
+      "date": "2026-05-06",
+      "allocated_capital": 477.84,
+      "score_weight": 4.78,
+      "side": "SHORT"
+    },
+    "RDOR3.SA": {
+      "shares": -11,
+      "entry_price": 38.72999954223633,
+      "date": "2026-05-06",
+      "allocated_capital": 439.01,
+      "score_weight": 4.39,
+      "side": "SHORT"
+    },
+    "RENT3.SA": {
+      "shares": 9,
+      "entry_price": 45.900001525878906,
+      "date": "2026-05-06",
+      "allocated_capital": 413.94,
+      "score_weight": 4.14,
+      "side": "LONG"
+    },
+    "SBSP3.SA": {
+      "shares": 19,
+      "entry_price": 33.290000915527344,
+      "date": "2026-05-06",
+      "allocated_capital": 635.1,
+      "score_weight": 6.35,
+      "side": "LONG"
+    },
+    "SMTO3.SA": {
+      "shares": 34,
+      "entry_price": 16.670000076293945,
+      "date": "2026-05-06",
+      "allocated_capital": 569.71,
+      "score_weight": 5.7,
+      "side": "LONG"
+    },
+    "TOTS3.SA": {
+      "shares": 15,
+      "entry_price": 32.93000030517578,
+      "date": "2026-05-06",
+      "allocated_capital": 500.98,
+      "score_weight": 5.01,
+      "side": "LONG"
+    },
+    "VAMO3.SA": {
+      "shares": -185,
+      "entry_price": 3.9600000381469727,
+      "date": "2026-05-06",
+      "allocated_capital": 736.02,
+      "score_weight": 7.36,
+      "side": "SHORT"
+    },
+    "WEGE3.SA": {
+      "shares": 8,
+      "entry_price": 43.540000915527344,
+      "date": "2026-05-06",
+      "allocated_capital": 377.28,
+      "score_weight": 3.77,
+      "side": "LONG"
+    }
+  },
   "history": []
 }
