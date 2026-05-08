@@ -4,7 +4,7 @@ from app.cli import build_parser
 def test_parser_has_main_commands():
     parser = build_parser()
     help_text = parser.format_help()
-    for command in ["data", "train", "predict", "validate", "report", "portfolio"]:
+    for command in ["data", "train", "predict", "validate", "refine", "report", "portfolio"]:
         assert command in help_text
     assert "daily" not in help_text
     assert "simulate" not in help_text
@@ -38,6 +38,11 @@ def test_predict_rank_and_portfolio_rebalance_are_first_class_modes():
     assert live.live is True
     val = parser.parse_args(["validate", "PETR4", "--mode", "walkforward"])
     assert val.mode == "walkforward"
+    refine = parser.parse_args(["refine", "PETR4"])
+    assert refine.tickers == ["PETR4"]
+    ablation = parser.parse_args(["refine", "PETR4", "--ablation", "--horizons", "d1", "--profiles", "full,technical_only"])
+    assert ablation.ablation is True
+    assert ablation.horizons == "d1"
 
 
 def test_portfolio_live_and_rebalance_are_mutually_exclusive():

@@ -19,6 +19,10 @@ Todos os comandos abaixo rodam via `trade.py`.
 | `python trade.py portfolio --rebalance` | Recalcula a carteira virtual com os sinais atuais. | Paper trading e alocacao tatica. |
 | `python trade.py validate PETR4.SA VALE3.SA` | Roda validacao PyBroker em modo replay dos modelos salvos. | Sanidade operacional, comparacao de regras e execucao. |
 | `python trade.py validate PETR4.SA VALE3.SA --mode walkforward` | Roda validacao PyBroker treinando modelos sombra por data. | Validacao historica mais rigorosa, com menos vazamento temporal. |
+| `python trade.py refine PETR4.SA VALE3.SA` | Audita manifests treinados por horizonte, MAE e familias de features selecionadas. | Revisao metodologica leve antes de retreinar ou remover familias. |
+| `python trade.py refine PETR4.SA --ablation --horizons d1` | Treina ablations em artefatos sombra (`full`, `technical_only`, `no_context`, `no_fundamentals`, `no_sentiment`). | Provar se uma familia agrega antes de manter complexidade. |
+
+O `validate` tambem grava baselines economicos no resumo da simulacao: nao operar, buy and hold igualmente ponderado, media historica long/flat, ultimo retorno long/flat e aleatorio long/flat deterministico. Eles servem como regua minima: o modelo operacional precisa justificar que bate alternativas triviais antes de virar decisao.
 
 ## 2. Pipeline recomendado
 
@@ -96,6 +100,7 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 7. `python trade.py portfolio --live`
 8. `python trade.py validate PETR4.SA VALE3.SA --start 2026-01-01 --end 2026-05-01`
 9. `python trade.py validate PETR4.SA VALE3.SA --mode walkforward --start 2026-01-01 --end 2026-05-01`
+10. `python trade.py refine PETR4.SA VALE3.SA`
 
 ## 5. Regras praticas
 
@@ -111,6 +116,8 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 - `validate --mode replay` usa modelos ja treinados; e rapido e bom para sanidade operacional.
 - `validate --mode walkforward` treina modelos sombra dentro de `artifacts/simulations` e e a opcao mais correta para validacao historica.
 - Use `validate --verbose` apenas quando quiser ver caminhos tecnicos dos artefatos.
+- `refine` nao treina e nao altera estado; ele le os manifests mais recentes para expor MAE, qualidade operacional e peso das familias selecionadas.
+- `refine --ablation` treina em `artifacts/refine/...`, nao substitui os modelos operacionais em `artifacts/models`.
 
 ## 6. Tutorial da fase 1
 

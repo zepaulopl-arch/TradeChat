@@ -13,11 +13,14 @@ from app.models import _split_train_test_raw
 from app.models import _stacking_cv_splits
 from app.models import _make_arbiter
 from app.models import _oof_valid_mask
+from app.evaluation_service import evaluate_baselines
 from app.policy import classify_signal
 from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
+from app.refine_service import collect_refine_summary, render_ablation_summary, render_refine_summary, run_feature_ablation
 from app.scoring import is_actionable_signal
 from app.simulator_service import (
+    _write_simulation_artifacts,
     _build_strategy_config,
     _execution_fn_factory,
     _normalize_signal_plan,
@@ -419,6 +422,233 @@ def test_schedule_rebalance_dates_respects_warmup_and_step():
     )
     dates = _schedule_rebalance_dates(frame, rebalance_days=2, warmup_bars=2)
     assert [str(item.date()) for item in dates] == ["2026-05-03", "2026-05-05"]
+
+
+def test_evaluation_baselines_include_trivial_comparators_without_lookahead():
+    bars = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2026-01-01", "2026-01-02", "2026-01-05", "2026-01-06"] * 2
+            ),
+            "symbol": ["AAA.SA"] * 4 + ["BBB.SA"] * 4,
+            "close": [100.0, 110.0, 99.0, 108.9, 50.0, 45.0, 49.5, 44.55],
+        }
+    )
+
+    baselines = evaluate_baselines(bars, ["AAA.SA", "BBB.SA"], initial_cash=10000.0, random_seed=1)
+
+    assert set(baselines) == {
+        "zero_return_no_trade",
+        "buy_and_hold_equal_weight",
+        "mean_return_long_flat",
+        "last_return_long_flat",
+        "random_long_flat",
+    }
+    assert baselines["zero_return_no_trade"]["metrics"]["total_return_pct"] == pytest.approx(0.0)
+    assert baselines["buy_and_hold_equal_weight"]["metrics"]["trade_count"] == 2
+    assert baselines["last_return_long_flat"]["metrics"]["active_exposure_pct"] < 100.0
+    assert baselines["last_return_long_flat"]["metrics"]["trade_count"] > 0
+
+
+def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
+    cfg = {"app": {"artifact_dir": str(tmp_path)}}
+    summary = {
+        "run_id": "sim_test",
+        "mode": "pybroker_artifact_replay",
+        "start_date": "2026-01-01",
+        "end_date": "2026-01-31",
+        "tickers": ["PETR4.SA"],
+        "rebalance_days": 5,
+        "warmup_bars": 2,
+        "metrics": {"trade_count": 1, "total_return_pct": 2.5, "win_rate": 100.0, "total_pnl": 250.0},
+        "baselines": {
+            "zero_return_no_trade": {
+                "metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}
+            }
+        },
+        "pybroker_execution": {"costs": {}},
+    }
+
+    artifacts = _write_simulation_artifacts(
+        cfg,
+        summary,
+        orders=pd.DataFrame(),
+        trades=pd.DataFrame(),
+        signal_plan={},
+    )
+
+    text = Path(artifacts["summary_txt"]).read_text(encoding="utf-8")
+    assert "BASELINES:" in text
+    assert "zero_return_no_trade" in text
+
+
+def test_refine_summary_reads_latest_manifests_and_profiles_families(monkeypatch, tmp_path):
+    monkeypatch.setattr("app.refine_service.models_dir", lambda cfg: tmp_path)
+    model_dir = tmp_path / "PETR4_SA"
+    model_dir.mkdir(parents=True)
+    (model_dir / "latest_train_d1.json").write_text(
+        """
+{
+  "run_id": "train_test",
+  "features": ["ret_1", "ctx_BVSP_ret_5", "fund_regime_score", "sent_mean_3"],
+  "preparation": {
+    "selection": {
+      "relevance": {
+        "ret_1": 0.40,
+        "ctx_BVSP_ret_5": 0.30,
+        "fund_regime_score": 0.20,
+        "sent_mean_3": 0.10
+      }
+    }
+  },
+  "metrics": {"ridge_arbiter": {"mae_return": 0.012}},
+  "latest_prediction_return": 0.018,
+  "confidence": 0.60
+}
+""",
+        encoding="utf-8",
+    )
+
+    summary = collect_refine_summary({}, ["PETR4.SA"])
+
+    assert len(summary["rows"]) == 1
+    row = summary["rows"][0]
+    assert row["decision"] == "keep"
+    assert row["family_counts"] == {"technical": 1, "context": 1, "fundamentals": 1, "sentiment": 1}
+    assert row["family_relevance_share_pct"]["technical"] == pytest.approx(40.0)
+    assert len(summary["missing"]) == 2
+
+
+def test_refine_renderer_shows_family_count_and_share(monkeypatch):
+    monkeypatch.setattr("app.refine_service.screen_width", lambda: 96)
+    lines = render_refine_summary(
+        {
+            "rows": [
+                {
+                    "ticker": "PETR4.SA",
+                    "horizon": "d1",
+                    "mae_return": 0.012,
+                    "latest_prediction_return": 0.018,
+                    "confidence": 0.60,
+                    "family_counts": {"technical": 1, "context": 1, "fundamentals": 0, "sentiment": 0},
+                    "family_relevance_share_pct": {"technical": 70.0, "context": 30.0, "fundamentals": 0.0, "sentiment": 0.0},
+                    "decision": "keep",
+                }
+            ],
+            "missing": [],
+        }
+    )
+    output = "\n".join(lines)
+    assert "REFINE" in output
+    assert "T1/C1/F0/S0" in output
+    assert "T70/C30/F0/S0" in output
+
+
+def test_feature_ablation_trains_shadow_profiles(monkeypatch):
+    calls = []
+
+    def fake_load_prices(cfg, ticker, update=False):
+        calls.append(("load", ticker, update, cfg.get("app", {}).get("artifact_dir")))
+        idx = pd.date_range("2026-01-01", periods=5, freq="B")
+        return pd.DataFrame({ticker: [10.0, 10.1, 10.2, 10.3, 10.4]}, index=idx)
+
+    def fake_build_dataset(cfg, prices, ticker):
+        calls.append(
+            (
+                "dataset",
+                ticker,
+                cfg["features"]["context"]["enabled"],
+                cfg["features"]["sentiment"]["enabled"],
+                cfg.get("app", {}).get("artifact_dir"),
+            )
+        )
+        idx = prices.index
+        X = pd.DataFrame({"ret_1": [0.0, 0.01, 0.01, 0.01, 0.01], "ctx_x": [1, 2, 3, 4, 5]}, index=idx)
+        y = pd.DataFrame(
+            {
+                "target_return_d1": [0.01, 0.01, 0.01, 0.01, None],
+                "target_return_d5": [0.02, 0.02, 0.02, 0.02, None],
+                "target_return_d20": [0.03, 0.03, 0.03, 0.03, None],
+            },
+            index=idx,
+        )
+        return X, y, {"latest_price": 10.4}
+
+    def fake_train_models(cfg, ticker, X, y, meta, autotune=False, horizon="d1", inner_threads=1):
+        calls.append(("train", ticker, meta["ablation_profile"], horizon, cfg.get("app", {}).get("artifact_dir")))
+        profile = meta["ablation_profile"]
+        features = ["ret_1"] if profile == "technical_only" else ["ret_1", "ctx_x"]
+        mae = 0.010 if profile == "full" else 0.012
+        return {
+            "run_id": f"{profile}_{horizon}",
+            "features": features,
+            "metrics": {"ridge_arbiter": {"mae_return": mae}},
+            "latest_prediction_return": 0.01,
+            "confidence": 0.5,
+        }
+
+    monkeypatch.setattr("app.refine_service.load_prices", fake_load_prices)
+    monkeypatch.setattr("app.refine_service.build_dataset", fake_build_dataset)
+    monkeypatch.setattr("app.refine_service.train_models", fake_train_models)
+
+    cfg = {
+        "app": {"artifact_dir": "artifacts"},
+        "features": {
+            "technical": {"enabled": True},
+            "context": {"enabled": True},
+            "fundamentals": {"enabled": True},
+            "sentiment": {"enabled": True},
+        },
+    }
+    summary = run_feature_ablation(
+        cfg,
+        ["PETR4.SA"],
+        horizons="d1",
+        profiles="full,technical_only,no_context",
+        update=True,
+    )
+
+    assert len(summary["rows"]) == 3
+    assert summary["errors"] == []
+    assert all("artifacts/refine/" in row["artifact_dir"].replace("\\", "/") for row in summary["rows"])
+    assert ("train", "PETR4.SA", "technical_only", "d1", summary["rows"][1]["artifact_dir"]) not in calls
+    dataset_calls = [call for call in calls if call[0] == "dataset"]
+    assert dataset_calls[1][2] is False
+    assert dataset_calls[1][3] is False
+    assert dataset_calls[2][2] is False
+
+
+def test_ablation_renderer_compares_delta_against_full(monkeypatch):
+    monkeypatch.setattr("app.refine_service.screen_width", lambda: 100)
+    lines = render_ablation_summary(
+        {
+            "run_id": "refine_test",
+            "rows": [
+                {
+                    "ticker": "PETR4.SA",
+                    "horizon": "d1",
+                    "profile": "full",
+                    "mae_return": 0.010,
+                    "confidence": 0.50,
+                    "family_counts": {"technical": 1, "context": 1, "fundamentals": 0, "sentiment": 0},
+                },
+                {
+                    "ticker": "PETR4.SA",
+                    "horizon": "d1",
+                    "profile": "technical_only",
+                    "mae_return": 0.012,
+                    "confidence": 0.45,
+                    "family_counts": {"technical": 1, "context": 0, "fundamentals": 0, "sentiment": 0},
+                },
+            ],
+            "errors": [],
+        }
+    )
+    output = "\n".join(lines)
+    assert "feature ablation" in output
+    assert "technical_only" in output
+    assert "+0.20%" in output
+    assert "worse" in output
 
 
 def test_normalize_signal_plan_assigns_weights_only_to_actionable_signals():

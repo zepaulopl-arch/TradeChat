@@ -11,6 +11,7 @@ import pandas as pd
 
 from .config import artifact_dir
 from .data import load_prices
+from .evaluation_service import evaluate_baselines
 from .features import build_dataset
 from .models import predict_multi_horizon, train_models
 from .pipeline_service import canonical_ticker
@@ -535,6 +536,7 @@ def _write_simulation_artifacts(
     write_json(signals_json, signal_plan)
 
     metrics = summary.get("metrics", {}) or {}
+    baselines = summary.get("baselines", {}) or {}
     execution = summary.get("pybroker_execution", {}) or {}
     costs = execution.get("costs", {}) or {}
     note = (
@@ -557,9 +559,20 @@ def _write_simulation_artifacts(
         f"NATIVE STOPS: loss={execution.get('native_stop_loss', True)} profit={execution.get('native_take_profit', True)} trailing={execution.get('native_trailing', True)} hold={execution.get('native_hold_bars', True)}",
         f"COSTS: fee_mode={costs.get('fee_mode', 'none')} fee_amount={float(costs.get('fee_amount', 0.0) or 0.0):.4f} slippage_pct={float(costs.get('slippage_pct', 0.0) or 0.0):.4f}",
         "",
+        "BASELINES:",
+    ]
+    for name, payload in baselines.items():
+        base_metrics = payload.get("metrics", {}) or {}
+        lines.append(
+            f"- {name}: return={float(base_metrics.get('total_return_pct', 0.0) or 0.0):+.2f}% "
+            f"drawdown={float(base_metrics.get('max_drawdown_pct', 0.0) or 0.0):+.2f}% "
+            f"trades={int(float(base_metrics.get('trade_count', 0) or 0))}"
+        )
+    lines.extend([
+        "",
         note,
         "Use it as a research sanity check before promoting any rule to the operational pipeline.",
-    ]
+    ])
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return artifacts
 
@@ -595,6 +608,8 @@ def run_pybroker_replay(
         bars = YFinance(auto_adjust=False).query(canonical, start_ts.to_pydatetime(), end_ts.to_pydatetime())
     if bars is None or bars.empty:
         raise RuntimeError("PyBroker/YFinance returned no bars for the requested simulation window")
+    baseline_cash = float(initial_cash or cfg.get("trading", {}).get("capital", 10000.0))
+    baselines = evaluate_baselines(bars, canonical, initial_cash=baseline_cash)
 
     market_date_count = len(pd.Index(pd.to_datetime(bars["date"]).dt.normalize().unique()))
     effective_warmup = min(max(1, int(warmup_bars)), max(1, market_date_count - 1))
@@ -655,6 +670,7 @@ def run_pybroker_replay(
         "allow_short": bool(allow_short),
         "max_positions": int(max_positions or max(1, len(canonical))),
         "metrics": metrics,
+        "baselines": baselines,
         "rebalance_points": len(rebalance_dates),
         "signal_points": sum(len(items) for items in plan_by_date.values()),
         "pybroker_execution": {

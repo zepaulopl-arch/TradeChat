@@ -26,6 +26,8 @@ def test_scoring_module_owns_signal_score_formula():
 def test_batch_and_simulator_services_exist():
     batch_text = (ROOT / "app" / "batch_service.py").read_text(encoding="utf-8")
     sim_text = (ROOT / "app" / "simulator_service.py").read_text(encoding="utf-8")
+    evaluation_text = (ROOT / "app" / "evaluation_service.py").read_text(encoding="utf-8")
+    refine_text = (ROOT / "app" / "refine_service.py").read_text(encoding="utf-8")
     ranking_text = (ROOT / "app" / "ranking_service.py").read_text(encoding="utf-8")
     rebalance_text = (ROOT / "app" / "rebalance_service.py").read_text(encoding="utf-8")
     monitor_text = (ROOT / "app" / "portfolio_monitor_service.py").read_text(encoding="utf-8")
@@ -33,6 +35,11 @@ def test_batch_and_simulator_services_exist():
         assert token in batch_text
     for token in ["def run_pybroker_replay", "def simulation_dir", "StrategyConfig", "YFinance", "mode: str = \"replay\"", "pybroker_walkforward_shadow"]:
         assert token in sim_text
+    for token in ["def evaluate_baselines", "zero_return_no_trade", "buy_and_hold_equal_weight", "last_return_long_flat"]:
+        assert token in evaluation_text
+    assert "evaluate_baselines" in sim_text
+    for token in ["def collect_refine_summary", "def run_feature_ablation", "def render_ablation_summary", "family_relevance_share_pct"]:
+        assert token in refine_text
     for token in ["def collect_ranked_signals", "def render_ranking"]:
         assert token in ranking_text
     for token in ["def rebalance_portfolio", "def render_rebalance_summary"]:

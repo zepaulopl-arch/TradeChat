@@ -19,6 +19,7 @@ from .portfolio_service import load_portfolio_state, position_side
 from .presentation import banner, divider, money_br, paint, render_facts, render_table, screen_width, tone_delta
 from .ranking_service import render_ranking
 from .rebalance_service import rebalance_portfolio, render_rebalance_summary
+from .refine_service import collect_refine_summary, render_ablation_summary, render_refine_summary, run_feature_ablation
 from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, write_txt_report
 from .simulator_service import run_pybroker_replay
 from .ui import model5 as ui5
@@ -252,6 +253,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         inner_threads=1,
     )
     metrics = summary.get("metrics", {}) or {}
+    baselines = summary.get("baselines", {}) or {}
     width = ui5.screen_width()
     total_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
     max_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
@@ -315,6 +317,29 @@ def cmd_validate(args: argparse.Namespace) -> None:
     ):
         print(line)
 
+    if baselines:
+        rows = []
+        for name, payload in baselines.items():
+            base_metrics = payload.get("metrics", {}) or {}
+            rows.append(
+                [
+                    name,
+                    f"{float(base_metrics.get('total_return_pct', 0.0) or 0.0):+.2f}%",
+                    str(int(float(base_metrics.get("trade_count", 0) or 0))),
+                    f"{float(base_metrics.get('max_drawdown_pct', 0.0) or 0.0):+.2f}%",
+                ]
+            )
+        for line in ui5.render_section("BASELINES", width=width):
+            print(line)
+        for line in ui5.render_table(
+            ["Baseline", "Retorno", "Trades", "Drawdown"],
+            rows,
+            width=width,
+            aligns=["left", "right", "right", "right"],
+            min_widths=[24, 8, 6, 9],
+        ):
+            print(line)
+
     if args.verbose:
         for line in ui5.render_section("ARTEFATOS", width=width):
             print(line)
@@ -343,6 +368,27 @@ def cmd_validate(args: argparse.Namespace) -> None:
         print(line)
 
 
+def cmd_refine(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    tickers = _resolve_tickers(cfg, args.tickers)
+    if bool(getattr(args, "ablation", False)):
+        summary = run_feature_ablation(
+            cfg,
+            tickers,
+            horizons=args.horizons,
+            profiles=args.profiles,
+            update=bool(args.update),
+            autotune=bool(args.autotune),
+            inner_threads=1,
+        )
+        for line in render_ablation_summary(summary):
+            print(line)
+        return
+    summary = collect_refine_summary(cfg, tickers)
+    for line in render_refine_summary(summary):
+        print(line)
+
+
 def _add_validate_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("tickers", nargs="+")
     parser.add_argument("--mode", choices=["replay", "walkforward"], default=None, help="validation mode; default comes from config")
@@ -363,7 +409,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(
         dest="command",
         required=True,
-        metavar="{data,train,predict,validate,report,portfolio}",
+        metavar="{data,train,predict,validate,refine,report,portfolio}",
     )
 
     data = sub.add_parser("data", help="update and validate local data cache")
@@ -399,6 +445,15 @@ def build_parser() -> argparse.ArgumentParser:
     val = sub.add_parser("validate", help="validate signals with PyBroker replay or walk-forward")
     _add_validate_args(val)
     val.set_defaults(func=cmd_validate, screen_title="VALIDATE")
+
+    refine = sub.add_parser("refine", help="audit trained feature families and model manifests")
+    refine.add_argument("tickers", nargs="+")
+    refine.add_argument("--ablation", action="store_true", help="train shadow feature-family ablations")
+    refine.add_argument("--horizons", default="d1,d5,d20", help="comma-separated horizons for ablation: d1,d5,d20")
+    refine.add_argument("--profiles", default=None, help="comma-separated ablation profiles; default runs all")
+    refine.add_argument("--update", action="store_true", help="refresh price cache before ablation")
+    refine.add_argument("--autotune", action="store_true", help="run autotune inside shadow ablation artifacts")
+    refine.set_defaults(func=cmd_refine)
     
     return parser
 
