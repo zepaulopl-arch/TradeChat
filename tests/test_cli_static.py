@@ -43,6 +43,9 @@ def test_predict_rank_and_portfolio_rebalance_are_first_class_modes():
     removal = parser.parse_args(["refine", "PETR4", "--removal", "--horizons", "d1", "--profiles", "full,technical_only"])
     assert removal.removal is True
     assert removal.horizons == "d1"
+    removal_wf = parser.parse_args(["refine", "PETR4", "--removal", "--walkforward", "--start", "2026-01-01", "--end", "2026-04-01"])
+    assert removal_wf.walkforward is True
+    assert removal_wf.start == "2026-01-01"
 
 
 def test_portfolio_live_and_rebalance_are_mutually_exclusive():

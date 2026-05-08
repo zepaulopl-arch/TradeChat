@@ -12,6 +12,7 @@ from .models import train_models
 from .config import artifact_dir, models_dir
 from .feature_audit import feature_family_profile, selected_feature_scores
 from .presentation import banner, divider, render_table, screen_width
+from .simulator_service import run_pybroker_replay
 from .utils import normalize_ticker, read_json, safe_ticker, write_json
 
 
@@ -201,6 +202,46 @@ def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> di
     }
 
 
+def _write_walkforward_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
+    out_dir = refine_dir(cfg, str(summary.get("run_id", "refine")))
+    summary_json = out_dir / "walkforward_summary.json"
+    summary_txt = out_dir / "walkforward_summary.txt"
+    results_csv = out_dir / "walkforward_results.csv"
+
+    write_json(summary_json, summary)
+    rows = list(summary.get("rows", []) or [])
+    fieldnames = [
+        "profile",
+        "run_id",
+        "mode",
+        "total_return_pct",
+        "return_delta_pct",
+        "max_drawdown_pct",
+        "trade_count",
+        "hit_rate_pct",
+        "profit_factor",
+        "turnover_pct",
+        "active_exposure_pct",
+        "baseline_decision",
+        "beat_rate_pct",
+        "artifact_dir",
+    ]
+    with results_csv.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({name: row.get(name, "") for name in fieldnames})
+
+    lines = render_removal_walkforward_summary(summary)
+    summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {
+        "dir": str(out_dir),
+        "summary_json": str(summary_json),
+        "summary_txt": str(summary_txt),
+        "results_csv": str(results_csv),
+    }
+
+
 def run_feature_removal(
     cfg: dict[str, Any],
     tickers: list[str],
@@ -270,6 +311,91 @@ def run_feature_removal(
         "errors": errors,
     }
     summary["artifacts"] = _write_removal_artifacts(cfg, summary)
+    return summary
+
+
+def run_feature_removal_walkforward(
+    cfg: dict[str, Any],
+    tickers: list[str],
+    *,
+    profiles: str | list[str] | None = None,
+    start_date: str | datetime | None = None,
+    end_date: str | datetime | None = None,
+    rebalance_days: int = 5,
+    warmup_bars: int = 150,
+    initial_cash: float | None = None,
+    max_positions: int | None = None,
+    allow_short: bool = False,
+    autotune: bool = False,
+    inner_threads: int | None = 1,
+) -> dict[str, Any]:
+    selected_profiles = _parse_profiles(profiles)
+    canonical = [normalize_ticker(ticker) for ticker in tickers]
+    run_id = f"refine_wf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_ticker(canonical[0])}"
+    rows: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+
+    for profile in selected_profiles:
+        profile_cfg = _removal_cfg(cfg, profile, run_id)
+        try:
+            result = run_pybroker_replay(
+                profile_cfg,
+                canonical,
+                mode="walkforward",
+                start_date=start_date,
+                end_date=end_date,
+                rebalance_days=rebalance_days,
+                warmup_bars=warmup_bars,
+                initial_cash=initial_cash,
+                max_positions=max_positions,
+                allow_short=allow_short,
+                walkforward_autotune=autotune,
+                inner_threads=inner_threads,
+            )
+        except Exception as exc:
+            errors.append({"profile": profile, "error": str(exc)})
+            continue
+
+        metrics = result.get("metrics", {}) or {}
+        comparison = result.get("baseline_comparison", {}) or {}
+        artifacts = result.get("artifacts", {}) or {}
+        rows.append(
+            {
+                "profile": profile,
+                "run_id": str(result.get("run_id", "")),
+                "mode": str(result.get("mode", "")),
+                "total_return_pct": float(metrics.get("total_return_pct", 0.0) or 0.0),
+                "max_drawdown_pct": float(metrics.get("max_drawdown_pct", 0.0) or 0.0),
+                "trade_count": int(metrics.get("trade_count", 0) or 0),
+                "hit_rate_pct": float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0),
+                "profit_factor": float(metrics.get("profit_factor", 0.0) or 0.0),
+                "turnover_pct": float(metrics.get("turnover_pct", 0.0) or 0.0),
+                "active_exposure_pct": float(metrics.get("active_exposure_pct", 0.0) or 0.0),
+                "baseline_decision": str(comparison.get("decision", "n/a")),
+                "beat_rate_pct": float(comparison.get("beat_rate_pct", 0.0) or 0.0),
+                "artifact_dir": str(artifacts.get("dir", "")),
+            }
+        )
+
+    base_return = next((float(row.get("total_return_pct", 0.0) or 0.0) for row in rows if row.get("profile") == "full"), None)
+    for row in rows:
+        row["return_delta_pct"] = 0.0 if base_return is None else float(row.get("total_return_pct", 0.0) or 0.0) - base_return
+
+    summary = {
+        "run_id": run_id,
+        "mode": "feature_removal_walkforward",
+        "tickers": canonical,
+        "profiles": selected_profiles,
+        "start_date": str(start_date) if start_date is not None else None,
+        "end_date": str(end_date) if end_date is not None else None,
+        "rebalance_days": int(rebalance_days),
+        "warmup_bars": int(warmup_bars),
+        "allow_short": bool(allow_short),
+        "autotune": bool(autotune),
+        "rows": rows,
+        "errors": errors,
+    }
+    summary["artifacts"] = _write_walkforward_removal_artifacts(cfg, summary)
     return summary
 
 
@@ -362,6 +488,57 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     if errors:
         lines.append("")
         lines.append(f"Removal errors: {len(errors)}. Use the artifacts and logs before drawing conclusions.")
+    artifacts = summary.get("artifacts", {}) or {}
+    if artifacts:
+        lines.append("")
+        lines.append(f"Artifacts: {artifacts.get('dir', 'n/a')}")
+    lines.extend(divider(width).splitlines())
+    return lines
+
+
+def render_removal_walkforward_summary(summary: dict[str, Any]) -> list[str]:
+    width = screen_width()
+    lines: list[str] = []
+    rows = list(summary.get("rows", []) or [])
+    errors = list(summary.get("errors", []) or [])
+    lines.extend(banner("REFINE", "feature removal walk-forward", str(summary.get("run_id", "")), width=width))
+    if not rows:
+        lines.append("No walk-forward removal result was produced.")
+        if errors:
+            lines.append(f"Errors: {len(errors)}")
+        lines.extend(divider(width).splitlines())
+        return lines
+
+    table_rows = []
+    for row in rows:
+        delta = float(row.get("return_delta_pct", 0.0) or 0.0)
+        profile = str(row.get("profile", "n/a"))
+        verdict = "base" if profile == "full" else ("better" if delta > 0 else "worse" if delta < 0 else "tie")
+        table_rows.append(
+            [
+                profile,
+                f"{float(row.get('total_return_pct', 0.0) or 0.0):+.2f}%",
+                f"{delta:+.2f}%",
+                f"{float(row.get('max_drawdown_pct', 0.0) or 0.0):+.2f}%",
+                str(int(row.get("trade_count", 0) or 0)),
+                f"{float(row.get('hit_rate_pct', 0.0) or 0.0):.1f}%",
+                f"{float(row.get('profit_factor', 0.0) or 0.0):.2f}",
+                f"{float(row.get('beat_rate_pct', 0.0) or 0.0):.0f}%",
+                verdict,
+            ]
+        )
+    lines.extend(
+        render_table(
+            ["Profile", "Return", "Delta", "DD", "Trades", "Hit", "PF", "Beat", "Verdict"],
+            table_rows,
+            width=width,
+            aligns=["left", "right", "right", "right", "right", "right", "right", "right", "left"],
+            min_widths=[14, 8, 8, 8, 6, 6, 5, 6, 7],
+        )
+    )
+    if errors:
+        lines.append("")
+        lines.append(f"Walk-forward removal errors: {len(errors)}. Review them before drawing conclusions.")
     artifacts = summary.get("artifacts", {}) or {}
     if artifacts:
         lines.append("")

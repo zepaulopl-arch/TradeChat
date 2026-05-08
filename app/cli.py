@@ -50,10 +50,18 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
 def _add_refine_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("tickers", nargs="+")
     parser.add_argument("--removal", action="store_true", help="train shadow feature-family removals")
+    parser.add_argument("--walkforward", action="store_true", help="run removal profiles with walk-forward validation")
     parser.add_argument("--horizons", default="d1,d5,d20", help="comma-separated horizons for removal: d1,d5,d20")
     parser.add_argument("--profiles", default=None, help="comma-separated removal profiles; default runs all")
     parser.add_argument("--update", action="store_true", help="refresh price cache before removal")
     parser.add_argument("--autotune", action="store_true", help="run autotune inside shadow removal artifacts")
+    parser.add_argument("--start", default=None, help="walk-forward start date YYYY-MM-DD")
+    parser.add_argument("--end", default=None, help="walk-forward end date YYYY-MM-DD")
+    parser.add_argument("--rebalance-days", type=int, default=0, help="bars between walk-forward rebalances; 0 uses config default")
+    parser.add_argument("--warmup-bars", type=int, default=0, help="minimum walk-forward bars before first rebalance; 0 uses config default")
+    parser.add_argument("--cash", type=float, default=None, help="initial cash for walk-forward removal")
+    parser.add_argument("--max-positions", type=int, default=None, help="max long and short slots for walk-forward removal")
+    parser.add_argument("--allow-short", action="store_true", help="allow short entries during walk-forward removal")
 
 
 def build_parser() -> argparse.ArgumentParser:

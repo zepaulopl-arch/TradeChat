@@ -19,7 +19,14 @@ from .portfolio_service import load_portfolio_state, position_side
 from .presentation import banner, divider, money_br, paint, render_facts, render_table, screen_width, tone_delta
 from .ranking_service import render_ranking
 from .rebalance_service import rebalance_portfolio, render_rebalance_summary
-from .refine_service import collect_refine_summary, render_removal_summary, render_refine_summary, run_feature_removal
+from .refine_service import (
+    collect_refine_summary,
+    render_removal_summary,
+    render_removal_walkforward_summary,
+    render_refine_summary,
+    run_feature_removal,
+    run_feature_removal_walkforward,
+)
 from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, write_txt_report
 from .simulator_service import run_pybroker_replay
 from .utils import safe_ticker, read_json
@@ -264,7 +271,28 @@ def cmd_validate(args: argparse.Namespace) -> None:
 def cmd_refine(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     tickers = _resolve_tickers(cfg, args.tickers)
+    if bool(getattr(args, "walkforward", False)) and not bool(getattr(args, "removal", False)):
+        raise SystemExit("refine --walkforward requires --removal")
     if bool(getattr(args, "removal", False)):
+        if bool(getattr(args, "walkforward", False)):
+            sim_cfg = cfg.get("simulation", {}) or {}
+            summary = run_feature_removal_walkforward(
+                cfg,
+                tickers,
+                profiles=args.profiles,
+                start_date=args.start,
+                end_date=args.end,
+                rebalance_days=args.rebalance_days if args.rebalance_days > 0 else int(sim_cfg.get("rebalance_days", 5) or 5),
+                warmup_bars=args.warmup_bars if args.warmup_bars > 0 else int(sim_cfg.get("warmup_bars", 150) or 150),
+                initial_cash=args.cash,
+                max_positions=args.max_positions,
+                allow_short=bool(args.allow_short or sim_cfg.get("allow_short", False)),
+                autotune=bool(args.autotune),
+                inner_threads=1,
+            )
+            for line in render_removal_walkforward_summary(summary):
+                print(line)
+            return
         summary = run_feature_removal(
             cfg,
             tickers,

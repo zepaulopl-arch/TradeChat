@@ -19,7 +19,14 @@ from app.evaluation_service import compare_model_to_baselines, enrich_model_metr
 from app.policy import classify_signal
 from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
-from app.refine_service import collect_refine_summary, render_removal_summary, render_refine_summary, run_feature_removal
+from app.refine_service import (
+    collect_refine_summary,
+    render_removal_summary,
+    render_removal_walkforward_summary,
+    render_refine_summary,
+    run_feature_removal,
+    run_feature_removal_walkforward,
+)
 from app.scoring import is_actionable_signal
 from app.simulator_service import (
     _write_simulation_artifacts,
@@ -784,6 +791,113 @@ def test_removal_renderer_compares_delta_against_full(monkeypatch):
     assert "feature removal" in output
     assert "technical_only" in output
     assert "+0.20%" in output
+    assert "worse" in output
+    assert "Artifacts:" in output
+
+
+def test_feature_removal_walkforward_uses_shadow_profiles(monkeypatch):
+    calls = []
+
+    def fake_run_pybroker_replay(
+        cfg,
+        tickers,
+        *,
+        mode,
+        start_date=None,
+        end_date=None,
+        rebalance_days=5,
+        warmup_bars=150,
+        initial_cash=None,
+        max_positions=None,
+        allow_short=False,
+        walkforward_autotune=False,
+        inner_threads=1,
+    ):
+        profile = str(cfg.get("app", {}).get("artifact_dir", "")).split("/")[-1]
+        calls.append((profile, mode, cfg["features"]["context"]["enabled"], cfg["features"]["sentiment"]["enabled"]))
+        return {
+            "run_id": f"sim_{profile}",
+            "mode": "pybroker_walkforward_shadow",
+            "metrics": {
+                "total_return_pct": 2.0 if profile == "full" else 1.25,
+                "max_drawdown_pct": -1.0,
+                "trade_count": 3,
+                "hit_rate_pct": 66.0,
+                "profit_factor": 1.4,
+                "turnover_pct": 30.0,
+                "active_exposure_pct": 40.0,
+            },
+            "baseline_comparison": {"decision": "mixed_or_fails_baselines", "beat_rate_pct": 50.0},
+            "artifacts": {"dir": f"artifacts/refine/test/{profile}/simulations/sim_{profile}"},
+        }
+
+    monkeypatch.setattr("app.refine_service.run_pybroker_replay", fake_run_pybroker_replay)
+    cfg = {
+        "app": {"artifact_dir": "artifacts"},
+        "features": {
+            "technical": {"enabled": True},
+            "context": {"enabled": True},
+            "fundamentals": {"enabled": True},
+            "sentiment": {"enabled": True},
+        },
+    }
+
+    summary = run_feature_removal_walkforward(
+        cfg,
+        ["PETR4.SA"],
+        profiles="full,no_context",
+        start_date="2026-01-01",
+        end_date="2026-04-01",
+        rebalance_days=3,
+        warmup_bars=10,
+    )
+
+    assert [row["profile"] for row in summary["rows"]] == ["full", "no_context"]
+    assert summary["rows"][1]["return_delta_pct"] == pytest.approx(-0.75)
+    assert summary["errors"] == []
+    assert calls[0] == ("full", "walkforward", True, True)
+    assert calls[1] == ("no_context", "walkforward", False, True)
+    assert Path(summary["artifacts"]["summary_json"]).exists()
+    assert Path(summary["artifacts"]["summary_txt"]).exists()
+    assert Path(summary["artifacts"]["results_csv"]).exists()
+    assert "no_context" in Path(summary["artifacts"]["results_csv"]).read_text(encoding="utf-8")
+
+
+def test_removal_walkforward_renderer_compares_return_against_full(monkeypatch):
+    monkeypatch.setattr("app.refine_service.screen_width", lambda: 100)
+    lines = render_removal_walkforward_summary(
+        {
+            "run_id": "refine_wf_test",
+            "rows": [
+                {
+                    "profile": "full",
+                    "total_return_pct": 2.0,
+                    "return_delta_pct": 0.0,
+                    "max_drawdown_pct": -1.0,
+                    "trade_count": 3,
+                    "hit_rate_pct": 66.0,
+                    "profit_factor": 1.4,
+                    "beat_rate_pct": 50.0,
+                },
+                {
+                    "profile": "no_context",
+                    "total_return_pct": 1.25,
+                    "return_delta_pct": -0.75,
+                    "max_drawdown_pct": -1.2,
+                    "trade_count": 2,
+                    "hit_rate_pct": 50.0,
+                    "profit_factor": 1.0,
+                    "beat_rate_pct": 25.0,
+                },
+            ],
+            "errors": [],
+            "artifacts": {"dir": "artifacts/refine/refine_wf_test"},
+        }
+    )
+    output = "\n".join(lines)
+    assert "feature removal walk-forward" in output
+    assert "no_context" in output
+    assert "-0.75%" in output
     assert "worse" in output
     assert "Artifacts:" in output
 

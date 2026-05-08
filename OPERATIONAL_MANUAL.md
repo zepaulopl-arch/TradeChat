@@ -21,6 +21,7 @@ Todos os comandos abaixo rodam via `trade.py`.
 | `python trade.py validate PETR4.SA VALE3.SA --mode walkforward` | Roda validacao PyBroker treinando modelos sombra por data. | Validacao historica mais rigorosa, com menos vazamento temporal. |
 | `python trade.py refine PETR4.SA VALE3.SA` | Audita manifests treinados por horizonte, MAE e familias de features selecionadas. | Revisao metodologica leve antes de retreinar ou remover familias. |
 | `python trade.py refine PETR4.SA --removal --horizons d1` | Treina remocoes controladas em artefatos sombra (`full`, `technical_only`, `no_context`, `no_fundamentals`, `no_sentiment`). | Provar se uma familia agrega antes de manter complexidade. |
+| `python trade.py refine PETR4.SA VALE3.SA --removal --walkforward` | Roda as mesmas remocoes com validacao walk-forward e metricas economicas. | Decidir remocao de familias com base em retorno, drawdown, trades e baselines, nao apenas MAE. |
 
 O `validate` tambem grava baselines economicos no resumo da simulacao: nao operar, buy and hold igualmente ponderado, media historica long/flat, ultimo retorno long/flat e aleatorio long/flat deterministico. Ele compara o modelo contra esses baselines por delta de retorno, drawdown, hit rate e profit factor; o modelo operacional precisa justificar que bate alternativas triviais antes de virar decisao.
 
@@ -101,6 +102,7 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 8. `python trade.py validate PETR4.SA VALE3.SA --start 2026-01-01 --end 2026-05-01`
 9. `python trade.py validate PETR4.SA VALE3.SA --mode walkforward --start 2026-01-01 --end 2026-05-01`
 10. `python trade.py refine PETR4.SA VALE3.SA`
+11. `python trade.py refine PETR4.SA VALE3.SA --removal --walkforward --start 2026-01-01 --end 2026-05-01`
 
 ## 5. Regras praticas
 
@@ -118,6 +120,7 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 - Use `validate --verbose` apenas quando quiser ver caminhos tecnicos dos artefatos.
 - `refine` nao treina e nao altera estado; ele le os manifests mais recentes para expor MAE, qualidade operacional e peso das familias selecionadas.
 - `refine --removal` treina em `artifacts/refine/...`, nao substitui os modelos operacionais em `artifacts/models`, e grava `summary.json`, `summary.txt` e `removal_results.csv`.
+- `refine --removal --walkforward` tambem usa artefatos sombra em `artifacts/refine/...`, roda validacao historica por perfil e grava `walkforward_summary.json`, `walkforward_summary.txt` e `walkforward_results.csv`.
 
 ## 6. Tutorial da fase 1
 

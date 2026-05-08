@@ -61,7 +61,14 @@ def test_batch_and_simulator_services_exist():
     for token in ["def evaluate_baselines", "zero_return_no_trade", "buy_and_hold_equal_weight", "last_return_long_flat"]:
         assert token in evaluation_text
     assert "evaluate_baselines" in sim_text
-    for token in ["def collect_refine_summary", "def run_feature_removal", "def render_removal_summary", "family_relevance_share_pct"]:
+    for token in [
+        "def collect_refine_summary",
+        "def run_feature_removal",
+        "def run_feature_removal_walkforward",
+        "def render_removal_summary",
+        "def render_removal_walkforward_summary",
+        "family_relevance_share_pct",
+    ]:
         assert token in refine_text
     for token in ["def collect_ranked_signals", "def render_ranking"]:
         assert token in ranking_text
