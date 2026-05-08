@@ -19,6 +19,12 @@ def render_validation_summary(
     total_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
     max_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
     trades = int(float(metrics.get("trade_count", 0) or 0))
+    hit_rate = float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0)
+    avg_trade_return = float(metrics.get("avg_trade_return_pct", metrics.get("avg_return_pct", 0.0)) or 0.0)
+    profit_factor = float(metrics.get("profit_factor", 0.0) or 0.0)
+    turnover = float(metrics.get("turnover_pct", 0.0) or 0.0)
+    exposure = float(metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0)
+    total_cost = float(metrics.get("total_cost", 0.0) or 0.0)
     decision = "Sem trades na janela"
     decision_status = "warn"
     if trades > 0 and total_return >= 0:
@@ -74,6 +80,25 @@ def render_validation_summary(
             min_widths=[18, 8, 6, 9, 14],
         )
     )
+    lines.extend(ui5.render_section("ECONOMIA", width=width))
+    lines.extend(
+        ui5.render_table(
+            ["Hit", "Avg Trade", "Profit F", "Turnover", "Exposure", "Cost"],
+            [
+                [
+                    f"{hit_rate:.1f}%",
+                    f"{avg_trade_return:+.2f}%",
+                    f"{profit_factor:.2f}",
+                    f"{turnover:.1f}%",
+                    f"{exposure:.1f}%",
+                    f"{total_cost:+.2f}",
+                ]
+            ],
+            width=width,
+            aligns=["right", "right", "right", "right", "right", "right"],
+            min_widths=[7, 9, 8, 9, 9, 8],
+        )
+    )
 
     if baselines:
         rows = []
@@ -106,6 +131,8 @@ def render_validation_summary(
                     str(row.get("baseline", "n/a")),
                     f"{float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}%",
                     f"{float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}%",
+                    f"{float(row.get('hit_rate_delta_pct', 0.0) or 0.0):+.1f}%",
+                    f"{float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}",
                     "sim" if bool(row.get("beat_return", False)) else "nao",
                 ]
             )
@@ -121,11 +148,11 @@ def render_validation_summary(
         )
         lines.extend(
             ui5.render_table(
-                ["Baseline", "Delta Ret", "Delta DD", "Bateu"],
+                ["Baseline", "Delta Ret", "Delta DD", "Delta Hit", "Delta PF", "Bateu"],
                 comparison_rows,
                 width=width,
-                aligns=["left", "right", "right", "left"],
-                min_widths=[24, 9, 9, 6],
+                aligns=["left", "right", "right", "right", "right", "left"],
+                min_widths=[24, 9, 9, 9, 8, 6],
             )
         )
 

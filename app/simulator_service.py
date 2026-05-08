@@ -11,7 +11,7 @@ import pandas as pd
 
 from .config import artifact_dir
 from .data import load_prices
-from .evaluation_service import compare_model_to_baselines, evaluate_baselines
+from .evaluation_service import compare_model_to_baselines, enrich_model_metrics_from_execution, evaluate_baselines
 from .features import build_dataset
 from .models import predict_multi_horizon, train_models
 from .pipeline_service import canonical_ticker
@@ -555,6 +555,12 @@ def _write_simulation_artifacts(
         f"TRADES: {int(float(metrics.get('trade_count', 0) or 0))}",
         f"RETURN: {float(metrics.get('total_return_pct', 0.0) or 0.0):+.2f}%",
         f"WIN RATE: {float(metrics.get('win_rate', 0.0) or 0.0):.1f}%",
+        f"HIT RATE: {float(metrics.get('hit_rate_pct', metrics.get('win_rate', 0.0)) or 0.0):.1f}%",
+        f"AVG TRADE RETURN: {float(metrics.get('avg_trade_return_pct', metrics.get('avg_return_pct', 0.0)) or 0.0):+.2f}%",
+        f"PROFIT FACTOR: {float(metrics.get('profit_factor', 0.0) or 0.0):.2f}",
+        f"TURNOVER: {float(metrics.get('turnover_pct', 0.0) or 0.0):.2f}%",
+        f"AVG EXPOSURE: {float(metrics.get('active_exposure_pct', 0.0) or 0.0):.2f}%",
+        f"COST: {float(metrics.get('total_cost', 0.0) or 0.0):+.2f} ({float(metrics.get('cost_pct_initial_cash', 0.0) or 0.0):.2f}%)",
         f"TOTAL PNL: {float(metrics.get('total_pnl', 0.0) or 0.0):+.2f}",
         f"PYBROKER SIZING: {execution.get('position_sizing', 'n/a')}",
         f"NATIVE STOPS: loss={execution.get('native_stop_loss', True)} profit={execution.get('native_take_profit', True)} trailing={execution.get('native_trailing', True)} hold={execution.get('native_hold_bars', True)}",
@@ -579,7 +585,9 @@ def _write_simulation_artifacts(
         for row in baseline_comparison.get("rows", []) or []:
             lines.append(
                 f"- {row.get('baseline')}: delta_return={float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}% "
-                f"delta_drawdown={float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}%"
+                f"delta_drawdown={float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}% "
+                f"delta_hit={float(row.get('hit_rate_delta_pct', 0.0) or 0.0):+.2f}% "
+                f"delta_pf={float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}"
             )
     lines.extend([
         "",
@@ -671,7 +679,12 @@ def run_pybroker_replay(
             disable_parallel=True,
         )
 
-    metrics = _metrics_to_dict(result.metrics_df)
+    metrics = enrich_model_metrics_from_execution(
+        _metrics_to_dict(result.metrics_df),
+        trades=result.trades,
+        orders=result.orders,
+        initial_cash=baseline_cash,
+    )
     baseline_comparison = compare_model_to_baselines(metrics, baselines)
     summary = {
         "run_id": run_id,

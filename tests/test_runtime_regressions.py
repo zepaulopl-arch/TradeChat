@@ -15,7 +15,7 @@ from app.models import _split_train_test_raw
 from app.models import _stacking_cv_splits
 from app.models import _make_arbiter
 from app.models import _oof_valid_mask
-from app.evaluation_service import compare_model_to_baselines, evaluate_baselines
+from app.evaluation_service import compare_model_to_baselines, enrich_model_metrics_from_execution, evaluate_baselines
 from app.policy import classify_signal
 from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
@@ -457,10 +457,10 @@ def test_evaluation_baselines_include_trivial_comparators_without_lookahead():
 
 def test_compare_model_to_baselines_reports_deltas_and_decision():
     comparison = compare_model_to_baselines(
-        {"total_return_pct": 4.0, "max_drawdown_pct": -3.0, "trade_count": 7},
+        {"total_return_pct": 4.0, "max_drawdown_pct": -3.0, "trade_count": 7, "hit_rate_pct": 60.0, "profit_factor": 1.5},
         {
-            "zero_return_no_trade": {"metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}},
-            "buy_and_hold_equal_weight": {"metrics": {"total_return_pct": 5.0, "max_drawdown_pct": -6.0, "trade_count": 2}},
+            "zero_return_no_trade": {"metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0, "hit_rate_pct": 0.0, "profit_factor": 0.0}},
+            "buy_and_hold_equal_weight": {"metrics": {"total_return_pct": 5.0, "max_drawdown_pct": -6.0, "trade_count": 2, "hit_rate_pct": 50.0, "profit_factor": 1.2}},
         },
     )
 
@@ -470,6 +470,29 @@ def test_compare_model_to_baselines_reports_deltas_and_decision():
     assert comparison["decision"] == "mixed_or_fails_baselines"
     assert comparison["rows"][0]["return_delta_pct"] == pytest.approx(4.0)
     assert comparison["rows"][1]["return_delta_pct"] == pytest.approx(-1.0)
+    assert comparison["rows"][1]["hit_rate_delta_pct"] == pytest.approx(10.0)
+    assert comparison["rows"][1]["profit_factor_delta"] == pytest.approx(0.3)
+
+
+def test_enrich_model_metrics_from_execution_derives_trade_and_order_metrics():
+    trades = pd.DataFrame({"pnl": [100.0, -50.0, 25.0], "return_pct": [2.0, -1.0, 0.5]})
+    orders = pd.DataFrame({"shares": [10, -5, 3], "fill_price": [20.0, 22.0, 21.0], "fees": [1.0, 1.5, 0.5]})
+
+    metrics = enrich_model_metrics_from_execution(
+        {"total_return_pct": 3.0, "max_drawdown_pct": -2.0},
+        trades=trades,
+        orders=orders,
+        initial_cash=1000.0,
+    )
+
+    assert metrics["trade_count"] == 3
+    assert metrics["total_pnl"] == pytest.approx(75.0)
+    assert metrics["hit_rate_pct"] == pytest.approx(200 / 3)
+    assert metrics["profit_factor"] == pytest.approx(2.5)
+    assert metrics["avg_trade_return_pct"] == pytest.approx(0.5)
+    assert metrics["turnover_pct"] == pytest.approx(37.3)
+    assert metrics["total_cost"] == pytest.approx(3.0)
+    assert metrics["cost_pct_initial_cash"] == pytest.approx(0.3)
 
 
 def test_methodology_report_catches_leakage_and_shadow_contracts():
@@ -955,7 +978,17 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
             "start_date": "2026-01-01",
             "end_date": "2026-02-01",
             "tickers": ["PETR4.SA"],
-            "metrics": {"total_return_pct": 2.0, "max_drawdown_pct": -1.0, "trade_count": 3},
+            "metrics": {
+                "total_return_pct": 2.0,
+                "max_drawdown_pct": -1.0,
+                "trade_count": 3,
+                "hit_rate_pct": 66.0,
+                "avg_trade_return_pct": 0.8,
+                "profit_factor": 1.4,
+                "turnover_pct": 35.0,
+                "active_exposure_pct": 42.0,
+                "total_cost": 3.5,
+            },
             "baselines": {
                 "zero_return_no_trade": {
                     "metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}
@@ -969,6 +1002,8 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
                         "baseline": "zero_return_no_trade",
                         "return_delta_pct": 2.0,
                         "drawdown_delta_pct": -1.0,
+                        "hit_rate_delta_pct": 66.0,
+                        "profit_factor_delta": 1.4,
                         "beat_return": True,
                     }
                 ],
@@ -978,6 +1013,8 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
         screen_title="VALIDATE",
     )
     output = "\n".join(lines)
+    assert "ECONOMIA" in output
+    assert "Profit F" in output
     assert "MODELO VS BASELINES" in output
     assert "passes_baselines" in output
     assert "zero_return_no_trade" in output
