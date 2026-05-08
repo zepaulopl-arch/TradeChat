@@ -611,6 +611,10 @@ def test_feature_ablation_trains_shadow_profiles(monkeypatch):
     assert len(summary["rows"]) == 3
     assert summary["errors"] == []
     assert all("artifacts/refine/" in row["artifact_dir"].replace("\\", "/") for row in summary["rows"])
+    assert Path(summary["artifacts"]["summary_json"]).exists()
+    assert Path(summary["artifacts"]["summary_txt"]).exists()
+    assert Path(summary["artifacts"]["results_csv"]).exists()
+    assert "technical_only" in Path(summary["artifacts"]["results_csv"]).read_text(encoding="utf-8")
     assert ("train", "PETR4.SA", "technical_only", "d1", summary["rows"][1]["artifact_dir"]) not in calls
     dataset_calls = [call for call in calls if call[0] == "dataset"]
     assert dataset_calls[1][2] is False
@@ -642,6 +646,7 @@ def test_ablation_renderer_compares_delta_against_full(monkeypatch):
                 },
             ],
             "errors": [],
+            "artifacts": {"dir": "artifacts/refine/refine_test"},
         }
     )
     output = "\n".join(lines)
@@ -649,6 +654,7 @@ def test_ablation_renderer_compares_delta_against_full(monkeypatch):
     assert "technical_only" in output
     assert "+0.20%" in output
     assert "worse" in output
+    assert "Artifacts:" in output
 
 
 def test_normalize_signal_plan_assigns_weights_only_to_actionable_signals():

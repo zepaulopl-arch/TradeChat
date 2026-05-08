@@ -117,7 +117,7 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 - `validate --mode walkforward` treina modelos sombra dentro de `artifacts/simulations` e e a opcao mais correta para validacao historica.
 - Use `validate --verbose` apenas quando quiser ver caminhos tecnicos dos artefatos.
 - `refine` nao treina e nao altera estado; ele le os manifests mais recentes para expor MAE, qualidade operacional e peso das familias selecionadas.
-- `refine --ablation` treina em `artifacts/refine/...`, nao substitui os modelos operacionais em `artifacts/models`.
+- `refine --ablation` treina em `artifacts/refine/...`, nao substitui os modelos operacionais em `artifacts/models`, e grava `summary.json`, `summary.txt` e `ablation_results.csv`.
 
 ## 6. Tutorial da fase 1
 

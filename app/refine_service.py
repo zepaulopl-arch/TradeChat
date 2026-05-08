@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import copy
+import csv
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .data import load_prices
 from .features import build_dataset
 from .models import train_models
-from .config import models_dir
+from .config import artifact_dir, models_dir
 from .feature_audit import feature_family_profile, selected_feature_scores
 from .presentation import banner, divider, render_table, screen_width
-from .utils import normalize_ticker, read_json, safe_ticker
+from .utils import normalize_ticker, read_json, safe_ticker, write_json
 
 
 HORIZONS = ["d1", "d5", "d20"]
@@ -137,6 +139,68 @@ def _ablation_cfg(cfg: dict[str, Any], profile: str, run_id: str) -> dict[str, A
     return shadow
 
 
+def refine_dir(cfg: dict[str, Any], run_id: str) -> Path:
+    path = artifact_dir(cfg) / "refine" / str(run_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write_ablation_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
+    out_dir = refine_dir(cfg, str(summary.get("run_id", "refine")))
+    summary_json = out_dir / "summary.json"
+    summary_txt = out_dir / "summary.txt"
+    results_csv = out_dir / "ablation_results.csv"
+
+    write_json(summary_json, summary)
+    rows = list(summary.get("rows", []) or [])
+    fieldnames = [
+        "ticker",
+        "horizon",
+        "profile",
+        "mae_return",
+        "latest_prediction_return",
+        "confidence",
+        "selected_feature_count",
+        "technical_count",
+        "context_count",
+        "fundamentals_count",
+        "sentiment_count",
+        "artifact_dir",
+        "run_id",
+    ]
+    with results_csv.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            counts = row.get("family_counts", {}) or {}
+            writer.writerow(
+                {
+                    "ticker": row.get("ticker", ""),
+                    "horizon": row.get("horizon", ""),
+                    "profile": row.get("profile", ""),
+                    "mae_return": row.get("mae_return", 0.0),
+                    "latest_prediction_return": row.get("latest_prediction_return", 0.0),
+                    "confidence": row.get("confidence", 0.0),
+                    "selected_feature_count": row.get("selected_feature_count", 0),
+                    "technical_count": counts.get("technical", 0),
+                    "context_count": counts.get("context", 0),
+                    "fundamentals_count": counts.get("fundamentals", 0),
+                    "sentiment_count": counts.get("sentiment", 0),
+                    "artifact_dir": row.get("artifact_dir", ""),
+                    "run_id": row.get("run_id", ""),
+                }
+            )
+
+    lines = render_ablation_summary(summary)
+    summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {
+        "dir": str(out_dir),
+        "summary_json": str(summary_json),
+        "summary_txt": str(summary_txt),
+        "results_csv": str(results_csv),
+    }
+
+
 def run_feature_ablation(
     cfg: dict[str, Any],
     tickers: list[str],
@@ -198,13 +262,15 @@ def run_feature_ablation(
                         "artifact_dir": str(models_dir(profile_cfg).parent),
                     }
                 )
-    return {
+    summary = {
         "run_id": run_id,
         "horizons": selected_horizons,
         "profiles": selected_profiles,
         "rows": rows,
         "errors": errors,
     }
+    summary["artifacts"] = _write_ablation_artifacts(cfg, summary)
+    return summary
 
 
 def render_refine_summary(summary: dict[str, Any]) -> list[str]:
@@ -296,5 +362,9 @@ def render_ablation_summary(summary: dict[str, Any]) -> list[str]:
     if errors:
         lines.append("")
         lines.append(f"Ablation errors: {len(errors)}. Use the artifacts and logs before drawing conclusions.")
+    artifacts = summary.get("artifacts", {}) or {}
+    if artifacts:
+        lines.append("")
+        lines.append(f"Artifacts: {artifacts.get('dir', 'n/a')}")
     lines.extend(divider(width).splitlines())
     return lines
