@@ -154,3 +154,46 @@ def evaluate_baselines(
             ),
         },
     }
+
+
+def compare_model_to_baselines(
+    model_metrics: dict[str, Any],
+    baselines: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    model_return = float(model_metrics.get("total_return_pct", 0.0) or 0.0)
+    model_drawdown = float(model_metrics.get("max_drawdown_pct", 0.0) or 0.0)
+    model_trades = int(float(model_metrics.get("trade_count", 0) or 0))
+    rows: list[dict[str, Any]] = []
+    beat_count = 0
+    comparable_count = 0
+    for name, payload in (baselines or {}).items():
+        metrics = payload.get("metrics", {}) or {}
+        base_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
+        base_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
+        base_trades = int(float(metrics.get("trade_count", 0) or 0))
+        return_delta = model_return - base_return
+        drawdown_delta = model_drawdown - base_drawdown
+        beat = return_delta > 0
+        comparable_count += 1
+        beat_count += 1 if beat else 0
+        rows.append(
+            {
+                "baseline": name,
+                "model_return_pct": model_return,
+                "baseline_return_pct": base_return,
+                "return_delta_pct": float(return_delta),
+                "model_max_drawdown_pct": model_drawdown,
+                "baseline_max_drawdown_pct": base_drawdown,
+                "drawdown_delta_pct": float(drawdown_delta),
+                "model_trade_count": model_trades,
+                "baseline_trade_count": base_trades,
+                "beat_return": bool(beat),
+            }
+        )
+    return {
+        "rows": rows,
+        "beat_count": int(beat_count),
+        "baseline_count": int(comparable_count),
+        "beat_rate_pct": float(beat_count / comparable_count * 100.0) if comparable_count else 0.0,
+        "decision": "passes_baselines" if comparable_count and beat_count == comparable_count else "mixed_or_fails_baselines",
+    }

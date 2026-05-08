@@ -11,7 +11,7 @@ import pandas as pd
 
 from .config import artifact_dir
 from .data import load_prices
-from .evaluation_service import evaluate_baselines
+from .evaluation_service import compare_model_to_baselines, evaluate_baselines
 from .features import build_dataset
 from .models import predict_multi_horizon, train_models
 from .pipeline_service import canonical_ticker
@@ -537,6 +537,7 @@ def _write_simulation_artifacts(
 
     metrics = summary.get("metrics", {}) or {}
     baselines = summary.get("baselines", {}) or {}
+    baseline_comparison = summary.get("baseline_comparison", {}) or {}
     execution = summary.get("pybroker_execution", {}) or {}
     costs = execution.get("costs", {}) or {}
     note = (
@@ -568,6 +569,18 @@ def _write_simulation_artifacts(
             f"drawdown={float(base_metrics.get('max_drawdown_pct', 0.0) or 0.0):+.2f}% "
             f"trades={int(float(base_metrics.get('trade_count', 0) or 0))}"
         )
+    if baseline_comparison:
+        lines.extend([
+            "",
+            "MODEL VS BASELINES:",
+            f"DECISION: {baseline_comparison.get('decision', 'n/a')}",
+            f"BEAT RATE: {float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%",
+        ])
+        for row in baseline_comparison.get("rows", []) or []:
+            lines.append(
+                f"- {row.get('baseline')}: delta_return={float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}% "
+                f"delta_drawdown={float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}%"
+            )
     lines.extend([
         "",
         note,
@@ -659,6 +672,7 @@ def run_pybroker_replay(
         )
 
     metrics = _metrics_to_dict(result.metrics_df)
+    baseline_comparison = compare_model_to_baselines(metrics, baselines)
     summary = {
         "run_id": run_id,
         "mode": "pybroker_walkforward_shadow" if mode == "walkforward" else "pybroker_artifact_replay",
@@ -671,6 +685,7 @@ def run_pybroker_replay(
         "max_positions": int(max_positions or max(1, len(canonical))),
         "metrics": metrics,
         "baselines": baselines,
+        "baseline_comparison": baseline_comparison,
         "rebalance_points": len(rebalance_dates),
         "signal_points": sum(len(items) for items in plan_by_date.values()),
         "pybroker_execution": {

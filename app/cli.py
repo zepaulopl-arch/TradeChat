@@ -254,6 +254,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
     )
     metrics = summary.get("metrics", {}) or {}
     baselines = summary.get("baselines", {}) or {}
+    baseline_comparison = summary.get("baseline_comparison", {}) or {}
     width = ui5.screen_width()
     total_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
     max_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
@@ -337,6 +338,36 @@ def cmd_validate(args: argparse.Namespace) -> None:
             width=width,
             aligns=["left", "right", "right", "right"],
             min_widths=[24, 8, 6, 9],
+        ):
+            print(line)
+
+    if baseline_comparison:
+        comparison_rows = []
+        for row in baseline_comparison.get("rows", []) or []:
+            comparison_rows.append(
+                [
+                    str(row.get("baseline", "n/a")),
+                    f"{float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}%",
+                    f"{float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}%",
+                    "sim" if bool(row.get("beat_return", False)) else "nao",
+                ]
+            )
+        for line in ui5.render_section("MODELO VS BASELINES", width=width):
+            print(line)
+        for line in ui5.render_key_values(
+            {
+                "Decisao": baseline_comparison.get("decision", "n/a"),
+                "Beat rate": f"{float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%",
+            },
+            width=width,
+        ):
+            print(line)
+        for line in ui5.render_table(
+            ["Baseline", "Delta Ret", "Delta DD", "Bateu"],
+            comparison_rows,
+            width=width,
+            aligns=["left", "right", "right", "left"],
+            min_widths=[24, 9, 9, 6],
         ):
             print(line)
 

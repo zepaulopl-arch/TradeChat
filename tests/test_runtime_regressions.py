@@ -13,7 +13,7 @@ from app.models import _split_train_test_raw
 from app.models import _stacking_cv_splits
 from app.models import _make_arbiter
 from app.models import _oof_valid_mask
-from app.evaluation_service import evaluate_baselines
+from app.evaluation_service import compare_model_to_baselines, evaluate_baselines
 from app.policy import classify_signal
 from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
@@ -450,6 +450,23 @@ def test_evaluation_baselines_include_trivial_comparators_without_lookahead():
     assert baselines["last_return_long_flat"]["metrics"]["trade_count"] > 0
 
 
+def test_compare_model_to_baselines_reports_deltas_and_decision():
+    comparison = compare_model_to_baselines(
+        {"total_return_pct": 4.0, "max_drawdown_pct": -3.0, "trade_count": 7},
+        {
+            "zero_return_no_trade": {"metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}},
+            "buy_and_hold_equal_weight": {"metrics": {"total_return_pct": 5.0, "max_drawdown_pct": -6.0, "trade_count": 2}},
+        },
+    )
+
+    assert comparison["beat_count"] == 1
+    assert comparison["baseline_count"] == 2
+    assert comparison["beat_rate_pct"] == pytest.approx(50.0)
+    assert comparison["decision"] == "mixed_or_fails_baselines"
+    assert comparison["rows"][0]["return_delta_pct"] == pytest.approx(4.0)
+    assert comparison["rows"][1]["return_delta_pct"] == pytest.approx(-1.0)
+
+
 def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
     cfg = {"app": {"artifact_dir": str(tmp_path)}}
     summary = {
@@ -466,6 +483,18 @@ def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
                 "metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}
             }
         },
+        "baseline_comparison": {
+            "decision": "passes_baselines",
+            "beat_rate_pct": 100.0,
+            "rows": [
+                {
+                    "baseline": "zero_return_no_trade",
+                    "return_delta_pct": 2.5,
+                    "drawdown_delta_pct": -1.0,
+                    "beat_return": True,
+                }
+            ],
+        },
         "pybroker_execution": {"costs": {}},
     }
 
@@ -480,6 +509,8 @@ def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
     text = Path(artifacts["summary_txt"]).read_text(encoding="utf-8")
     assert "BASELINES:" in text
     assert "zero_return_no_trade" in text
+    assert "MODEL VS BASELINES:" in text
+    assert "passes_baselines" in text
 
 
 def test_refine_summary_reads_latest_manifests_and_profiles_families(monkeypatch, tmp_path):
