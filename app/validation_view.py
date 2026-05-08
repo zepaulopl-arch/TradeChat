@@ -15,15 +15,20 @@ def render_validation_summary(
     metrics = summary.get("metrics", {}) or {}
     baselines = summary.get("baselines", {}) or {}
     baseline_comparison = summary.get("baseline_comparison", {}) or {}
+    validation_decision = summary.get("validation_decision", {}) or {}
     width = ui5.screen_width()
     total_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
     max_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
     trades = int(float(metrics.get("trade_count", 0) or 0))
     hit_rate = float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0)
-    avg_trade_return = float(metrics.get("avg_trade_return_pct", metrics.get("avg_return_pct", 0.0)) or 0.0)
+    avg_trade_return = float(
+        metrics.get("avg_trade_return_pct", metrics.get("avg_return_pct", 0.0)) or 0.0
+    )
     profit_factor = float(metrics.get("profit_factor", 0.0) or 0.0)
     turnover = float(metrics.get("turnover_pct", 0.0) or 0.0)
-    exposure = float(metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0)
+    exposure = float(
+        metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0
+    )
     total_cost = float(metrics.get("total_cost", 0.0) or 0.0)
     decision = "Sem trades na janela"
     decision_status = "warn"
@@ -33,7 +38,11 @@ def render_validation_summary(
     elif trades > 0:
         decision = "Revisar filtros"
         decision_status = "error"
-    mode_label = "walk-forward shadow" if summary.get("mode") == "pybroker_walkforward_shadow" else "replay operacional"
+    mode_label = (
+        "walk-forward shadow"
+        if summary.get("mode") == "pybroker_walkforward_shadow"
+        else "replay operacional"
+    )
     conclusion = (
         "Sem entradas no periodo; aumentar janela ou reduzir filtros para investigar."
         if trades == 0
@@ -61,6 +70,47 @@ def render_validation_summary(
         else "Walk-forward treina em artefatos sombra por data de rebalanceamento; e mais lento, mas reduz vazamento temporal."
     )
     lines.extend(ui5.render_callout(callout_text, status=callout_status, width=width))
+
+    if validation_decision:
+        final_decision = str(validation_decision.get("final_decision", "inconclusive")).upper()
+        decision_status = {
+            "PROMOTE": "ok",
+            "OBSERVE": "warn",
+            "REJECT": "error",
+            "INCONCLUSIVE": "info",
+        }.get(final_decision, "info")
+        checks = validation_decision.get("checks", {}) or {}
+        check_rows = []
+        for name in [
+            "beats_required_baselines",
+            "enough_trades",
+            "profit_factor_ok",
+            "max_drawdown_ok",
+            "exposure_ok",
+        ]:
+            payload = checks.get(name, {}) or {}
+            check_rows.append([name, "pass" if payload.get("passed") else "fail"])
+        lines.extend(ui5.render_section("VALIDATION DECISION", width=width))
+        lines.extend(
+            ui5.render_key_values(
+                {
+                    "Decision": ui5.render_badge(final_decision, decision_status),
+                    "Score": f"{float(validation_decision.get('score', 0.0) or 0.0):.1f}",
+                },
+                width=width,
+            )
+        )
+        lines.extend(
+            ui5.render_table(
+                ["Check", "Status"],
+                check_rows,
+                width=width,
+                aligns=["left", "left"],
+                min_widths=[28, 8],
+            )
+        )
+        for explanation in validation_decision.get("explanation", [])[:3]:
+            lines.extend(ui5.render_callout(str(explanation), status=decision_status, width=width))
 
     lines.extend(ui5.render_section("RESULTADO", width=width))
     lines.extend(
@@ -163,7 +213,10 @@ def render_validation_summary(
                 ["Arquivo", "Caminho"],
                 [
                     ["Resumo", str((summary.get("artifacts", {}) or {}).get("summary_txt", "n/a"))],
-                    ["Sinais", str((summary.get("artifacts", {}) or {}).get("signals_json", "n/a"))],
+                    [
+                        "Sinais",
+                        str((summary.get("artifacts", {}) or {}).get("signals_json", "n/a")),
+                    ],
                     ["Trades", str((summary.get("artifacts", {}) or {}).get("trades_csv", "n/a"))],
                     ["Stops", str((summary.get("artifacts", {}) or {}).get("stops_csv", "n/a"))],
                 ],

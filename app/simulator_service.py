@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import contextlib
 import copy
-import io
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,28 +9,32 @@ import pandas as pd
 
 from .config import artifact_dir
 from .data import load_prices
-from .evaluation_service import compare_model_to_baselines, enrich_model_metrics_from_execution, evaluate_baselines
+from .evaluation_decision import make_validation_decision
+from .evaluation_service import (
+    compare_model_to_baselines,
+    enrich_model_metrics_from_execution,
+    evaluate_baselines,
+)
 from .features import build_dataset
 from .models import predict_multi_horizon, train_models
 from .pipeline_service import canonical_ticker
 from .policy import classify_signal
 from .scoring import is_actionable_signal, signal_score
+from .simulation.execution_costs import execution_cost_config
+from .simulation.metrics_bridge import metrics_frame_to_dict
+from .simulation.pybroker_adapter import (
+    FeeMode,
+    PositionMode,
+    RandomSlippageModel,
+    Strategy,
+    StrategyConfig,
+    YFinance,
+    quiet_pybroker,
+    require_pybroker,
+)
+from .simulation.replay import normalize_validation_mode
 from .trade_plan_service import build_trade_plan, trade_plan_from_signal
 from .utils import safe_ticker, write_json
-
-try:
-    from pybroker import Strategy, YFinance, disable_progress_bar
-    from pybroker.common import FeeMode, PositionMode
-    from pybroker.config import StrategyConfig
-    from pybroker.slippage import RandomSlippageModel
-except Exception:  # pragma: no cover - exercised by runtime integration
-    Strategy = None
-    YFinance = None
-    FeeMode = None
-    PositionMode = None
-    StrategyConfig = None
-    RandomSlippageModel = None
-    disable_progress_bar = None
 
 
 def simulation_dir(cfg: dict[str, Any]) -> Path:
@@ -51,16 +53,11 @@ def _shadow_config(cfg: dict[str, Any], run_id: str) -> dict[str, Any]:
 
 
 def _require_pybroker() -> None:
-    if Strategy is None or YFinance is None or StrategyConfig is None:
-        raise RuntimeError("PyBroker is not available. Install package: lib-pybroker")
-    if disable_progress_bar is not None:
-        disable_progress_bar()
+    require_pybroker()
 
 
-@contextlib.contextmanager
 def _quiet_pybroker():
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        yield
+    return quiet_pybroker()
 
 
 def _coerce_timestamp(value: str | datetime | None, fallback: pd.Timestamp) -> pd.Timestamp:
@@ -86,7 +83,9 @@ def _schedule_rebalance_dates(
     if len(unique_dates) <= effective_warmup:
         return []
     step = max(1, int(rebalance_days))
-    return [pd.Timestamp(unique_dates[idx]) for idx in range(effective_warmup, len(unique_dates), step)]
+    return [
+        pd.Timestamp(unique_dates[idx]) for idx in range(effective_warmup, len(unique_dates), step)
+    ]
 
 
 def _build_signal_as_of(
@@ -223,12 +222,11 @@ def _pct_distance(reference_price: float, target_price: float) -> float:
 
 
 def _simulation_costs(cfg: dict[str, Any]) -> dict[str, Any]:
-    sim_cfg = cfg.get("simulation", {}) or {}
-    costs = dict(sim_cfg.get("costs", {}) or {})
+    costs = execution_cost_config(cfg)
     return {
-        "fee_mode": costs.get("fee_mode", sim_cfg.get("fee_mode")),
-        "fee_amount": float(costs.get("fee_amount", sim_cfg.get("fee_amount", 0.0)) or 0.0),
-        "slippage_pct": float(costs.get("slippage_pct", sim_cfg.get("slippage_pct", 0.0)) or 0.0),
+        "fee_mode": costs.fee_mode,
+        "fee_amount": costs.fee_amount,
+        "slippage_pct": costs.slippage_pct,
     }
 
 
@@ -261,7 +259,9 @@ def _fee_mode_from_config(value: Any):
         "share": FeeMode.PER_SHARE,
     }
     if raw not in mapping:
-        raise ValueError("simulation.costs.fee_mode must be order_percent, per_order, per_share or none")
+        raise ValueError(
+            "simulation.costs.fee_mode must be order_percent, per_order, per_share or none"
+        )
     return mapping[raw]
 
 
@@ -314,18 +314,26 @@ def _apply_native_trade_management(
     if execution_cfg.get("native_stop_loss", True):
         stop_loss_pct = _pct_distance(
             latest_price,
-            float(trade_plan.get("stop_initial", policy.get("stop_loss_price", latest_price)) or latest_price),
+            float(
+                trade_plan.get("stop_initial", policy.get("stop_loss_price", latest_price))
+                or latest_price
+            ),
         )
         if stop_loss_pct > 0:
             ctx.stop_loss_pct = stop_loss_pct
     if execution_cfg.get("native_take_profit", True):
         stop_profit_pct = _pct_distance(
             latest_price,
-            float(trade_plan.get("target_final", policy.get("target_price", latest_price)) or latest_price),
+            float(
+                trade_plan.get("target_final", policy.get("target_price", latest_price))
+                or latest_price
+            ),
         )
         if stop_profit_pct > 0:
             ctx.stop_profit_pct = stop_profit_pct
-    if execution_cfg.get("native_trailing", True) and bool(trade_plan.get("trailing_enabled", True)):
+    if execution_cfg.get("native_trailing", True) and bool(
+        trade_plan.get("trailing_enabled", True)
+    ):
         trailing_pct = float(trade_plan.get("trailing_distance_pct", 0.0) or 0.0)
         if trailing_pct > 0:
             ctx.stop_trailing_pct = trailing_pct
@@ -385,7 +393,9 @@ def _planned_entry_shares(
     execution_cfg = _simulation_execution(cfg)
     stop_price = float(trade_plan.get("stop_initial", 0.0) or 0.0)
     risk_per_share = abs(float(price) - stop_price) if stop_price > 0 else 0.0
-    risk_cash = float(equity) * max(0.0, float(trading_cfg.get("risk_per_trade_pct", 1.0) or 0.0)) / 100.0
+    risk_cash = (
+        float(equity) * max(0.0, float(trading_cfg.get("risk_per_trade_pct", 1.0) or 0.0)) / 100.0
+    )
     risk_shares = int(risk_cash / risk_per_share) if risk_per_share > 0 and risk_cash > 0 else 0
 
     weight = min(1.0, max(0.0, float(signal.get("target_weight", 0.0) or 0.0)))
@@ -394,7 +404,9 @@ def _planned_entry_shares(
     candidates = [shares for shares in (risk_shares, weight_shares) if shares > 0]
     shares = min(candidates) if candidates else explicit_shares
 
-    max_position_pct = max(0.0, min(100.0, float(execution_cfg.get("max_position_pct", 100.0) or 100.0)))
+    max_position_pct = max(
+        0.0, min(100.0, float(execution_cfg.get("max_position_pct", 100.0) or 100.0))
+    )
     if max_position_pct > 0:
         max_shares = int((float(equity) * max_position_pct / 100.0) / float(price))
         shares = min(shares, max_shares) if shares > 0 else 0
@@ -493,10 +505,7 @@ def _execution_fn_factory(
 
 
 def _metrics_to_dict(metrics_df: pd.DataFrame) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for row in metrics_df.to_dict(orient="records"):
-        out[str(row.get("name"))] = row.get("value")
-    return out
+    return metrics_frame_to_dict(metrics_df)
 
 
 def _write_simulation_artifacts(
@@ -538,6 +547,7 @@ def _write_simulation_artifacts(
     metrics = summary.get("metrics", {}) or {}
     baselines = summary.get("baselines", {}) or {}
     baseline_comparison = summary.get("baseline_comparison", {}) or {}
+    validation_decision = summary.get("validation_decision", {}) or {}
     execution = summary.get("pybroker_execution", {}) or {}
     costs = execution.get("costs", {}) or {}
     note = (
@@ -576,12 +586,14 @@ def _write_simulation_artifacts(
             f"trades={int(float(base_metrics.get('trade_count', 0) or 0))}"
         )
     if baseline_comparison:
-        lines.extend([
-            "",
-            "MODEL VS BASELINES:",
-            f"DECISION: {baseline_comparison.get('decision', 'n/a')}",
-            f"BEAT RATE: {float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%",
-        ])
+        lines.extend(
+            [
+                "",
+                "MODEL VS BASELINES:",
+                f"DECISION: {baseline_comparison.get('decision', 'n/a')}",
+                f"BEAT RATE: {float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%",
+            ]
+        )
         for row in baseline_comparison.get("rows", []) or []:
             lines.append(
                 f"- {row.get('baseline')}: delta_return={float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}% "
@@ -589,11 +601,24 @@ def _write_simulation_artifacts(
                 f"delta_hit={float(row.get('hit_rate_delta_pct', 0.0) or 0.0):+.2f}% "
                 f"delta_pf={float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}"
             )
-    lines.extend([
-        "",
-        note,
-        "Use it as a research sanity check before promoting any rule to the operational pipeline.",
-    ])
+    if validation_decision:
+        lines.extend(
+            [
+                "",
+                "VALIDATION DECISION:",
+                f"FINAL: {str(validation_decision.get('final_decision', 'inconclusive')).upper()}",
+                f"SCORE: {float(validation_decision.get('score', 0.0) or 0.0):.1f}",
+            ]
+        )
+        for item in validation_decision.get("explanation", []) or []:
+            lines.append(f"- {item}")
+    lines.extend(
+        [
+            "",
+            note,
+            "Use it as a research sanity check before promoting any rule to the operational pipeline.",
+        ]
+    )
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return artifacts
 
@@ -614,9 +639,7 @@ def run_pybroker_replay(
     inner_threads: int | None = 1,
 ) -> dict[str, Any]:
     _require_pybroker()
-    mode = str(mode or "replay").lower()
-    if mode not in {"replay", "walkforward"}:
-        raise ValueError("simulation mode must be 'replay' or 'walkforward'")
+    mode = normalize_validation_mode(mode)
     canonical = [canonical_ticker(cfg, ticker) for ticker in tickers]
     run_id = f"sim_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_ticker(canonical[0])}"
     default_start, default_end = _default_window()
@@ -626,7 +649,9 @@ def run_pybroker_replay(
         raise ValueError("simulation end date must be after start date")
 
     with _quiet_pybroker():
-        bars = YFinance(auto_adjust=False).query(canonical, start_ts.to_pydatetime(), end_ts.to_pydatetime())
+        bars = YFinance(auto_adjust=False).query(
+            canonical, start_ts.to_pydatetime(), end_ts.to_pydatetime()
+        )
     if bars is None or bars.empty:
         raise RuntimeError("PyBroker/YFinance returned no bars for the requested simulation window")
     baseline_cash = float(initial_cash or cfg.get("trading", {}).get("capital", 10000.0))
@@ -640,7 +665,9 @@ def run_pybroker_replay(
         warmup_bars=effective_warmup,
     )
     if not rebalance_dates:
-        raise RuntimeError("simulation window is too short for the configured warmup/rebalance schedule")
+        raise RuntimeError(
+            "simulation window is too short for the configured warmup/rebalance schedule"
+        )
 
     plan_by_date, plan_by_symbol = _build_signal_plan(
         cfg,
@@ -686,9 +713,12 @@ def run_pybroker_replay(
         initial_cash=baseline_cash,
     )
     baseline_comparison = compare_model_to_baselines(metrics, baselines)
+    validation_decision = make_validation_decision(metrics, baseline_comparison, cfg)
     summary = {
         "run_id": run_id,
-        "mode": "pybroker_walkforward_shadow" if mode == "walkforward" else "pybroker_artifact_replay",
+        "mode": (
+            "pybroker_walkforward_shadow" if mode == "walkforward" else "pybroker_artifact_replay"
+        ),
         "tickers": canonical,
         "start_date": str(start_ts.date()),
         "end_date": str(end_ts.date()),
@@ -699,6 +729,7 @@ def run_pybroker_replay(
         "metrics": metrics,
         "baselines": baselines,
         "baseline_comparison": baseline_comparison,
+        "validation_decision": validation_decision,
         "rebalance_points": len(rebalance_dates),
         "signal_points": sum(len(items) for items in plan_by_date.values()),
         "pybroker_execution": {

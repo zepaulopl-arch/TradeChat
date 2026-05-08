@@ -6,7 +6,7 @@ feature selection, context registry or engine guards.
 It runs the current operational sequence for registered assets:
 
 ```text
-data -> train -> predict
+data -> train -> signal
 ```
 
 It does not add a new TradeGem CLI command.
@@ -16,25 +16,25 @@ It does not add a new TradeGem CLI command.
 Smoke test with 5 registered assets:
 
 ```powershell
-.\run_diagnostics.bat --limit 5
+python scripts/diagnose_assets.py --limit 5
 ```
 
 Specific assets:
 
 ```powershell
-.\run_diagnostics.bat --assets PETR4,VALE3,ITUB4,AXIA3
+python scripts/diagnose_assets.py --assets PETR4,VALE3,ITUB4,AXIA3
 ```
 
 All registered reference assets:
 
 ```powershell
-.\run_diagnostics.bat
+python scripts/diagnose_assets.py
 ```
 
 Skip data refresh and use cache:
 
 ```powershell
-.\run_diagnostics.bat --no-data
+python scripts/diagnose_assets.py --no-data
 ```
 
 ## Outputs

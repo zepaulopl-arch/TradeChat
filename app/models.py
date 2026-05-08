@@ -1,24 +1,24 @@
 from __future__ import annotations
 
+import pickle
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-import pickle
-import warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-from sklearn.exceptions import ConvergenceWarning
-from .feature_audit import feature_family
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from .config import models_dir
-from .feature_audit import top_selected_features, feature_family_profile
+from .feature_audit import feature_family_profile, top_selected_features
 from .preparation import prepare_training_matrix
-from .utils import normalize_ticker, run_id, safe_ticker, write_json, read_json
+from .utils import normalize_ticker, read_json, safe_ticker, write_json
 
 
 def _make_scaler(cfg: dict[str, Any]):
@@ -34,7 +34,6 @@ def _make_scaler(cfg: dict[str, Any]):
     return StandardScaler()
 
 
-
 def _make_named_scaler(name: str):
     scaler_name = str(name or "robust").lower()
     if scaler_name == "robust":
@@ -44,7 +43,9 @@ def _make_named_scaler(name: str):
     return StandardScaler()
 
 
-def _engine_feature_columns(cfg: dict[str, Any], engine_name: str, all_features: list[str]) -> list[str]:
+def _engine_feature_columns(
+    cfg: dict[str, Any], engine_name: str, all_features: list[str]
+) -> list[str]:
     """Return the prepared feature subset used by each tabular engine.
 
     Operational engines are tree/boosting tabular models. They receive the same
@@ -61,10 +62,19 @@ def _make_engine_scaler(cfg: dict[str, Any], engine_name: str):
 def _oof_valid_mask(oof_predictions: dict[str, np.ndarray]) -> np.ndarray:
     if not oof_predictions:
         return np.array([], dtype=bool)
-    stacked = np.column_stack([np.asarray(values, dtype=float) for values in oof_predictions.values()])
+    stacked = np.column_stack(
+        [np.asarray(values, dtype=float) for values in oof_predictions.values()]
+    )
     return np.all(np.isfinite(stacked), axis=1)
 
-def _fit_engine_input(cfg: dict[str, Any], engine_name: str, X_train: pd.DataFrame, X_test: pd.DataFrame, X_latest: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray, Any, list[str]]:
+
+def _fit_engine_input(
+    cfg: dict[str, Any],
+    engine_name: str,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    X_latest: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, Any, list[str]]:
     cols = _engine_feature_columns(cfg, engine_name, list(X_train.columns))
     scaler = _make_engine_scaler(cfg, engine_name)
     train_df = X_train[cols]
@@ -81,7 +91,9 @@ def _fit_engine_input(cfg: dict[str, Any], engine_name: str, X_train: pd.DataFra
     return train_arr, test_arr, latest_arr, scaler, cols
 
 
-def _transform_engine_input(engine_meta: dict[str, Any], engine_name: str, X: pd.DataFrame) -> np.ndarray:
+def _transform_engine_input(
+    engine_meta: dict[str, Any], engine_name: str, X: pd.DataFrame
+) -> np.ndarray:
     meta = engine_meta.get(engine_name, {}) or {}
     cols = meta.get("features") or list(X.columns)
     scaler = meta.get("scaler")
@@ -91,7 +103,9 @@ def _transform_engine_input(engine_meta: dict[str, Any], engine_name: str, X: pd
     return X_engine.to_numpy(dtype=float)
 
 
-def _latest_engine_guard(raw_by_engine: dict[str, float], cfg: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any]]:
+def _latest_engine_guard(
+    raw_by_engine: dict[str, float], cfg: dict[str, Any]
+) -> tuple[dict[str, float], dict[str, Any]]:
     """Neutralize divergent latest engine predictions before Ridge.
 
     A divergent tabular engine should not keep pushing the arbiter. If an engine is outside the
@@ -109,20 +123,29 @@ def _latest_engine_guard(raw_by_engine: dict[str, float], cfg: dict[str, Any]) -
     discarded: list[str] = []
     for name, value in raw_by_engine.items():
         extreme = engine_clip > 0 and abs(float(value)) > engine_clip
-        divergent = bool(safety.get("consensus_guard_enabled", True)) and band > 0 and abs(float(value) - median_all) > band
+        divergent = (
+            bool(safety.get("consensus_guard_enabled", True))
+            and band > 0
+            and abs(float(value) - median_all) > band
+        )
         if extreme or divergent:
             discarded.append(name)
-    valid_values = [float(v) for k, v in raw_by_engine.items() if k not in discarded and np.isfinite(float(v))]
+    valid_values = [
+        float(v) for k, v in raw_by_engine.items() if k not in discarded and np.isfinite(float(v))
+    ]
     replacement = float(np.nanmedian(valid_values)) if valid_values else median_all
     guarded: dict[str, float] = {}
     for name, value in raw_by_engine.items():
-        guarded[name] = replacement if name in discarded else _clip_return_float(float(value), engine_clip)
+        guarded[name] = (
+            replacement if name in discarded else _clip_return_float(float(value), engine_clip)
+        )
     return guarded, {
         "discarded": discarded,
         "used": [k for k in raw_by_engine if k not in discarded],
         "replacement": replacement,
         "reason": "extreme_or_divergent_base_prediction" if discarded else "ok",
     }
+
 
 def _prediction_guard_cfg(cfg: dict[str, Any]) -> dict[str, float]:
     guards = cfg.get("model", {}).get("prediction_guards", {})
@@ -159,7 +182,9 @@ def _resolve_inner_threads(inner_threads: int | None) -> int | None:
     return max(1, int(inner_threads))
 
 
-def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any]]:
+def _apply_consensus_guard(
+    matrix: np.ndarray, cfg: dict[str, Any]
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Limit one divergent engine without changing the architecture.
 
     The Ridge arbiter should judge specialists, not be dominated by a single
@@ -203,6 +228,7 @@ def _make_base_engines(cfg: dict[str, Any], inner_threads: int | None = None) ->
     if engines_cfg.get("xgb", {}).get("enabled", True):
         try:
             from xgboost import XGBRegressor
+
             ecfg = engines_cfg.get("xgb", {})
             engines["xgb"] = XGBRegressor(
                 n_estimators=int(ecfg.get("n_estimators", 120)),
@@ -221,6 +247,7 @@ def _make_base_engines(cfg: dict[str, Any], inner_threads: int | None = None) ->
     if engines_cfg.get("catboost", {}).get("enabled", True):
         try:
             from catboost import CatBoostRegressor
+
             ecfg = engines_cfg.get("catboost", {})
             engines["catboost"] = CatBoostRegressor(
                 iterations=int(ecfg.get("iterations", 220)),
@@ -247,11 +274,16 @@ def _make_base_engines(cfg: dict[str, Any], inner_threads: int | None = None) ->
         )
     return engines
 
+
 def _space_from_pair(values: Any, kind: str):
     """Build skopt dimensions explicitly from YAML ranges."""
-    from skopt.space import Integer, Real, Categorical
+    from skopt.space import Categorical, Integer, Real
 
-    if isinstance(values, list) and len(values) == 2 and all(isinstance(v, (int, float)) for v in values):
+    if (
+        isinstance(values, list)
+        and len(values) == 2
+        and all(isinstance(v, (int, float)) for v in values)
+    ):
         lo, hi = values
         if kind == "int":
             return Integer(int(lo), int(hi))
@@ -309,7 +341,9 @@ def _tune_base_engines(
     try:
         from skopt import BayesSearchCV
     except Exception as exc:
-        raise RuntimeError("--autotune requires scikit-optimize. Install package: scikit-optimize") from exc
+        raise RuntimeError(
+            "--autotune requires scikit-optimize. Install package: scikit-optimize"
+        ) from exc
 
     model_cfg = cfg.get("model", {})
     tune_cfg = model_cfg.get("autotune", {})
@@ -334,7 +368,14 @@ def _tune_base_engines(
         search_space = {}
         for param, values in raw_space.items():
             kind = "real"
-            if param in ["n_estimators", "max_depth", "iterations", "depth", "l2_leaf_reg", "min_samples_leaf"]:
+            if param in [
+                "n_estimators",
+                "max_depth",
+                "iterations",
+                "depth",
+                "l2_leaf_reg",
+                "min_samples_leaf",
+            ]:
                 kind = "int"
             search_space[param] = _space_from_pair(values, kind)
 
@@ -453,7 +494,7 @@ def _confidence_from(
     train_rows: int | None = None,
 ) -> tuple[float, float]:
     """Calibrate operational confidence for D+1 equity forecasts.
-    
+
     This version is adjusted for OOF (Out-of-Fold) stacking, which is more honest
     but naturally has higher errors than biased in-sample training.
     """
@@ -463,24 +504,24 @@ def _confidence_from(
         return dispersion, 0.0
 
     ccfg = (cfg or {}).get("model", {}).get("confidence", {})
-    
+
     # Agreement: how much base engines agree on the direction/magnitude
-    agreement_scale = float(ccfg.get("agreement_scale_return", 0.025)) # Increased from 0.015
+    agreement_scale = float(ccfg.get("agreement_scale_return", 0.025))  # Increased from 0.015
     scale = max(agreement_scale, float(np.mean(np.abs(clean))) if clean else 0.0)
     agreement = float(scale / (scale + dispersion)) if scale > 0 else 0.0
 
     # MAE Component: more forgiving sigmoid
-    mae_scale = float(ccfg.get("mae_reference_return", 0.020)) # Increased from 0.015
+    mae_scale = float(ccfg.get("mae_reference_return", 0.020))  # Increased from 0.015
     if mae is None or not np.isfinite(float(mae)) or mae_scale <= 0:
         mae_component = 0.80
     else:
         mae_ratio = max(0.0, float(mae)) / mae_scale
-        mae_component = 1.0 / (1.0 + 0.4 * (mae_ratio ** 1.2))
+        mae_component = 1.0 / (1.0 + 0.4 * (mae_ratio**1.2))
 
     # Magnitude: predictions near zero are less 'confident'
     action_scale = float(ccfg.get("action_scale_return", 0.0050))
     magnitude_ratio = min(1.0, abs(float(prediction)) / action_scale) if action_scale > 0 else 1.0
-    neutral_floor = float(ccfg.get("neutral_prediction_component_floor", 0.60)) # Higher floor 0.60
+    neutral_floor = float(ccfg.get("neutral_prediction_component_floor", 0.60))  # Higher floor 0.60
     magnitude_component = neutral_floor + (1.0 - neutral_floor) * magnitude_ratio
 
     # Engine component
@@ -488,29 +529,31 @@ def _confidence_from(
     used = len(guard_meta.get("used", []) or clean)
     discarded = len(guard_meta.get("discarded", []) or [])
     total = max(used + discarded, len(clean), 1)
-    engine_component = max(0.50, used / total) # Higher floor 0.50
+    engine_component = max(0.50, used / total)  # Higher floor 0.50
     discarded_engine_penalty = float(ccfg.get("discarded_engine_penalty", 0.75))
     if discarded > 0:
-        engine_component *= max(0.20, discarded_engine_penalty ** discarded)
+        engine_component *= max(0.20, discarded_engine_penalty**discarded)
 
     # Sample Size
     if train_rows is None or int(train_rows or 0) <= 0:
         sample_component = 1.0
     else:
-        reference_rows = max(1, int(ccfg.get("sample_reference_rows", 600))) # Lowered from 800
-        sample_component = min(1.0, max(0.65, float(train_rows) / reference_rows)) # Higher floor 0.65
+        reference_rows = max(1, int(ccfg.get("sample_reference_rows", 600)))  # Lowered from 800
+        sample_component = min(
+            1.0, max(0.65, float(train_rows) / reference_rows)
+        )  # Higher floor 0.65
 
     # New Weighted Combination: Less aggressive multiplication
     # We mix Agreement and MAE as the 'Core Quality'
     core_quality = (0.60 * agreement) + (0.40 * mae_component)
-    
+
     # Then we multiply by situational factors
     confidence = core_quality * magnitude_component * engine_component * sample_component
-    
+
     # Final scaling to mapping it to a more useful range
     # Boost by a factor to utilize the 0-100 range better
     confidence = confidence * 1.15
-    
+
     floor = float(ccfg.get("minimum_when_engines_exist", 0.10))
     cap = float(ccfg.get("maximum_confidence", 0.95))
     confidence = min(cap, max(floor, confidence))
@@ -541,7 +584,9 @@ def train_models(
     )
     X_train, y_train, prep_meta = prepare_training_matrix(X_train_raw, y_train_raw, cfg)
     if len(X_train) < _minimum_train_rows(cfg):
-        raise RuntimeError(f"insufficient prepared train rows: {len(X_train)} < {_minimum_train_rows(cfg)}")
+        raise RuntimeError(
+            f"insufficient prepared train rows: {len(X_train)} < {_minimum_train_rows(cfg)}"
+        )
     if not list(X_train.columns):
         raise RuntimeError("feature preparation selected no usable columns")
 
@@ -565,7 +610,9 @@ def train_models(
 
     engine_inputs: dict[str, dict[str, Any]] = {}
     for name in base_engines:
-        train_arr, test_arr, latest_arr, input_scaler, input_features = _fit_engine_input(cfg, name, X_train, X_test, X_latest)
+        train_arr, test_arr, latest_arr, input_scaler, input_features = _fit_engine_input(
+            cfg, name, X_train, X_test, X_latest
+        )
         engine_inputs[name] = {
             "train": train_arr,
             "test": test_arr,
@@ -607,8 +654,9 @@ def train_models(
         for name in base_order:
             # Fit on fold
             from sklearn.base import clone
+
             fold_engine = clone(base_engines[name])
-            
+
             # Prepare fold input (subset of training)
             cols = engine_inputs[name]["features"]
             scaler = _make_engine_scaler(cfg, name)
@@ -618,11 +666,11 @@ def train_models(
             else:
                 fold_train_arr = scaler.fit_transform(X_fold_train[cols])
                 fold_val_arr = scaler.transform(X_fold_val[cols])
-            
+
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=ConvergenceWarning)
                 fold_engine.fit(fold_train_arr, y_fold_train)
-            
+
             # Predict out-of-fold
             fold_pred = fold_engine.predict(fold_val_arr)
             oof_predictions[name][val_idx] = fold_pred
@@ -630,7 +678,9 @@ def train_models(
     # Only use indices where we have OOF predictions (first fold is skipped by TSS)
     valid_idx = np.where(_oof_valid_mask(oof_predictions))[0]
     if len(valid_idx) == 0:
-        raise RuntimeError("time-series stacking produced no valid out-of-fold rows for ridge training")
+        raise RuntimeError(
+            "time-series stacking produced no valid out-of-fold rows for ridge training"
+        )
     meta_train_oof = np.column_stack([oof_predictions[name][valid_idx] for name in base_order])
     y_train_oof = y_train.iloc[valid_idx]
 
@@ -645,10 +695,10 @@ def train_models(
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
             engine.fit(engine_inputs[name]["train"], y_train)
         fitted[name] = engine
-        
+
         raw_test_pred = np.asarray(engine.predict(engine_inputs[name]["test"]), dtype=float)
         raw_latest_pred = float(engine.predict(engine_inputs[name]["latest"])[0])
-        
+
         raw_test_cols.append(raw_test_pred)
         raw_latest_values.append(raw_latest_pred)
         metrics[name] = {
@@ -670,27 +720,40 @@ def train_models(
     raw_pred_latest = {name: float(raw_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
     neutralized_pred_latest, latest_discard_meta = _latest_engine_guard(raw_pred_latest, cfg)
     if latest_discard_meta.get("discarded"):
-        meta_latest = np.array([[neutralized_pred_latest[name] for name in base_order]], dtype=float)
-    
+        meta_latest = np.array(
+            [[neutralized_pred_latest[name] for name in base_order]], dtype=float
+        )
+
     pred_latest = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
     abs_pred_latest = {name: float(abs_meta_latest[0, idx]) for idx, name in enumerate(base_order)}
 
     for idx, name in enumerate(base_order):
-        metrics[name]["mae_return_abs_guarded"] = float(mean_absolute_error(y_test, abs_meta_test[:, idx]))
-        metrics[name]["mae_return_consensus_guarded"] = float(mean_absolute_error(y_test, meta_test[:, idx]))
+        metrics[name]["mae_return_abs_guarded"] = float(
+            mean_absolute_error(y_test, abs_meta_test[:, idx])
+        )
+        metrics[name]["mae_return_consensus_guarded"] = float(
+            mean_absolute_error(y_test, meta_test[:, idx])
+        )
         metrics[name]["latest_raw_return"] = raw_pred_latest[name]
         metrics[name]["latest_guarded_return"] = pred_latest[name]
 
     # --- Fit Arbiter on OOF meta-features ---
     arbiter = _make_arbiter(cfg)
     arbiter.fit(meta_train, y_train_oof)
-    
+
     arbiter_test_pred = np.asarray(arbiter.predict(meta_test), dtype=float)
     arbiter_latest_raw = float(arbiter.predict(meta_latest)[0])
     arbiter_latest = _clip_return_float(arbiter_latest_raw, final_clip)
     arbiter_mae = float(mean_absolute_error(y_test, arbiter_test_pred))
 
-    dispersion, confidence = _confidence_from(list(pred_latest.values()), arbiter_latest, cfg, mae=arbiter_mae, guard_meta=latest_discard_meta, train_rows=len(X_train))
+    dispersion, confidence = _confidence_from(
+        list(pred_latest.values()),
+        arbiter_latest,
+        cfg,
+        mae=arbiter_mae,
+        guard_meta=latest_discard_meta,
+        train_rows=len(X_train),
+    )
 
     rid = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{horizon}_{safe_ticker(ticker)}"
     out_dir = models_dir(cfg) / safe_ticker(ticker) / rid
@@ -700,8 +763,16 @@ def train_models(
     payload = {
         "ticker": ticker,
         "features": selected_features,
-        "engine_inputs": {name: {"features": engine_inputs[name]["features"], "scaler": engine_inputs[name]["scaler"]} for name in base_order},
-        "normalization": (cfg.get("features", {}).get("preparation", {}) or {}).get("normalization", {}),
+        "engine_inputs": {
+            name: {
+                "features": engine_inputs[name]["features"],
+                "scaler": engine_inputs[name]["scaler"],
+            }
+            for name in base_order
+        },
+        "normalization": (cfg.get("features", {}).get("preparation", {}) or {}).get(
+            "normalization", {}
+        ),
         "base_models": fitted,
         "base_order": base_order,
         "arbiter": arbiter,
@@ -769,18 +840,24 @@ def train_models(
     return manifest
 
 
-def load_latest_model(cfg: dict[str, Any], ticker: str, horizon: str = "d1") -> tuple[dict[str, Any], dict[str, Any]]:
+def load_latest_model(
+    cfg: dict[str, Any], ticker: str, horizon: str = "d1"
+) -> tuple[dict[str, Any], dict[str, Any]]:
     ticker = normalize_ticker(ticker)
     latest = models_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json"
     if not latest.exists():
-        raise FileNotFoundError(f"no trained model found for {ticker} horizon {horizon}; run train first")
+        raise FileNotFoundError(
+            f"no trained model found for {ticker} horizon {horizon}; run train first"
+        )
     manifest = read_json(latest)
     with Path(manifest["model_path"]).open("rb") as fh:
         model = pickle.load(fh)
     return model, manifest
 
 
-def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizon: str = "d1") -> dict[str, Any]:
+def predict_with_model(
+    cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizon: str = "d1"
+) -> dict[str, Any]:
     model, manifest = load_latest_model(cfg, ticker, horizon=horizon)
     features = model["features"]
     X = X.copy()
@@ -803,13 +880,26 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizo
         engine_meta = model.get("engine_inputs") or {}
         raw_by_engine = {}
         for name in base_order:
-            engine_input = _transform_engine_input(engine_meta, name, latest_X) if engine_meta else latest_X.to_numpy(dtype=float)
+            engine_input = (
+                _transform_engine_input(engine_meta, name, latest_X)
+                if engine_meta
+                else latest_X.to_numpy(dtype=float)
+            )
             raw_by_engine[name] = float(model["base_models"][name].predict(engine_input)[0])
-        abs_values = np.array([[_clip_return_float(raw_by_engine[name], engine_clip) for name in base_order]], dtype=float)
+        abs_values = np.array(
+            [[_clip_return_float(raw_by_engine[name], engine_clip) for name in base_order]],
+            dtype=float,
+        )
         neutralized_by_engine, latest_engine_guard = _latest_engine_guard(raw_by_engine, cfg)
         if latest_engine_guard.get("discarded"):
-            meta_latest = np.array([[neutralized_by_engine[name] for name in base_order]], dtype=float)
-            latest_consensus_meta = {"enabled": True, "changed_values": len(latest_engine_guard.get("discarded", [])), "neutralized": True}
+            meta_latest = np.array(
+                [[neutralized_by_engine[name] for name in base_order]], dtype=float
+            )
+            latest_consensus_meta = {
+                "enabled": True,
+                "changed_values": len(latest_engine_guard.get("discarded", [])),
+                "neutralized": True,
+            }
         else:
             meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_values, cfg)
         by_engine = {name: float(meta_latest[0, idx]) for idx, name in enumerate(base_order)}
@@ -819,7 +909,14 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizo
         ridge_metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
         mae = ridge_metrics.get("mae_return")
         train_rows = manifest.get("train_rows")
-        dispersion, confidence = _confidence_from(list(by_engine.values()), prediction, cfg, mae=mae, guard_meta=latest_engine_guard, train_rows=train_rows)
+        dispersion, confidence = _confidence_from(
+            list(by_engine.values()),
+            prediction,
+            cfg,
+            mae=mae,
+            guard_meta=latest_engine_guard,
+            train_rows=train_rows,
+        )
         return {
             "ticker": normalize_ticker(ticker),
             "architecture": "XGB + CatBoost + ExtraTrees -> Ridge arbiter",
@@ -840,9 +937,14 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizo
             "train_manifest": manifest,
         }
 
-    raise RuntimeError("trained artifact does not match the current Ridge-arbiter architecture; run train again")
+    raise RuntimeError(
+        "trained artifact does not match the current Ridge-arbiter architecture; run train again"
+    )
 
-def predict_multi_horizon(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dict[str, dict[str, Any]]:
+
+def predict_multi_horizon(
+    cfg: dict[str, Any], ticker: str, X: pd.DataFrame
+) -> dict[str, dict[str, Any]]:
     """Generate predictions for all available horizons."""
     horizons = ["d1", "d5", "d20"]
     results = {}

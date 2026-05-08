@@ -58,7 +58,12 @@ def build_trade_plan(
     policy = dict(policy or {})
     tcfg = cfg.get("trading", {}) or {}
     tm = tcfg.get("trade_management", {}) or {}
-    allow_short = bool(policy.get("allow_short", tcfg.get("allow_short", cfg.get("simulation", {}).get("allow_short", False))))
+    allow_short = bool(
+        policy.get(
+            "allow_short",
+            tcfg.get("allow_short", cfg.get("simulation", {}).get("allow_short", False)),
+        )
+    )
     actionable = bool(policy.get("actionable", False))
     label = str(policy.get("label", "NEUTRAL")).upper()
     side, action = _label_side(label, allow_short=allow_short, actionable=actionable)
@@ -69,11 +74,21 @@ def build_trade_plan(
     stop_initial = _pct(policy.get("stop_loss_price"), entry)
     target_1 = _pct(policy.get("target_partial"), _target_midpoint(entry, target_final))
     breakeven_trigger = _pct(policy.get("breakeven_trigger"), target_1)
-    partial_pct = max(0.0, min(100.0, _pct(tm.get("partial_take_profit_pct", tcfg.get("partial_take_profit_pct")), 50.0)))
+    partial_pct = max(
+        0.0,
+        min(
+            100.0,
+            _pct(tm.get("partial_take_profit_pct", tcfg.get("partial_take_profit_pct")), 50.0),
+        ),
+    )
     stop_distance_pct = abs((entry - stop_initial) / entry) * 100.0 if entry > 0 else 0.0
     risk_pct = max(0.0, _pct(latest_risk_pct, 0.0))
     trailing_multiple = max(0.0, _pct(tm.get("trailing_distance_risk_multiple"), 0.75))
-    trailing_distance_pct = stop_distance_pct * trailing_multiple if stop_distance_pct > 0 else risk_pct * trailing_multiple
+    trailing_distance_pct = (
+        stop_distance_pct * trailing_multiple
+        if stop_distance_pct > 0
+        else risk_pct * trailing_multiple
+    )
 
     rr = _pct(policy.get("risk_reward_ratio"), _risk_reward(entry, target_final, stop_initial))
     plan = {
@@ -114,7 +129,9 @@ def trade_plan_from_signal(cfg: dict[str, Any], signal: dict[str, Any]) -> dict[
         ticker=str(signal.get("ticker", "N/A")),
         policy=signal.get("policy", {}) or {},
         latest_price=float(signal.get("latest_price", 0.0) or 0.0),
-        latest_risk_pct=float(((signal.get("dataset_meta", {}) or {}).get("latest_risk_pct", 0.0)) or 0.0),
+        latest_risk_pct=float(
+            ((signal.get("dataset_meta", {}) or {}).get("latest_risk_pct", 0.0)) or 0.0
+        ),
     )
 
 
@@ -127,13 +144,19 @@ def is_long_plan(plan: dict[str, Any], shares: int | None = None) -> bool:
 def hit_target(side: str, price: float, target: float) -> bool:
     if target <= 0:
         return False
-    return float(price) >= float(target) if str(side).upper() == "LONG" else float(price) <= float(target)
+    return (
+        float(price) >= float(target)
+        if str(side).upper() == "LONG"
+        else float(price) <= float(target)
+    )
 
 
 def hit_stop(side: str, price: float, stop: float) -> bool:
     if stop <= 0:
         return False
-    return float(price) <= float(stop) if str(side).upper() == "LONG" else float(price) >= float(stop)
+    return (
+        float(price) <= float(stop) if str(side).upper() == "LONG" else float(price) >= float(stop)
+    )
 
 
 def partial_signed_shares(shares: int, partial_pct: float) -> int:
@@ -145,7 +168,9 @@ def partial_signed_shares(shares: int, partial_pct: float) -> int:
     return qty if shares > 0 else -qty
 
 
-def next_trailing_stop(plan: dict[str, Any], *, side: str, price: float, current_stop: float) -> float:
+def next_trailing_stop(
+    plan: dict[str, Any], *, side: str, price: float, current_stop: float
+) -> float:
     if not bool(plan.get("trailing_enabled", True)):
         return float(current_stop)
     distance_pct = float(plan.get("trailing_distance_pct", 0.0) or 0.0)

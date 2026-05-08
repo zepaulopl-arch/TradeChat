@@ -16,7 +16,9 @@ def close_matrix_from_bars(bars: pd.DataFrame, tickers: list[str] | None = None)
     frame["date"] = pd.to_datetime(frame["date"]).dt.normalize()
     frame["symbol"] = frame["symbol"].astype(str)
     frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
-    matrix = frame.pivot_table(index="date", columns="symbol", values="close", aggfunc="last").sort_index()
+    matrix = frame.pivot_table(
+        index="date", columns="symbol", values="close", aggfunc="last"
+    ).sort_index()
     if tickers:
         wanted = [str(ticker) for ticker in tickers if str(ticker) in matrix.columns]
         matrix = matrix.loc[:, wanted]
@@ -49,7 +51,9 @@ def _metrics_from_returns(
     volatility = clean.std(ddof=0)
     sharpe = (clean.mean() / volatility * np.sqrt(252.0)) if volatility and volatility > 0 else 0.0
     sortino = (clean.mean() / downside * np.sqrt(252.0)) if downside and downside > 0 else 0.0
-    active_exposure = float(exposure.mean() * 100.0) if exposure is not None and not exposure.empty else 0.0
+    active_exposure = (
+        float(exposure.mean() * 100.0) if exposure is not None and not exposure.empty else 0.0
+    )
     return {
         "total_return_pct": float(total_return),
         "max_drawdown_pct": _max_drawdown_pct(equity),
@@ -58,14 +62,18 @@ def _metrics_from_returns(
         "sortino": float(sortino),
         "hit_rate_pct": float((clean > 0).mean() * 100.0) if len(clean) else 0.0,
         "avg_return_pct": float(clean.mean() * 100.0) if len(clean) else 0.0,
-        "profit_factor": float(positive.sum() / abs(negative.sum())) if abs(negative.sum()) > 0 else 0.0,
+        "profit_factor": (
+            float(positive.sum() / abs(negative.sum())) if abs(negative.sum()) > 0 else 0.0
+        ),
         "trade_count": int(trade_count),
         "active_exposure_pct": active_exposure,
         "final_equity": final_equity,
     }
 
 
-def _equal_weight_returns(close_matrix: pd.DataFrame, weights: pd.DataFrame | None = None) -> pd.Series:
+def _equal_weight_returns(
+    close_matrix: pd.DataFrame, weights: pd.DataFrame | None = None
+) -> pd.Series:
     asset_returns = close_matrix.pct_change().replace([np.inf, -np.inf], np.nan).fillna(0.0)
     if weights is None:
         return asset_returns.mean(axis=1).fillna(0.0)
@@ -115,7 +123,9 @@ def evaluate_baselines(
     return {
         "zero_return_no_trade": {
             "description": "No position; verifies the model beats doing nothing.",
-            "metrics": _metrics_from_returns(zero_returns, initial_cash=initial_cash, trade_count=0, exposure=flat_exposure),
+            "metrics": _metrics_from_returns(
+                zero_returns, initial_cash=initial_cash, trade_count=0, exposure=flat_exposure
+            ),
         },
         "buy_and_hold_equal_weight": {
             "description": "Equal-weight long basket held through the full window.",
@@ -163,10 +173,16 @@ def compare_model_to_baselines(
     model_return = float(model_metrics.get("total_return_pct", 0.0) or 0.0)
     model_drawdown = float(model_metrics.get("max_drawdown_pct", 0.0) or 0.0)
     model_trades = int(float(model_metrics.get("trade_count", 0) or 0))
-    model_hit_rate = float(model_metrics.get("hit_rate_pct", model_metrics.get("win_rate", 0.0)) or 0.0)
+    model_hit_rate = float(
+        model_metrics.get("hit_rate_pct", model_metrics.get("win_rate", 0.0)) or 0.0
+    )
     model_profit_factor = float(model_metrics.get("profit_factor", 0.0) or 0.0)
-    model_avg_return = float(model_metrics.get("avg_return_pct", model_metrics.get("avg_trade_return_pct", 0.0)) or 0.0)
-    model_exposure = float(model_metrics.get("active_exposure_pct", model_metrics.get("avg_exposure_pct", 0.0)) or 0.0)
+    model_avg_return = float(
+        model_metrics.get("avg_return_pct", model_metrics.get("avg_trade_return_pct", 0.0)) or 0.0
+    )
+    model_exposure = float(
+        model_metrics.get("active_exposure_pct", model_metrics.get("avg_exposure_pct", 0.0)) or 0.0
+    )
     rows: list[dict[str, Any]] = []
     beat_count = 0
     comparable_count = 0
@@ -177,8 +193,12 @@ def compare_model_to_baselines(
         base_trades = int(float(metrics.get("trade_count", 0) or 0))
         base_hit_rate = float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0)
         base_profit_factor = float(metrics.get("profit_factor", 0.0) or 0.0)
-        base_avg_return = float(metrics.get("avg_return_pct", metrics.get("avg_trade_return_pct", 0.0)) or 0.0)
-        base_exposure = float(metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0)
+        base_avg_return = float(
+            metrics.get("avg_return_pct", metrics.get("avg_trade_return_pct", 0.0)) or 0.0
+        )
+        base_exposure = float(
+            metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0
+        )
         return_delta = model_return - base_return
         drawdown_delta = model_drawdown - base_drawdown
         beat = return_delta > 0
@@ -207,7 +227,11 @@ def compare_model_to_baselines(
         "beat_count": int(beat_count),
         "baseline_count": int(comparable_count),
         "beat_rate_pct": float(beat_count / comparable_count * 100.0) if comparable_count else 0.0,
-        "decision": "passes_baselines" if comparable_count and beat_count == comparable_count else "mixed_or_fails_baselines",
+        "decision": (
+            "passes_baselines"
+            if comparable_count and beat_count == comparable_count
+            else "mixed_or_fails_baselines"
+        ),
     }
 
 
@@ -222,10 +246,16 @@ def enrich_model_metrics_from_execution(
     trades_df = trades if trades is not None else pd.DataFrame()
     orders_df = orders if orders is not None else pd.DataFrame()
 
-    trade_pnl = _numeric_column(trades_df, ["pnl", "profit", "profit_loss", "pl", "realized_pnl", "return"])
-    trade_returns = _numeric_column(trades_df, ["return_pct", "ret_pct", "pct_return", "return_percent"])
+    trade_pnl = _numeric_column(
+        trades_df, ["pnl", "profit", "profit_loss", "pl", "realized_pnl", "return"]
+    )
+    trade_returns = _numeric_column(
+        trades_df, ["return_pct", "ret_pct", "pct_return", "return_percent"]
+    )
     order_values = _order_notional(orders_df)
-    order_costs = _numeric_column(orders_df, ["fees", "fee", "commission", "commissions", "cost", "costs"])
+    order_costs = _numeric_column(
+        orders_df, ["fees", "fee", "commission", "commissions", "cost", "costs"]
+    )
 
     if "trade_count" not in out:
         out["trade_count"] = int(len(trades_df)) if not trades_df.empty else 0
@@ -235,7 +265,9 @@ def enrich_model_metrics_from_execution(
         out["total_pnl"] = float(trade_pnl.sum())
         out["avg_trade_pnl"] = float(trade_pnl.mean())
         out["hit_rate_pct"] = float((trade_pnl > 0).mean() * 100.0)
-        out["profit_factor"] = float(positive.sum() / abs(negative.sum())) if abs(negative.sum()) > 0 else 0.0
+        out["profit_factor"] = (
+            float(positive.sum() / abs(negative.sum())) if abs(negative.sum()) > 0 else 0.0
+        )
     else:
         out.setdefault("hit_rate_pct", float(out.get("win_rate", 0.0) or 0.0))
         out.setdefault("profit_factor", 0.0)
@@ -250,7 +282,9 @@ def enrich_model_metrics_from_execution(
     if order_values is not None and len(order_values):
         gross_notional = float(order_values.abs().sum())
         out["gross_order_value"] = gross_notional
-        out["turnover_pct"] = (gross_notional / float(initial_cash) * 100.0) if initial_cash else 0.0
+        out["turnover_pct"] = (
+            (gross_notional / float(initial_cash) * 100.0) if initial_cash else 0.0
+        )
         out["avg_order_value"] = float(order_values.abs().mean())
     else:
         out.setdefault("gross_order_value", 0.0)
@@ -259,7 +293,9 @@ def enrich_model_metrics_from_execution(
 
     if order_costs is not None and len(order_costs):
         out["total_cost"] = float(order_costs.abs().sum())
-        out["cost_pct_initial_cash"] = (float(order_costs.abs().sum()) / float(initial_cash) * 100.0) if initial_cash else 0.0
+        out["cost_pct_initial_cash"] = (
+            (float(order_costs.abs().sum()) / float(initial_cash) * 100.0) if initial_cash else 0.0
+        )
     else:
         out.setdefault("total_cost", 0.0)
         out.setdefault("cost_pct_initial_cash", 0.0)
@@ -295,7 +331,9 @@ def _order_notional(orders: pd.DataFrame) -> pd.Series | None:
     price = _numeric_column(orders, ["fill_price", "price", "avg_price", "close"])
     if shares is None or price is None:
         return None
-    aligned = pd.concat([shares.reset_index(drop=True), price.reset_index(drop=True)], axis=1).dropna()
+    aligned = pd.concat(
+        [shares.reset_index(drop=True), price.reset_index(drop=True)], axis=1
+    ).dropna()
     if aligned.empty:
         return None
     return aligned.iloc[:, 0].astype(float) * aligned.iloc[:, 1].astype(float)

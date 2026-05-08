@@ -4,7 +4,17 @@ from datetime import datetime
 from typing import Any
 
 from .portfolio_service import iter_latest_signals, load_portfolio_state, save_portfolio_state
-from .presentation import C, banner, divider, money_br, paint, render_facts, render_table, screen_width, tone_signal
+from .presentation import (
+    C,
+    banner,
+    divider,
+    money_br,
+    paint,
+    render_facts,
+    render_table,
+    screen_width,
+    tone_signal,
+)
 from .scoring import is_actionable_signal, signal_score
 from .trade_plan_service import trade_plan_from_signal
 
@@ -17,9 +27,7 @@ def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
     signals = iter_latest_signals(cfg)
 
     active_signals_map = {
-        signal["ticker"]: signal
-        for signal in signals
-        if is_actionable_signal(signal)
+        signal["ticker"]: signal for signal in signals if is_actionable_signal(signal)
     }
 
     closed_events: list[dict[str, Any]] = []
@@ -106,7 +114,9 @@ def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
                 "target_partial": float(trade_plan.get("target_1", price) or price),
                 "target_final": float(trade_plan.get("target_final", price) or price),
                 "stop_loss": float(trade_plan.get("stop_initial", price) or price),
-                "stop_current": float(trade_plan.get("stop_current", trade_plan.get("stop_initial", price)) or price),
+                "stop_current": float(
+                    trade_plan.get("stop_current", trade_plan.get("stop_initial", price)) or price
+                ),
                 "partial_executed": False,
                 "trailing_active": False,
                 "trade_plan": trade_plan,
@@ -132,7 +142,10 @@ def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
                     "price": price,
                     "target_1": float(trade_plan.get("target_1", price) or price),
                     "target_final": float(trade_plan.get("target_final", price) or price),
-                    "stop_current": float(trade_plan.get("stop_current", trade_plan.get("stop_initial", price)) or price),
+                    "stop_current": float(
+                        trade_plan.get("stop_current", trade_plan.get("stop_initial", price))
+                        or price
+                    ),
                     "signal": label,
                 }
             )
@@ -149,7 +162,9 @@ def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
         action = None
         if not old_pos:
             action = "ENTER"
-        elif (int(old_pos["shares"]) > 0 and int(pos["shares"]) < 0) or (int(old_pos["shares"]) < 0 and int(pos["shares"]) > 0):
+        elif (int(old_pos["shares"]) > 0 and int(pos["shares"]) < 0) or (
+            int(old_pos["shares"]) < 0 and int(pos["shares"]) > 0
+        ):
             action = "REVERSE"
         if action:
             history.append(
@@ -183,7 +198,13 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
     lines: list[str] = []
 
     lines.append("")
-    lines.extend(banner("TACTICAL REBALANCE", paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE), width=width))
+    lines.extend(
+        banner(
+            "TACTICAL REBALANCE",
+            paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE),
+            width=width,
+        )
+    )
     lines.extend(
         render_facts(
             [
@@ -206,8 +227,14 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
             [
                 item["action"],
                 paint(item["ticker"], C.BOLD),
-                paint("SHORT" if int(item["shares"]) < 0 else "LONG", C.RED if int(item["shares"]) < 0 else C.GREEN),
-                paint(money_br(float(item.get("pl_cash", 0.0) or 0.0)), C.GREEN if float(item.get("pl_cash", 0.0) or 0.0) >= 0 else C.RED),
+                paint(
+                    "SHORT" if int(item["shares"]) < 0 else "LONG",
+                    C.RED if int(item["shares"]) < 0 else C.GREEN,
+                ),
+                paint(
+                    money_br(float(item.get("pl_cash", 0.0) or 0.0)),
+                    C.GREEN if float(item.get("pl_cash", 0.0) or 0.0) >= 0 else C.RED,
+                ),
                 item.get("reason", "n/a"),
             ]
             for item in closed_events
@@ -225,7 +252,9 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
     lines.append(paint("TARGET ALLOCATION", C.DIM))
     plan_rows = summary.get("plan_rows", []) or []
     if not plan_rows:
-        lines.append(paint("No actionable signals with positive score. Portfolio remains in cash.", C.DIM))
+        lines.append(
+            paint("No actionable signals with positive score. Portfolio remains in cash.", C.DIM)
+        )
     else:
         headers = ["STATUS", "TICKER", "SIDE", "WEIGHT", "SHARES", "PRICE"]
         aligns = ["left", "left", "left", "right", "right", "right"]
@@ -233,7 +262,11 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
         rows = []
         for row in plan_rows:
             status = str(row["status"])
-            status_tone = C.GREEN if status == "ENTER" else C.YELLOW if status == "REVERSE" else C.CYAN if status == "ADJUST" else C.DIM
+            status_tone = (
+                C.GREEN
+                if status == "ENTER"
+                else C.YELLOW if status == "REVERSE" else C.CYAN if status == "ADJUST" else C.DIM
+            )
             rendered = [
                 paint(status, status_tone),
                 paint(row["ticker"], C.BOLD),

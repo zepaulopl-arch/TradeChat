@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -6,7 +7,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_sentiment_has_single_yaml_switch_inside_selection_family():
     cfg = yaml.safe_load((ROOT / "config" / "features.yaml").read_text(encoding="utf-8"))
-    default_sentiment = cfg["selection"]["profiles"][cfg["selection"]["active_profile"]]["families"]["sentiment"]
+    default_sentiment = cfg["selection"]["profiles"][cfg["selection"]["active_profile"]][
+        "families"
+    ]["sentiment"]
     sentiment_preset = cfg["families"]["sentiment"]["presets"][default_sentiment["preset"]]
     assert "enabled" in default_sentiment
     assert "enabled_by_default" not in sentiment_preset

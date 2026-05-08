@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-from typing import Iterable
 import json
 import re
+from collections.abc import Iterable
+from datetime import datetime
+from pathlib import Path
 
 
 def normalize_ticker(ticker: str) -> str:
     value = ticker.strip().upper()
     if not value:
         raise ValueError("empty ticker")
-    return value if value.endswith(".SA") or value.startswith("^") or "=" in value else f"{value}.SA"
+    return (
+        value if value.endswith(".SA") or value.startswith("^") or "=" in value else f"{value}.SA"
+    )
 
 
 def safe_ticker(ticker: str) -> str:

@@ -7,7 +7,12 @@ from typing import Any
 
 import yfinance as yf
 
-from .portfolio_service import load_latest_signal, load_portfolio_state, position_side, save_portfolio_state
+from .portfolio_service import (
+    load_latest_signal,
+    load_portfolio_state,
+    position_side,
+    save_portfolio_state,
+)
 from .presentation import (
     C,
     banner,
@@ -27,7 +32,6 @@ from .trade_plan_service import (
     is_long_plan,
     next_trailing_stop,
     partial_signed_shares,
-    trade_plan_from_signal,
 )
 
 warnings.filterwarnings("ignore")
@@ -44,7 +48,9 @@ def get_live_price(ticker: str) -> float | None:
     return None
 
 
-def _position_plan(cfg: dict[str, Any], ticker: str, pos: dict[str, Any], signal_data: dict[str, Any]) -> dict[str, Any]:
+def _position_plan(
+    cfg: dict[str, Any], ticker: str, pos: dict[str, Any], signal_data: dict[str, Any]
+) -> dict[str, Any]:
     plan = dict(pos.get("trade_plan") or signal_data.get("trade_plan") or {})
     if not plan:
         policy = signal_data.get("policy", {}) or {}
@@ -54,10 +60,14 @@ def _position_plan(cfg: dict[str, Any], ticker: str, pos: dict[str, Any], signal
             policy=policy,
             latest_price=float(signal_data.get("latest_price", pos.get("entry_price", 0.0)) or 0.0),
         )
-    plan.setdefault("stop_current", pos.get("stop_current", pos.get("stop_loss", plan.get("stop_initial", 0.0))))
+    plan.setdefault(
+        "stop_current", pos.get("stop_current", pos.get("stop_loss", plan.get("stop_initial", 0.0)))
+    )
     plan.setdefault("target_1", pos.get("target_partial", plan.get("target_final", 0.0)))
     plan.setdefault("target_final", pos.get("target_final", plan.get("target_price", 0.0)))
-    plan["partial_executed"] = bool(pos.get("partial_executed", plan.get("partial_executed", False)))
+    plan["partial_executed"] = bool(
+        pos.get("partial_executed", plan.get("partial_executed", False))
+    )
     plan["trailing_active"] = bool(pos.get("trailing_active", plan.get("trailing_active", False)))
     return plan
 
@@ -116,10 +126,16 @@ def _close_positions_on_live_triggers(
         side = "LONG" if is_long_plan(plan, shares) else "SHORT"
         target_final = float(plan.get("target_final", 0.0) or 0.0)
         target_1 = float(plan.get("target_1", 0.0) or 0.0)
-        stop_current = float(pos.get("stop_current", plan.get("stop_current", plan.get("stop_initial", 0.0))) or 0.0)
+        stop_current = float(
+            pos.get("stop_current", plan.get("stop_current", plan.get("stop_initial", 0.0))) or 0.0
+        )
 
         if hit_stop(side, live_price, stop_current):
-            action = "TRAILING STOP" if bool(pos.get("trailing_active", plan.get("trailing_active", False))) else "STOP"
+            action = (
+                "TRAILING STOP"
+                if bool(pos.get("trailing_active", plan.get("trailing_active", False)))
+                else "STOP"
+            )
             trade_record = _apply_signed_close(
                 account=account,
                 history=history,
@@ -156,7 +172,9 @@ def _close_positions_on_live_triggers(
             and float(plan.get("partial_take_profit_pct", 0.0) or 0.0) > 0
             and hit_target(side, live_price, target_1)
         ):
-            signed_partial = partial_signed_shares(shares, float(plan.get("partial_take_profit_pct", 50.0) or 50.0))
+            signed_partial = partial_signed_shares(
+                shares, float(plan.get("partial_take_profit_pct", 50.0) or 50.0)
+            )
             trade_record = _apply_signed_close(
                 account=account,
                 history=history,
@@ -179,8 +197,12 @@ def _close_positions_on_live_triggers(
             changed = True
             continue
 
-        if bool(plan.get("trailing_enabled", True)) and hit_target(side, live_price, float(plan.get("breakeven_trigger", target_1) or target_1)):
-            next_stop = next_trailing_stop(plan, side=side, price=live_price, current_stop=stop_current)
+        if bool(plan.get("trailing_enabled", True)) and hit_target(
+            side, live_price, float(plan.get("breakeven_trigger", target_1) or target_1)
+        ):
+            next_stop = next_trailing_stop(
+                plan, side=side, price=live_price, current_stop=stop_current
+            )
             if abs(next_stop - stop_current) > 1e-9:
                 pos["stop_current"] = next_stop
                 pos["trailing_active"] = True
@@ -217,7 +239,11 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
         live_price = get_live_price(ticker)
         live_prices[ticker] = live_price
         latest_signals[ticker] = signal_data
-        current_price = live_price if live_price is not None else (signal_data.get("latest_price", 0.0) if signal_data else 0.0)
+        current_price = (
+            live_price
+            if live_price is not None
+            else (signal_data.get("latest_price", 0.0) if signal_data else 0.0)
+        )
         shares = int(pos.get("shares", 0))
         exposure = shares * float(current_price or 0.0)
         total_market_value += exposure
@@ -229,7 +255,13 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
     lines: list[str] = []
 
     lines.append("")
-    lines.extend(banner("TACTICAL PORTFOLIO", paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE), width=width))
+    lines.extend(
+        banner(
+            "TACTICAL PORTFOLIO",
+            paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE),
+            width=width,
+        )
+    )
     lines.extend(
         render_facts(
             [
@@ -257,7 +289,11 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
                     [
                         item.get("action", item.get("exit_reason", "N/A")),
                         paint(item.get("ticker", "N/A"), C.BOLD),
-                        paint(money_br(pl_cash), tone_delta(pl_cash)) if has_pl else paint("n/a", C.DIM),
+                        (
+                            paint(money_br(pl_cash), tone_delta(pl_cash))
+                            if has_pl
+                            else paint("n/a", C.DIM)
+                        ),
                     ]
                 )
             aligns = ["left", "left", "right"]
@@ -276,12 +312,20 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
                         paint(item.get("ticker", "N/A"), C.BOLD),
                         f"{price:.2f}",
                         str(shares),
-                        paint(money_br(pl_cash), tone_delta(pl_cash)) if has_pl else paint("n/a", C.DIM),
+                        (
+                            paint(money_br(pl_cash), tone_delta(pl_cash))
+                            if has_pl
+                            else paint("n/a", C.DIM)
+                        ),
                     ]
                 )
             aligns = ["left", "left", "right", "right", "right"]
             min_widths = [6, 8, 8, 6, 12]
-        lines.extend(render_table(activity_headers, activity_rows, width=width, aligns=aligns, min_widths=min_widths))
+        lines.extend(
+            render_table(
+                activity_headers, activity_rows, width=width, aligns=aligns, min_widths=min_widths
+            )
+        )
 
     if not positions:
         lines.append(paint("Portfolio in cash. No active positions.", C.DIM))
@@ -293,7 +337,17 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
         aligns = ["left", "left", "right", "right", "right", "left"]
         min_widths = [8, 5, 6, 8, 7, 7]
     else:
-        headers = ["TICKER", "SIDE", "SHARES", "ENTRY", "CURRENT", "P/L %", "SIGNAL", "TARGET", "STOP"]
+        headers = [
+            "TICKER",
+            "SIDE",
+            "SHARES",
+            "ENTRY",
+            "CURRENT",
+            "P/L %",
+            "SIGNAL",
+            "TARGET",
+            "STOP",
+        ]
         aligns = ["left", "left", "right", "right", "right", "right", "left", "right", "right"]
         min_widths = [8, 5, 6, 8, 8, 7, 7, 8, 8]
 
@@ -310,9 +364,16 @@ def render_live_portfolio(cfg: dict[str, Any]) -> list[str]:
         pl_pct = (pl_cash / basis) * 100 if basis > 0 else 0.0
 
         policy = signal_data.get("policy", {}) if signal_data else {}
-        plan = _position_plan(cfg, ticker, pos, signal_data or {}) if signal_data else dict(pos.get("trade_plan") or {})
+        plan = (
+            _position_plan(cfg, ticker, pos, signal_data or {})
+            if signal_data
+            else dict(pos.get("trade_plan") or {})
+        )
         target = float(plan.get("target_final", policy.get("target_price", 0.0)) or 0.0)
-        stop = float(pos.get("stop_current", plan.get("stop_current", policy.get("stop_loss_price", 0.0))) or 0.0)
+        stop = float(
+            pos.get("stop_current", plan.get("stop_current", policy.get("stop_loss_price", 0.0)))
+            or 0.0
+        )
         current_signal = str(policy.get("label", plan.get("label", "N/A")))
         side = position_side(shares)
         side_tone = C.RED if side == "SHORT" else C.GREEN

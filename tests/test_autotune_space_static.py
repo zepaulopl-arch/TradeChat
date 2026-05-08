@@ -7,7 +7,7 @@ def test_autotune_uses_explicit_skopt_dimensions_for_tabular_engines():
     assert "from skopt import BayesSearchCV" in tune_block
     assert "_space_from_pair" in source
     assert "for name, engine in base_engines.items()" in tune_block
-    assert 'raw_space = spaces.get(name, {})' in tune_block
+    assert "raw_space = spaces.get(name, {})" in tune_block
     assert 'elif name == "mlp"' not in tune_block
     assert 'elif name == "ridge"' not in tune_block
     assert "tuned_tabular" in tune_block

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import yaml
 
 from app.config import load_config
@@ -21,7 +22,15 @@ def test_config_uses_data_registry_file_instead_of_context_registry():
 
 def test_reference_assets_have_cadastral_fields():
     data = yaml.safe_load((ROOT / "config" / "data.yaml").read_text(encoding="utf-8"))
-    required = {"name", "group", "subgroup", "financial_class", "cnpj", "context_tickers", "linked_indices"}
+    required = {
+        "name",
+        "group",
+        "subgroup",
+        "financial_class",
+        "cnpj",
+        "context_tickers",
+        "linked_indices",
+    }
     for ticker, profile in data["assets"].items():
         assert required.issubset(profile), ticker
         assert isinstance(profile["context_tickers"], list), ticker

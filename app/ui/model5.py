@@ -4,8 +4,8 @@ import os
 import re
 import shutil
 import textwrap
-from typing import Any, Mapping, Sequence
-
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -86,7 +86,9 @@ def _line(width: int, *, use_color: bool | None = None) -> str:
     return _paint("-" * width, Tone.LINE, use_color=use_color)
 
 
-def render_header(title: str, *, width: int | None = None, use_color: bool | None = None) -> list[str]:
+def render_header(
+    title: str, *, width: int | None = None, use_color: bool | None = None
+) -> list[str]:
     size = width or screen_width()
     clean = " ".join(str(title).upper().replace("—", "-").split())
     return [
@@ -96,7 +98,9 @@ def render_header(title: str, *, width: int | None = None, use_color: bool | Non
     ]
 
 
-def render_section(title: str, *, width: int | None = None, use_color: bool | None = None) -> list[str]:
+def render_section(
+    title: str, *, width: int | None = None, use_color: bool | None = None
+) -> list[str]:
     size = width or screen_width()
     label = _paint(str(title).upper(), Tone.INFO, use_color=use_color)
     return ["", _fit(label, size)]
@@ -188,8 +192,14 @@ def render_table(
         for idx, value in enumerate(values):
             align = aligns[idx] if idx < len(aligns) else "left"
             raw = str(value)
-            cell = raw if ANSI_RE.search(raw) else _paint(raw, Tone.MUTED if header else Tone.MAIN, use_color=use_color)
-            cells.append(_rjust(cell, widths[idx]) if align == "right" else _ljust(cell, widths[idx]))
+            cell = (
+                raw
+                if ANSI_RE.search(raw)
+                else _paint(raw, Tone.MUTED if header else Tone.MAIN, use_color=use_color)
+            )
+            cells.append(
+                _rjust(cell, widths[idx]) if align == "right" else _ljust(cell, widths[idx])
+            )
         return sep.join(cells)
 
     out = [row_line(columns, header=True), _line(size, use_color=use_color)]

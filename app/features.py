@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from typing import Any
+
 import numpy as np
 import pandas as pd
 
 from .context import add_market_context_features
+from .data import get_asset_profile
 from .fundamentals import add_fundamental_features
 from .sentiment import get_sentiment, load_sentiment_daily_series
 from .utils import normalize_ticker
-from .data import get_asset_profile
-from .preparation import prepare_training_matrix
-
 
 _DEFAULT_LEVEL_FEATURES = {
     "frac_mem",
@@ -54,8 +53,10 @@ def _hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
     H = 0.5: Random walk
     H > 0.5: Trending
     """
+
     def calc_hurst(x):
-        if len(x) < 20: return 0.5
+        if len(x) < 20:
+            return 0.5
         lags = range(2, 20)
         tau = [np.sqrt(np.std(np.subtract(x[lag:], x[:-lag]))) for lag in lags]
         m = np.polyfit(np.log(lags), np.log(tau), 1)
@@ -64,7 +65,9 @@ def _hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
     return series.rolling(window).apply(calc_hurst, raw=True)
 
 
-def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
+def build_dataset(
+    cfg: dict[str, Any], prices: pd.DataFrame, ticker: str
+) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
     ticker = normalize_ticker(ticker)
     if ticker not in prices.columns:
         raise ValueError(f"missing ticker column: {ticker}")
@@ -76,7 +79,7 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
 
     dataset = pd.DataFrame(index=df.index)
     dataset[ticker] = px
-    
+
     # Target: returns for different horizons
     # d1: Next day return
     # d5: Return after 5 trading days (approx. 1 week)
@@ -89,7 +92,9 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     dataset["ret_1"] = px.pct_change(1)
     dataset["ret_5"] = px.pct_change(5)
     dataset["ret_20"] = px.pct_change(20)
-    vol_windows = [int(w) for w in tech.get("vol_windows", [tech.get("vol_window", 20)]) if int(w) > 1]
+    vol_windows = [
+        int(w) for w in tech.get("vol_windows", [tech.get("vol_window", 20)]) if int(w) > 1
+    ]
     for w in sorted(set(vol_windows or [20])):
         dataset[f"vol_{w}"] = dataset["ret_1"].rolling(w).std()
     dataset["rsi"] = _rsi(px, int(tech.get("rsi_window", 14)))
@@ -120,24 +125,23 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
         dataset["vol_ratio_5_20"] = dataset["vol_5"] / dataset["vol_20"] - 1
     if "vol_20" in dataset.columns:
         ret_mean_20 = dataset["ret_1"].rolling(20).mean()
-        dataset["ret_z_20"] = (dataset["ret_1"] - ret_mean_20) / dataset["vol_20"].replace(0, np.nan)
-    
+        dataset["ret_z_20"] = (dataset["ret_1"] - ret_mean_20) / dataset["vol_20"].replace(
+            0, np.nan
+        )
+
     # Advanced / Complex Features
     dataset["hurst"] = _hurst_exponent(px, 100)
-    
+
     # RSI Divergence proxy: Slope of Price vs Slope of RSI
     px_slope = px.pct_change(5).rolling(5).mean()
     rsi_slope = dataset["rsi"].diff(5).rolling(5).mean()
     dataset["rsi_div"] = rsi_slope - px_slope
-    
-    # Relative ATR (Proxy)
-    tr = pd.concat([
-        px - px.shift(1),
-        (px - px.shift(1)).abs(),
-        px.rolling(2).std()
-    ], axis=1).max(axis=1)
-    dataset["atr_rel"] = tr.rolling(14).mean() / px
 
+    # Relative ATR (Proxy)
+    tr = pd.concat([px - px.shift(1), (px - px.shift(1)).abs(), px.rolling(2).std()], axis=1).max(
+        axis=1
+    )
+    dataset["atr_rel"] = tr.rolling(14).mean() / px
 
     dataset, context_meta = add_market_context_features(dataset, df, ticker, cfg)
     dataset, fundamental_meta = add_fundamental_features(dataset, ticker, cfg)
@@ -165,16 +169,11 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     external_prefixes = ("ctx_", "sent_", "fund_")
     external_exact = {"pl", "pvp", "roe", "dy"}
     external_cols = [
-        c for c in dataset.columns
-        if c.startswith(external_prefixes) or c in external_exact
+        c for c in dataset.columns if c.startswith(external_prefixes) or c in external_exact
     ]
     if external_cols:
         dataset[external_cols] = (
-            dataset[external_cols]
-            .replace([np.inf, -np.inf], np.nan)
-            .ffill()
-            .bfill()
-            .fillna(0.0)
+            dataset[external_cols].replace([np.inf, -np.inf], np.nan).ffill().bfill().fillna(0.0)
         )
 
     # We want to keep all targets but not as features
@@ -182,10 +181,10 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     excluded_cols = _stationarity_exclusions(cfg, ticker, list(dataset.columns))
     drop_cols = [col for col in target_cols + excluded_cols if col in dataset.columns]
     raw_X = dataset.drop(columns=drop_cols).replace([np.inf, -np.inf], np.nan).dropna()
-    
+
     # We return the raw X and a dataframe of all targets
     all_y = dataset.loc[raw_X.index, target_cols]
-    
+
     asset_profile = get_asset_profile(cfg, ticker)
 
     meta = {
@@ -205,7 +204,9 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
         "sentiment": sentiment_meta,
         "latest_price": float(px.dropna().iloc[-1]),
         "latest_date": str(px.dropna().index[-1].date()),
-        "latest_risk_pct": float(dataset["ret_1"].tail(20).std() * 100) if len(dataset) >= 20 else 0.0,
+        "latest_risk_pct": (
+            float(dataset["ret_1"].tail(20).std() * 100) if len(dataset) >= 20 else 0.0
+        ),
         "sentiment_value": float(sentiment_value),
     }
     return raw_X, all_y, meta

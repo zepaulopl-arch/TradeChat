@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from typing import Any
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from .utils import normalize_ticker
-from .data import get_asset_profile
 from .cvm_conn import CVMConnector
+from .data import get_asset_profile
+from .utils import normalize_ticker
 
 
 def yahoo_snapshot(ticker: str) -> dict[str, float | str]:
@@ -19,20 +20,26 @@ def yahoo_snapshot(ticker: str) -> dict[str, float | str]:
         info = {}
 
     # Robust price discovery
-    price = info.get("currentPrice") or info.get("previousClose") or info.get("regularMarketPrice") or info.get("navPrice") or 0.0
+    price = (
+        info.get("currentPrice")
+        or info.get("previousClose")
+        or info.get("regularMarketPrice")
+        or info.get("navPrice")
+        or 0.0
+    )
     if not price:
         # Last resort: try to get the last closing price from fast_info or history
         try:
             price = t.fast_info.get("lastPrice", 0.0)
         except Exception:
             pass
-            
+
     dy = info.get("dividendYield") or 0.0
     # yfinance sanity check: sometimes it's 0.05 (decimal), sometimes 5.0 (percent)
     if dy > 1.0:
         dy = dy / 100.0
     # Last resort: if it's still huge, it's likely an error in the data provider
-    if dy > 2.0: # More than 200% yield is likely a bug
+    if dy > 2.0:  # More than 200% yield is likely a bug
         dy = 0.0
 
     market_cap = float(info.get("marketCap") or 0.0)
@@ -56,7 +63,9 @@ def _clip_feature(series: pd.Series, min_value: float, max_value: float) -> pd.S
     return series.replace([np.inf, -np.inf], np.nan).clip(lower=min_value, upper=max_value)
 
 
-def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] | None = None) -> tuple[pd.DataFrame, dict[str, Any]]:
+def add_fundamental_features(
+    df: pd.DataFrame, ticker: str, cfg: dict[str, Any] | None = None
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Add fundamental features only when they are temporally valid.
 
     Snapshot fundamentals are still collected for report/policy context, but they no
@@ -80,17 +89,25 @@ def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] 
     # operational/report information from predict/report. Therefore disabled
     # fundamentals still return a snapshot/meta block, but add no training column.
     if not bool(fcfg.get("enabled", True)):
-        meta.update({
-            "enabled": False,
-            "source": "snapshot_report_only_disabled_as_feature",
-            "cvm_rows": 0,
-            "features_added": False,
-            "snapshot_source": "yfinance",
-            "snapshot_only_in_report": True,
-        })
+        meta.update(
+            {
+                "enabled": False,
+                "source": "snapshot_report_only_disabled_as_feature",
+                "cvm_rows": 0,
+                "features_added": False,
+                "snapshot_source": "yfinance",
+                "snapshot_only_in_report": True,
+            }
+        )
         return out, meta
 
-    meta.update({"enabled": True, "snapshot_source": "yfinance", "snapshot_only_in_report": bool(fcfg.get("snapshot_only_in_report", True))})
+    meta.update(
+        {
+            "enabled": True,
+            "snapshot_source": "yfinance",
+            "snapshot_only_in_report": bool(fcfg.get("snapshot_only_in_report", True)),
+        }
+    )
     try:
         cnpj = asset_profile.get("cnpj")
         hist = CVMConnector().fetch_historical_fundamentals(ticker, cnpj=cnpj)
@@ -103,30 +120,52 @@ def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] 
     require_historical = bool(fcfg.get("require_historical", True))
 
     if has_hist:
-        idx = out.index.tz_localize(None) if getattr(out.index, "tz", None) is not None else out.index
+        idx = (
+            out.index.tz_localize(None) if getattr(out.index, "tz", None) is not None else out.index
+        )
         hist = hist.copy()
-        hist.index = hist.index.tz_localize(None) if getattr(hist.index, "tz", None) is not None else hist.index
+        hist.index = (
+            hist.index.tz_localize(None)
+            if getattr(hist.index, "tz", None) is not None
+            else hist.index
+        )
         aligned = hist.reindex(idx, method="ffill")
         market_cap = out[ticker].to_numpy() * float(snap["shares"])
         lucro = aligned["LUCRO_LIQUIDO"].replace(0, np.nan).to_numpy() * 1000
         patrimonio = aligned["PATRIMONIO_LIQUIDO"].replace(0, np.nan).to_numpy() * 1000
-        out["pl"] = pd.Series(market_cap / lucro, index=out.index).replace([np.inf, -np.inf], np.nan)
-        out["pvp"] = pd.Series(market_cap / patrimonio, index=out.index).replace([np.inf, -np.inf], np.nan)
-        out["roe"] = pd.Series(lucro / patrimonio, index=out.index).replace([np.inf, -np.inf], np.nan)
+        out["pl"] = pd.Series(market_cap / lucro, index=out.index).replace(
+            [np.inf, -np.inf], np.nan
+        )
+        out["pvp"] = pd.Series(market_cap / patrimonio, index=out.index).replace(
+            [np.inf, -np.inf], np.nan
+        )
+        out["roe"] = pd.Series(lucro / patrimonio, index=out.index).replace(
+            [np.inf, -np.inf], np.nan
+        )
         if use_snapshot_as_features:
             out["pl"] = out["pl"].fillna(float(snap["pl"]))
             out["pvp"] = out["pvp"].fillna(float(snap["pvp"]))
             out["roe"] = out["roe"].fillna(float(snap["roe"]))
             out["dy"] = float(snap["dy"])
-        meta.update({"source": "cvm_cache_temporal", "cvm_rows": int(len(hist)), "features_added": True})
+        meta.update(
+            {"source": "cvm_cache_temporal", "cvm_rows": int(len(hist)), "features_added": True}
+        )
     elif use_snapshot_as_features and not require_historical:
         out["pl"] = float(snap["pl"])
         out["pvp"] = float(snap["pvp"])
         out["roe"] = float(snap["roe"])
         out["dy"] = float(snap["dy"])
-        meta.update({"source": "yfinance_snapshot_as_features", "cvm_rows": 0, "features_added": True})
+        meta.update(
+            {"source": "yfinance_snapshot_as_features", "cvm_rows": 0, "features_added": True}
+        )
     else:
-        meta.update({"source": "snapshot_report_only_no_temporal_features", "cvm_rows": 0, "features_added": False})
+        meta.update(
+            {
+                "source": "snapshot_report_only_no_temporal_features",
+                "cvm_rows": 0,
+                "features_added": False,
+            }
+        )
         return out, meta
 
     if bool(fcfg.get("add_regime_features", True)) and {"pl", "roe"}.issubset(set(out.columns)):
@@ -134,10 +173,16 @@ def add_fundamental_features(df: pd.DataFrame, ticker: str, cfg: dict[str, Any] 
         expensive_pl = float(fcfg.get("expensive_pl", 22.0))
         good_roe = float(fcfg.get("good_roe", 0.12))
         weak_roe = float(fcfg.get("weak_roe", 0.04))
-        out["fund_value_score"] = _clip_feature((expensive_pl - out["pl"]) / max(expensive_pl - cheap_pl, 1.0), -1.0, 1.0)
-        out["fund_quality_score"] = _clip_feature((out["roe"] - weak_roe) / max(good_roe - weak_roe, 0.01), -1.0, 1.5)
+        out["fund_value_score"] = _clip_feature(
+            (expensive_pl - out["pl"]) / max(expensive_pl - cheap_pl, 1.0), -1.0, 1.0
+        )
+        out["fund_quality_score"] = _clip_feature(
+            (out["roe"] - weak_roe) / max(good_roe - weak_roe, 0.01), -1.0, 1.5
+        )
         if "dy" in out.columns:
-            out["fund_yield_score"] = _clip_feature(out["dy"] / max(float(fcfg.get("good_dy", 0.06)), 0.001), 0.0, 2.0)
+            out["fund_yield_score"] = _clip_feature(
+                out["dy"] / max(float(fcfg.get("good_dy", 0.06)), 0.001), 0.0, 2.0
+            )
         else:
             out["fund_yield_score"] = 0.0
         out["fund_regime_score"] = (

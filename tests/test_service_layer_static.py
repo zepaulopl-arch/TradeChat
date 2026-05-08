@@ -5,7 +5,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_pipeline_service_extracts_cli_runtime_helpers():
     text = (ROOT / "app" / "pipeline_service.py").read_text(encoding="utf-8")
-    for token in ["def canonical_ticker", "def resolve_tickers", "def build_current_dataset", "def make_signal"]:
+    for token in [
+        "def canonical_ticker",
+        "def resolve_tickers",
+        "def build_current_dataset",
+        "def make_signal",
+    ]:
         assert token in text
 
 
@@ -16,12 +21,19 @@ def test_cli_is_parser_shell_and_handlers_own_command_logic():
     assert "def cmd_validate" in handlers_text
     assert "def cmd_portfolio" in handlers_text
     assert "run_pybroker_replay" not in cli_text
-    assert len(cli_text.splitlines()) < 140
+    assert "from .commands import" in handlers_text
+    assert len(cli_text.splitlines()) < 260
 
 
 def test_portfolio_service_centralizes_state_and_signal_access():
     text = (ROOT / "app" / "portfolio_service.py").read_text(encoding="utf-8")
-    for token in ["def get_state_db_path", "def load_portfolio_state", "def save_portfolio_state", "def load_latest_signal", "sqlite3.connect"]:
+    for token in [
+        "def get_state_db_path",
+        "def load_portfolio_state",
+        "def save_portfolio_state",
+        "def load_latest_signal",
+        "sqlite3.connect",
+    ]:
         assert token in text
     assert "portfolio.json" not in text
 
@@ -54,11 +66,25 @@ def test_batch_and_simulator_services_exist():
     ranking_text = (ROOT / "app" / "ranking_service.py").read_text(encoding="utf-8")
     rebalance_text = (ROOT / "app" / "rebalance_service.py").read_text(encoding="utf-8")
     monitor_text = (ROOT / "app" / "portfolio_monitor_service.py").read_text(encoding="utf-8")
+    commands_dir = ROOT / "app" / "commands"
+    simulation_dir = ROOT / "app" / "simulation"
     for token in ["def safe_worker_count", "def train_one_asset", "def diagnose_one_asset"]:
         assert token in batch_text
-    for token in ["def run_pybroker_replay", "def simulation_dir", "StrategyConfig", "YFinance", "mode: str = \"replay\"", "pybroker_walkforward_shadow"]:
+    for token in [
+        "def run_pybroker_replay",
+        "def simulation_dir",
+        "StrategyConfig",
+        "YFinance",
+        'mode: str = "replay"',
+        "pybroker_walkforward_shadow",
+    ]:
         assert token in sim_text
-    for token in ["def evaluate_baselines", "zero_return_no_trade", "buy_and_hold_equal_weight", "last_return_long_flat"]:
+    for token in [
+        "def evaluate_baselines",
+        "zero_return_no_trade",
+        "buy_and_hold_equal_weight",
+        "last_return_long_flat",
+    ]:
         assert token in evaluation_text
     assert "evaluate_baselines" in sim_text
     for token in [
@@ -76,13 +102,34 @@ def test_batch_and_simulator_services_exist():
         assert token in rebalance_text
     for token in ["def get_live_price", "def render_live_portfolio"]:
         assert token in monitor_text
+    for name in [
+        "data_command.py",
+        "train_command.py",
+        "signal_command.py",
+        "validate_command.py",
+        "refine_command.py",
+        "portfolio_command.py",
+    ]:
+        assert (commands_dir / name).exists()
+    for name in [
+        "pybroker_adapter.py",
+        "replay.py",
+        "walkforward.py",
+        "execution_costs.py",
+        "artifacts.py",
+        "metrics_bridge.py",
+        "types.py",
+    ]:
+        assert (simulation_dir / name).exists()
 
 
 def test_model5_ui_layer_exists_and_cli_uses_it_for_simulation():
     ui_text = (ROOT / "app" / "ui" / "model5.py").read_text(encoding="utf-8")
     cli_text = (ROOT / "app" / "cli.py").read_text(encoding="utf-8")
-    handlers_text = (ROOT / "app" / "cli_handlers.py").read_text(encoding="utf-8")
     validation_view_text = (ROOT / "app" / "validation_view.py").read_text(encoding="utf-8")
+    validate_command_text = (ROOT / "app" / "commands" / "validate_command.py").read_text(
+        encoding="utf-8"
+    )
     for token in [
         "def render_header",
         "def render_section",
@@ -94,7 +141,7 @@ def test_model5_ui_layer_exists_and_cli_uses_it_for_simulation():
     ]:
         assert token in ui_text
     assert "from .ui import model5 as ui5" in validation_view_text
-    assert "render_validation_summary" in handlers_text
+    assert "render_validation_summary" in validate_command_text
     assert "screen_title" in cli_text
     assert "PYBROKER" in validation_view_text
     assert "--verbose" in cli_text

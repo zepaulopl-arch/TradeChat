@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
-from .config import cache_dir, historical_dir, load_data_registry
+from .config import historical_dir, load_data_registry
 from .utils import normalize_ticker, safe_ticker
 
 
@@ -31,8 +31,13 @@ def _download_one_yahoo(ticker: str, period: str, *, is_context: bool) -> pd.Ser
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    data = yf.download(ticker, period=attempt, progress=False, auto_adjust=False, threads=False)
+                with (
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    data = yf.download(
+                        ticker, period=attempt, progress=False, auto_adjust=False, threads=False
+                    )
             if data is None or data.empty:
                 continue
             if isinstance(data.columns, pd.MultiIndex):
@@ -48,7 +53,9 @@ def _download_one_yahoo(ticker: str, period: str, *, is_context: bool) -> pd.Ser
     return None
 
 
-def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None = None) -> pd.DataFrame:
+def _download_yahoo(
+    tickers: list[str], period: str, cfg: dict[str, Any] | None = None
+) -> pd.DataFrame:
     """Download asset and context prices with provider validation."""
     series: list[pd.Series] = []
     dcfg = (cfg or {}).get("data", {})
@@ -57,12 +64,12 @@ def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None 
     for idx, ticker in enumerate(tickers):
         if idx > 0 and delay > 0:
             time.sleep(delay)
-        
+
         item = _download_one_yahoo(ticker, period, is_context=idx > 0)
-        
+
         if item is not None and not item.empty:
             series.append(item)
-            
+
     if not series:
         return pd.DataFrame()
     close = pd.concat(series, axis=1).sort_index().ffill().dropna(how="all")
@@ -145,7 +152,9 @@ def resolve_context_tickers(cfg: dict[str, Any], ticker: str) -> list[str]:
             if yahoo:
                 out.append(yahoo)
 
-    add_many(context_cfg.get("global", []) or registry.get("indices", {}).get("default_context", []))
+    add_many(
+        context_cfg.get("global", []) or registry.get("indices", {}).get("default_context", [])
+    )
     group = profile.get("group")
     subgroup = profile.get("subgroup")
     add_many((context_cfg.get("group_defaults", {}) or {}).get(group, []))
@@ -172,14 +181,14 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     resolved = resolve_asset(cfg, ticker)
     canonical = resolved["canonical"]
     path = price_cache_path(cfg, canonical)
-    
+
     if path.exists():
         if not update:
             return pd.read_parquet(path)
-        
+
         # Speed optimization: skip if file is < 15 minutes old
         mtime = os.path.getmtime(path)
-        if (time.time() - mtime) < 900: # 15 minutes
+        if (time.time() - mtime) < 900:  # 15 minutes
             return pd.read_parquet(path)
 
     period = cfg.get("data", {}).get("period", "5y")
@@ -190,13 +199,16 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     close = close.dropna(axis=1, how="all")
     if canonical not in close.columns:
         requested = resolved.get("requested")
-        raise RuntimeError(f"Yahoo did not return close prices for {canonical}.")
+        raise RuntimeError(
+            f"Yahoo did not return close prices for {canonical} requested as {requested}."
+        )
     close.to_parquet(path)
     return close
 
 
 def update_cvm_database(years: list[int] | None = None) -> bool:
     from .cvm_conn import CVMConnector
+
     return CVMConnector().update_cvm_database(years=years)
 
 

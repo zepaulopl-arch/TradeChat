@@ -14,7 +14,7 @@
 - linked B3 indices for context expansion;
 - a reference sample with more than 50 Brazilian equities.
 
-The public CLI is `data`, `train`, `predict`, `validate`, `report` and `portfolio`.
+The public CLI is `data`, `train`, `signal`, `validate`, `refine` and `portfolio`.
 
 ## Conservative rule
 

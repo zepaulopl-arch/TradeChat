@@ -1,0 +1,40 @@
+TradeChat Config Schema
+=======================
+
+Critical fields:
+
+- app.artifact_dir: string path for artifacts.
+- app.data_cache_dir: string path for cache.
+- features_file: string path to features YAML.
+- data.min_rows: positive integer.
+- data.macro_tickers: list.
+- trading.capital: positive number.
+- simulation.mode: replay or walkforward.
+- simulation.initial_cash: positive number when provided.
+- simulation.max_positions: positive integer when provided.
+- simulation.costs.fee_mode: order_percent, per_order, per_share or none.
+- simulation.costs.fee_amount: non-negative number.
+- simulation.costs.slippage_pct: non-negative percent.
+- model.prediction_guards.max_engine_return_abs: non-negative number.
+- model.prediction_guards.max_final_return_abs: non-negative number.
+
+Units:
+
+- fee_amount follows fee_mode.
+- slippage_pct is a percent value.
+- confidence values are fractions from 0 to 1.
+- policy return thresholds are percent values in config.
+
+Warnings:
+
+- simulation.mode = replay is valid, but replay is operational sanity, not methodological validation.
+- unusually high slippage_pct values are warned because they may indicate decimal/percent confusion.
+
+Errors:
+
+- invalid validation mode;
+- negative costs;
+- invalid fee mode;
+- non-list context tickers;
+- unknown horizon keys;
+- invalid confidence range.

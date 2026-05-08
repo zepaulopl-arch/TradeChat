@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 TARGET_PREFIXES = ("target_",)
 OPERATIONAL_MODEL_MARKER = "artifacts/models"
 REFINE_SHADOW_MARKER = "artifacts/refine"
@@ -42,10 +41,18 @@ def check_train_only_feature_selection(manifest: dict[str, Any]) -> dict[str, An
     prep = manifest.get("preparation", {}) or {}
     split = manifest.get("validation_split", {}) or {}
     selection = prep.get("selection", {}) or {}
-    selected_count = int(prep.get("selected_feature_count", len(manifest.get("features", []) or [])) or 0)
+    selected_count = int(
+        prep.get("selected_feature_count", len(manifest.get("features", []) or [])) or 0
+    )
     train_rows = int(manifest.get("train_rows", 0) or 0)
     test_rows = int(manifest.get("test_rows", 0) or 0)
-    passed = bool(selection) and selected_count > 0 and train_rows > 0 and test_rows > 0 and split.get("test_target") == "raw_unclipped"
+    passed = (
+        bool(selection)
+        and selected_count > 0
+        and train_rows > 0
+        and test_rows > 0
+        and split.get("test_target") == "raw_unclipped"
+    )
     return {
         "check": "train_only_feature_selection",
         "passed": bool(passed),
@@ -105,8 +112,15 @@ def methodology_report(
 ) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     if manifest is not None:
-        checks.append(check_no_target_features([str(item) for item in manifest.get("features", []) or []]))
-        checks.append(check_temporal_split(manifest.get("validation_split", {}) or {}, horizon=str(manifest.get("horizon", "d1"))))
+        checks.append(
+            check_no_target_features([str(item) for item in manifest.get("features", []) or []])
+        )
+        checks.append(
+            check_temporal_split(
+                manifest.get("validation_split", {}) or {},
+                horizon=str(manifest.get("horizon", "d1")),
+            )
+        )
         checks.append(check_train_only_feature_selection(manifest))
     if validation_summary is not None:
         checks.append(check_validation_has_baselines(validation_summary))

@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import yaml
+
 from app.config import load_config, load_features_config
 
 ROOT = Path(__file__).resolve().parents[1]

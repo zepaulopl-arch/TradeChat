@@ -6,15 +6,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .config import artifact_dir, models_dir
 from .data import load_prices
+from .feature_audit import feature_family_profile, selected_feature_scores
 from .features import build_dataset
 from .models import train_models
-from .config import artifact_dir, models_dir
-from .feature_audit import feature_family_profile, selected_feature_scores
 from .presentation import banner, divider, render_table, screen_width
+from .refine_decision import build_refine_decision_matrix
 from .simulator_service import run_pybroker_replay
 from .utils import normalize_ticker, read_json, safe_ticker, write_json
-
 
 HORIZONS = ["d1", "d5", "d20"]
 FAMILIES = ["technical", "context", "fundamentals", "sentiment"]
@@ -31,7 +31,9 @@ def _family_relevance_share(manifest: dict[str, Any]) -> dict[str, float]:
     scores = selected_feature_scores(prep, features)
     totals = {family: 0.0 for family in FAMILIES}
     for feature, score in scores.items():
-        family = next((fam for fam, count in feature_family_profile([feature]).items() if count), "technical")
+        family = next(
+            (fam for fam, count in feature_family_profile([feature]).items() if count), "technical"
+        )
         totals[family] = totals.get(family, 0.0) + max(0.0, float(score))
     total = sum(totals.values())
     if total <= 0:
@@ -74,8 +76,12 @@ def collect_refine_summary(cfg: dict[str, Any], tickers: list[str]) -> dict[str,
                     "horizon": horizon,
                     "run_id": str(manifest.get("run_id", "")),
                     "mae_return": float(metrics.get("mae_return", 0.0) or 0.0),
-                    "latest_prediction_return": float(manifest.get("latest_prediction_return", 0.0) or 0.0),
-                    "quality": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0),
+                    "latest_prediction_return": float(
+                        manifest.get("latest_prediction_return", 0.0) or 0.0
+                    ),
+                    "quality": float(
+                        manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0
+                    ),
                     "selected_feature_count": len(features),
                     "family_counts": family_counts,
                     "family_relevance_share_pct": family_share,
@@ -146,11 +152,52 @@ def refine_dir(cfg: dict[str, Any], run_id: str) -> Path:
     return path
 
 
+def _write_decision_artifacts(
+    summary: dict[str, Any], decision_csv: Path, decision_txt: Path
+) -> None:
+    decisions = list(summary.get("decisions", []) or [])
+    fieldnames = [
+        "ticker",
+        "horizon",
+        "profile",
+        "removed_family",
+        "return_delta_pct",
+        "drawdown_delta_pct",
+        "profit_factor_delta",
+        "trade_count_delta",
+        "exposure_delta_pct",
+        "mae_delta",
+        "quality_delta",
+        "decision",
+        "rationale",
+    ]
+    with decision_csv.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in decisions:
+            out = {name: row.get(name, "") for name in fieldnames}
+            out["rationale"] = " | ".join(str(item) for item in row.get("rationale", []) or [])
+            writer.writerow(out)
+
+    lines = ["REFINE DECISION", ""]
+    if not decisions:
+        lines.append("No decision matrix was produced.")
+    for row in decisions:
+        rationale = "; ".join(str(item) for item in row.get("rationale", []) or [])
+        lines.append(
+            f"{row.get('profile', 'n/a')}: {row.get('decision', 'inconclusive')} "
+            f"removed={row.get('removed_family', 'n/a')} {rationale}"
+        )
+    decision_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
     out_dir = refine_dir(cfg, str(summary.get("run_id", "refine")))
     summary_json = out_dir / "summary.json"
     summary_txt = out_dir / "summary.txt"
     results_csv = out_dir / "removal_results.csv"
+    decision_csv = out_dir / "decision_matrix.csv"
+    decision_txt = out_dir / "decision_summary.txt"
 
     write_json(summary_json, summary)
     rows = list(summary.get("rows", []) or [])
@@ -192,6 +239,8 @@ def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> di
                 }
             )
 
+    _write_decision_artifacts(summary, decision_csv, decision_txt)
+
     lines = render_removal_summary(summary)
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {
@@ -199,14 +248,20 @@ def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> di
         "summary_json": str(summary_json),
         "summary_txt": str(summary_txt),
         "results_csv": str(results_csv),
+        "decision_matrix_csv": str(decision_csv),
+        "decision_summary_txt": str(decision_txt),
     }
 
 
-def _write_walkforward_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
+def _write_walkforward_removal_artifacts(
+    cfg: dict[str, Any], summary: dict[str, Any]
+) -> dict[str, str]:
     out_dir = refine_dir(cfg, str(summary.get("run_id", "refine")))
     summary_json = out_dir / "walkforward_summary.json"
     summary_txt = out_dir / "walkforward_summary.txt"
     results_csv = out_dir / "walkforward_results.csv"
+    decision_csv = out_dir / "decision_matrix.csv"
+    decision_txt = out_dir / "decision_summary.txt"
 
     write_json(summary_json, summary)
     rows = list(summary.get("rows", []) or [])
@@ -232,6 +287,8 @@ def _write_walkforward_removal_artifacts(cfg: dict[str, Any], summary: dict[str,
         for row in rows:
             writer.writerow({name: row.get(name, "") for name in fieldnames})
 
+    _write_decision_artifacts(summary, decision_csv, decision_txt)
+
     lines = render_removal_walkforward_summary(summary)
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {
@@ -239,6 +296,8 @@ def _write_walkforward_removal_artifacts(cfg: dict[str, Any], summary: dict[str,
         "summary_json": str(summary_json),
         "summary_txt": str(summary_txt),
         "results_csv": str(results_csv),
+        "decision_matrix_csv": str(decision_csv),
+        "decision_summary_txt": str(decision_txt),
     }
 
 
@@ -266,12 +325,21 @@ def run_feature_removal(
             try:
                 raw_X, all_y, meta = build_dataset(profile_cfg, prices, ticker)
             except Exception as exc:
-                errors.append({"ticker": ticker, "profile": profile, "horizon": "*", "error": str(exc)})
+                errors.append(
+                    {"ticker": ticker, "profile": profile, "horizon": "*", "error": str(exc)}
+                )
                 continue
             for horizon in selected_horizons:
                 target_col = f"target_return_{horizon}"
                 if target_col not in all_y:
-                    errors.append({"ticker": ticker, "profile": profile, "horizon": horizon, "error": f"missing {target_col}"})
+                    errors.append(
+                        {
+                            "ticker": ticker,
+                            "profile": profile,
+                            "horizon": horizon,
+                            "error": f"missing {target_col}",
+                        }
+                    )
                     continue
                 try:
                     manifest = train_models(
@@ -285,7 +353,14 @@ def run_feature_removal(
                         inner_threads=inner_threads,
                     )
                 except Exception as exc:
-                    errors.append({"ticker": ticker, "profile": profile, "horizon": horizon, "error": str(exc)})
+                    errors.append(
+                        {
+                            "ticker": ticker,
+                            "profile": profile,
+                            "horizon": horizon,
+                            "error": str(exc),
+                        }
+                    )
                     continue
                 metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
                 features = [str(item) for item in manifest.get("features", []) or []]
@@ -296,8 +371,12 @@ def run_feature_removal(
                         "horizon": horizon,
                         "run_id": str(manifest.get("run_id", "")),
                         "mae_return": float(metrics.get("mae_return", 0.0) or 0.0),
-                        "latest_prediction_return": float(manifest.get("latest_prediction_return", 0.0) or 0.0),
-                        "quality": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0),
+                        "latest_prediction_return": float(
+                            manifest.get("latest_prediction_return", 0.0) or 0.0
+                        ),
+                        "quality": float(
+                            manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0
+                        ),
                         "selected_feature_count": len(features),
                         "family_counts": feature_family_profile(features),
                         "artifact_dir": str(models_dir(profile_cfg).parent),
@@ -310,6 +389,7 @@ def run_feature_removal(
         "rows": rows,
         "errors": errors,
     }
+    summary["decisions"] = build_refine_decision_matrix(rows)
     summary["artifacts"] = _write_removal_artifacts(cfg, summary)
     return summary
 
@@ -367,7 +447,9 @@ def run_feature_removal_walkforward(
                 "total_return_pct": float(metrics.get("total_return_pct", 0.0) or 0.0),
                 "max_drawdown_pct": float(metrics.get("max_drawdown_pct", 0.0) or 0.0),
                 "trade_count": int(metrics.get("trade_count", 0) or 0),
-                "hit_rate_pct": float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0),
+                "hit_rate_pct": float(
+                    metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0
+                ),
                 "profit_factor": float(metrics.get("profit_factor", 0.0) or 0.0),
                 "turnover_pct": float(metrics.get("turnover_pct", 0.0) or 0.0),
                 "active_exposure_pct": float(metrics.get("active_exposure_pct", 0.0) or 0.0),
@@ -377,9 +459,20 @@ def run_feature_removal_walkforward(
             }
         )
 
-    base_return = next((float(row.get("total_return_pct", 0.0) or 0.0) for row in rows if row.get("profile") == "full"), None)
+    base_return = next(
+        (
+            float(row.get("total_return_pct", 0.0) or 0.0)
+            for row in rows
+            if row.get("profile") == "full"
+        ),
+        None,
+    )
     for row in rows:
-        row["return_delta_pct"] = 0.0 if base_return is None else float(row.get("total_return_pct", 0.0) or 0.0) - base_return
+        row["return_delta_pct"] = (
+            0.0
+            if base_return is None
+            else float(row.get("total_return_pct", 0.0) or 0.0) - base_return
+        )
 
     summary = {
         "run_id": run_id,
@@ -395,6 +488,7 @@ def run_feature_removal_walkforward(
         "rows": rows,
         "errors": errors,
     }
+    summary["decisions"] = build_refine_decision_matrix(rows)
     summary["artifacts"] = _write_walkforward_removal_artifacts(cfg, summary)
     return summary
 
@@ -437,7 +531,9 @@ def render_refine_summary(summary: dict[str, Any]) -> list[str]:
     )
     if missing:
         lines.append("")
-        lines.append(f"Missing manifests: {len(missing)}. Train the missing horizons before treating refine as complete.")
+        lines.append(
+            f"Missing manifests: {len(missing)}. Train the missing horizons before treating refine as complete."
+        )
     lines.extend(divider(width).splitlines())
     return lines
 
@@ -447,7 +543,9 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     rows = list(summary.get("rows", []) or [])
     errors = list(summary.get("errors", []) or [])
-    lines.extend(banner("REFINE", "feature removal", str(summary.get("run_id", "")), width=width))
+    lines.extend(
+        banner("REFINE", "controlled removal", str(summary.get("run_id", "")), width=width)
+    )
     if not rows:
         lines.append("No removal result was produced.")
         if errors:
@@ -463,7 +561,11 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
         mae = float(row.get("mae_return", 0.0) or 0.0)
         delta = mae - base_mae
         counts = row.get("family_counts", {}) or {}
-        verdict = "base" if row.get("profile") == "full" else ("better" if delta < 0 else "worse" if delta > 0 else "tie")
+        verdict = (
+            "base"
+            if row.get("profile") == "full"
+            else ("better" if delta < 0 else "worse" if delta > 0 else "tie")
+        )
         table_rows.append(
             [
                 str(row.get("ticker", "n/a")),
@@ -487,11 +589,14 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     )
     if errors:
         lines.append("")
-        lines.append(f"Removal errors: {len(errors)}. Use the artifacts and logs before drawing conclusions.")
-    artifacts = summary.get("artifacts", {}) or {}
-    if artifacts:
+        lines.append(
+            f"Removal errors: {len(errors)}. Use the artifacts and logs before drawing conclusions."
+        )
+
+    decisions = list(summary.get("decisions", []) or [])
+    if decisions:
         lines.append("")
-        lines.append(f"Artifacts: {artifacts.get('dir', 'n/a')}")
+        lines.extend(render_refine_decision_table(decisions, width=width))
     lines.extend(divider(width).splitlines())
     return lines
 
@@ -501,7 +606,11 @@ def render_removal_walkforward_summary(summary: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     rows = list(summary.get("rows", []) or [])
     errors = list(summary.get("errors", []) or [])
-    lines.extend(banner("REFINE", "feature removal walk-forward", str(summary.get("run_id", "")), width=width))
+    lines.extend(
+        banner(
+            "REFINE", "controlled removal walk-forward", str(summary.get("run_id", "")), width=width
+        )
+    )
     if not rows:
         lines.append("No walk-forward removal result was produced.")
         if errors:
@@ -513,7 +622,11 @@ def render_removal_walkforward_summary(summary: dict[str, Any]) -> list[str]:
     for row in rows:
         delta = float(row.get("return_delta_pct", 0.0) or 0.0)
         profile = str(row.get("profile", "n/a"))
-        verdict = "base" if profile == "full" else ("better" if delta > 0 else "worse" if delta < 0 else "tie")
+        verdict = (
+            "base"
+            if profile == "full"
+            else ("better" if delta > 0 else "worse" if delta < 0 else "tie")
+        )
         table_rows.append(
             [
                 profile,
@@ -538,10 +651,51 @@ def render_removal_walkforward_summary(summary: dict[str, Any]) -> list[str]:
     )
     if errors:
         lines.append("")
-        lines.append(f"Walk-forward removal errors: {len(errors)}. Review them before drawing conclusions.")
-    artifacts = summary.get("artifacts", {}) or {}
-    if artifacts:
+        lines.append(
+            f"Walk-forward removal errors: {len(errors)}. Review them before drawing conclusions."
+        )
+
+    decisions = list(summary.get("decisions", []) or [])
+    if decisions:
         lines.append("")
-        lines.append(f"Artifacts: {artifacts.get('dir', 'n/a')}")
+        lines.extend(render_refine_decision_table(decisions, width=width))
     lines.extend(divider(width).splitlines())
     return lines
+
+
+def render_refine_decision_table(
+    decisions: list[dict[str, Any]], *, width: int | None = None
+) -> list[str]:
+    width = width or screen_width()
+    table_rows = []
+    for row in decisions:
+        table_rows.append(
+            [
+                str(row.get("profile", "n/a")),
+                str(row.get("removed_family", "n/a")),
+                _fmt_delta(row.get("return_delta_pct")),
+                _fmt_delta(row.get("drawdown_delta_pct")),
+                _fmt_delta(row.get("profit_factor_delta"), decimals=2, suffix=""),
+                str(row.get("decision", "inconclusive")),
+            ]
+        )
+    lines = ["REFINE DECISION"]
+    lines.extend(
+        render_table(
+            ["Profile", "Removed", "Return d", "DD d", "PF d", "Decision"],
+            table_rows,
+            width=width,
+            aligns=["left", "left", "right", "right", "right", "left"],
+            min_widths=[14, 14, 9, 8, 7, 16],
+        )
+    )
+    return lines
+
+
+def _fmt_delta(value: Any, *, decimals: int = 2, suffix: str = "%") -> str:
+    if value in {"", None}:
+        return "n/a"
+    try:
+        return f"{float(value):+.{decimals}f}{suffix}"
+    except (TypeError, ValueError):
+        return "n/a"

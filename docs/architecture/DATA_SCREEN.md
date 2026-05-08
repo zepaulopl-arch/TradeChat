@@ -1,6 +1,6 @@
 # Data screen
 
-`data` now renders with the same compact screen style used by `train` and `predict`.
+`data` now renders with the same compact screen style used by `train` and `signal`.
 
 It updates the price cache and then displays:
 

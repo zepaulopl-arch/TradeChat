@@ -7,7 +7,7 @@ def test_diagnostic_script_exists_and_keeps_cli_separate():
     script = ROOT / "scripts" / "diagnose_assets.py"
     assert script.exists()
     text = script.read_text(encoding="utf-8")
-    assert "data -> train -> predict" in text
+    assert "data -> train -> signal" in text
     assert "def main" in text
     assert "from app.batch_service import diagnose_one_asset, safe_worker_count" in text
     assert "ProcessPoolExecutor" in text
@@ -17,13 +17,12 @@ def test_diagnostic_script_exists_and_keeps_cli_separate():
     assert "assets_diagnostic.csv" in text
     assert 'raw_assets.upper() == "ALL"' in text
     assert 'registry_status", "active"' in text
-    assert 'SKIP' in text
+    assert "SKIP" in text
 
 
 def test_diagnostic_runner_exists():
-    runner = ROOT / "run_diagnostics.bat"
-    assert runner.exists()
-    assert "scripts\\diagnose_assets.py" in runner.read_text(encoding="utf-8")
+    assert not list(ROOT.glob("*.bat"))
+    assert (ROOT / "scripts" / "diagnose_assets.py").exists()
 
 
 def test_diagnostic_docs_describe_outputs():

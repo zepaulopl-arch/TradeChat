@@ -24,6 +24,7 @@ def test_ridge_is_declared_as_arbiter_in_config():
 
 def test_autotune_is_available_but_not_default_validate():
     from app.cli import build_parser
+
     cfg = load_config(None)
     assert cfg["model"]["autotune"]["enabled_by_default"] is False
     parser = build_parser()

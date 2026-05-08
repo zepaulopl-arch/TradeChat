@@ -4,38 +4,37 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app import cli
-from app import batch_service
-from app import cli_handlers
+from app import batch_service, cli
 from app import features as feature_builder
-from app.methodology_service import methodology_report
 from app import models as model_module
 from app import portfolio_monitor_service as monitor
-from app.models import _split_train_test_raw
-from app.models import _stacking_cv_splits
-from app.models import _make_arbiter
-from app.models import _oof_valid_mask
-from app.evaluation_service import compare_model_to_baselines, enrich_model_metrics_from_execution, evaluate_baselines
+from app.evaluation_service import (
+    compare_model_to_baselines,
+    enrich_model_metrics_from_execution,
+    evaluate_baselines,
+)
+from app.methodology_service import methodology_report
+from app.models import _make_arbiter, _oof_valid_mask, _split_train_test_raw, _stacking_cv_splits
 from app.policy import classify_signal
-from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
+from app.preparation import prepare_training_matrix
 from app.refine_service import (
     collect_refine_summary,
+    render_refine_summary,
     render_removal_summary,
     render_removal_walkforward_summary,
-    render_refine_summary,
     run_feature_removal,
     run_feature_removal_walkforward,
 )
 from app.scoring import is_actionable_signal
 from app.simulator_service import (
-    _write_simulation_artifacts,
     _build_strategy_config,
     _execution_fn_factory,
     _normalize_signal_plan,
     _planned_entry_shares,
     _position_size_handler_factory,
     _schedule_rebalance_dates,
+    _write_simulation_artifacts,
 )
 from app.trade_plan_service import build_trade_plan
 from app.ui import model5 as ui5
@@ -63,7 +62,11 @@ def test_live_monitor_closes_short_using_signed_cash_flow(monkeypatch):
         "history": [],
     }
     saved = []
-    monkeypatch.setattr(monitor, "load_latest_signal", lambda cfg, ticker: {"policy": {"target_price": 9.0, "stop_loss_price": 11.0}})
+    monkeypatch.setattr(
+        monitor,
+        "load_latest_signal",
+        lambda cfg, ticker: {"policy": {"target_price": 9.0, "stop_loss_price": 11.0}},
+    )
     monkeypatch.setattr(monitor, "get_live_price", lambda ticker: 9.0)
     monkeypatch.setattr(monitor, "save_portfolio_state", lambda portfolio: saved.append(portfolio))
 
@@ -77,16 +80,20 @@ def test_live_monitor_closes_short_using_signed_cash_flow(monkeypatch):
 
 
 def test_oof_valid_mask_keeps_zero_predictions_and_rejects_missing_rows():
-    mask = _oof_valid_mask({
-        "xgb": np.array([0.0, np.nan, 0.01]),
-        "catboost": np.array([0.0, 0.02, 0.03]),
-        "extratrees": np.array([0.0, 0.01, np.nan]),
-    })
+    mask = _oof_valid_mask(
+        {
+            "xgb": np.array([0.0, np.nan, 0.01]),
+            "catboost": np.array([0.0, 0.02, 0.03]),
+            "extratrees": np.array([0.0, 0.01, np.nan]),
+        }
+    )
     assert mask.tolist() == [True, False, False]
 
 
 def test_make_arbiter_uses_ridge_config():
-    arbiter = _make_arbiter({"model": {"arbiter": {"ridge": {"alpha": 2.5, "fit_intercept": False}}}})
+    arbiter = _make_arbiter(
+        {"model": {"arbiter": {"ridge": {"alpha": 2.5, "fit_intercept": False}}}}
+    )
     assert arbiter.alpha == pytest.approx(2.5)
     assert arbiter.fit_intercept is False
 
@@ -161,7 +168,15 @@ def test_build_dataset_excludes_non_stationary_price_levels(monkeypatch):
 
     blocked = {"PETR4.SA", "frac_mem", "sma_10", "sma_50", "ema_20", "ema_100", "bb_mid", "bb_std"}
     assert blocked.isdisjoint(set(X.columns))
-    assert {"ret_1", "vol_5", "vol_20", "vol_60", "price_to_sma_10", "drawdown_20", "range_pos_20"}.issubset(set(X.columns))
+    assert {
+        "ret_1",
+        "vol_5",
+        "vol_20",
+        "vol_60",
+        "price_to_sma_10",
+        "drawdown_20",
+        "range_pos_20",
+    }.issubset(set(X.columns))
     assert "PETR4.SA" in meta["excluded_training_features"]
 
 
@@ -230,7 +245,11 @@ def test_train_models_prepares_only_train_slice_with_embargo(monkeypatch, tmp_pa
         "model": {
             "test_size": 0.20,
             "stacking": {"cv": 2},
-            "validation": {"embargo_by_horizon": True, "embargo_bars": "auto", "min_train_rows": 80},
+            "validation": {
+                "embargo_by_horizon": True,
+                "embargo_bars": "auto",
+                "min_train_rows": 80,
+            },
             "prediction_guards": {"max_engine_return_abs": 0.12, "max_final_return_abs": 0.08},
             "engine_safety": {"consensus_guard_enabled": True, "max_deviation_from_median": 0.025},
         },
@@ -259,7 +278,12 @@ def test_policy_blocks_low_risk_reward_signal():
         "trading": {"capital": 10000.0, "risk_per_trade_pct": 1.0, "allow_short": False},
     }
     results = {"d1": {"prediction_return": 0.003, "confidence": 0.80}}
-    meta = {"latest_price": 10.0, "latest_risk_pct": 2.0, "fundamentals": {}, "sentiment_value": 0.0}
+    meta = {
+        "latest_price": 10.0,
+        "latest_risk_pct": 2.0,
+        "fundamentals": {},
+        "sentiment_value": 0.0,
+    }
 
     policy = classify_signal(cfg, results, meta)
 
@@ -283,7 +307,12 @@ def test_policy_keeps_sell_informational_when_short_disabled():
         "trading": {"capital": 10000.0, "risk_per_trade_pct": 1.0, "allow_short": False},
     }
     results = {"d1": {"prediction_return": -0.02, "confidence": 0.90}}
-    meta = {"latest_price": 20.0, "latest_risk_pct": 1.0, "fundamentals": {}, "sentiment_value": -0.2}
+    meta = {
+        "latest_price": 20.0,
+        "latest_risk_pct": 1.0,
+        "fundamentals": {},
+        "sentiment_value": -0.2,
+    }
 
     policy = classify_signal(cfg, results, meta)
     signal = {"policy": policy}
@@ -323,7 +352,9 @@ def test_trade_plan_builds_partial_breakeven_and_trailing_rules():
         "reasons": ["test"],
     }
 
-    plan = build_trade_plan(cfg, ticker="PETR4.SA", policy=policy, latest_price=10.0, latest_risk_pct=2.0)
+    plan = build_trade_plan(
+        cfg, ticker="PETR4.SA", policy=policy, latest_price=10.0, latest_risk_pct=2.0
+    )
 
     assert plan["action"] == "ENTER"
     assert plan["side"] == "LONG"
@@ -364,9 +395,20 @@ def test_live_monitor_executes_partial_and_moves_stop_to_breakeven(monkeypatch):
         "history": [],
     }
     saved = []
-    monkeypatch.setattr(monitor, "load_latest_signal", lambda cfg, ticker: {"ticker": ticker, "latest_price": 11.0, "policy": {"label": "BUY"}, "trade_plan": plan})
+    monkeypatch.setattr(
+        monitor,
+        "load_latest_signal",
+        lambda cfg, ticker: {
+            "ticker": ticker,
+            "latest_price": 11.0,
+            "policy": {"label": "BUY"},
+            "trade_plan": plan,
+        },
+    )
     monkeypatch.setattr(monitor, "get_live_price", lambda ticker: 11.0)
-    monkeypatch.setattr(monitor, "save_portfolio_state", lambda portfolio: saved.append(portfolio.copy()))
+    monkeypatch.setattr(
+        monitor, "save_portfolio_state", lambda portfolio: saved.append(portfolio.copy())
+    )
 
     events = monitor._close_positions_on_live_triggers(cfg, portfolio)
 
@@ -380,22 +422,31 @@ def test_live_monitor_executes_partial_and_moves_stop_to_breakeven(monkeypatch):
 
 
 def test_cmd_portfolio_handles_positions_without_execution_targets(monkeypatch, capsys):
-    monkeypatch.setattr(cli_handlers, "load_config", lambda path: {})
+    monkeypatch.setattr("app.commands.portfolio_command.load_config", lambda path: {})
     monkeypatch.setattr(
-        cli_handlers,
-        "load_portfolio_state",
+        "app.commands.portfolio_command.load_portfolio_state",
         lambda **kwargs: {
             "account": {"initial_capital": 10000.0, "cash": 9000.0, "currency": "BRL"},
             "positions": {
-                "PETR4.SA": {"shares": 10, "entry_price": 12.5, "date": "2026-05-06", "side": "LONG"},
+                "PETR4.SA": {
+                    "shares": 10,
+                    "entry_price": 12.5,
+                    "date": "2026-05-06",
+                    "side": "LONG",
+                },
             },
             "history": [],
         },
     )
-    monkeypatch.setattr(cli_handlers, "_latest_signal_for", lambda cfg, ticker: None)
+    monkeypatch.setattr(
+        "app.commands.portfolio_command.load_latest_signal", lambda cfg, ticker: None
+    )
 
     class Args:
         config = None
+        portfolio_action = "status"
+        live = False
+        rebalance = False
 
     cli.cmd_portfolio(Args())
     out = capsys.readouterr().out
@@ -427,8 +478,15 @@ def test_schedule_rebalance_dates_respects_warmup_and_step():
     frame = pd.DataFrame(
         {
             "date": np.array(
-            ["2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06"],
-            dtype="datetime64[D]",
+                [
+                    "2026-05-01",
+                    "2026-05-02",
+                    "2026-05-03",
+                    "2026-05-04",
+                    "2026-05-05",
+                    "2026-05-06",
+                ],
+                dtype="datetime64[D]",
             )
         }
     )
@@ -439,9 +497,7 @@ def test_schedule_rebalance_dates_respects_warmup_and_step():
 def test_evaluation_baselines_include_trivial_comparators_without_lookahead():
     bars = pd.DataFrame(
         {
-            "date": pd.to_datetime(
-                ["2026-01-01", "2026-01-02", "2026-01-05", "2026-01-06"] * 2
-            ),
+            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-05", "2026-01-06"] * 2),
             "symbol": ["AAA.SA"] * 4 + ["BBB.SA"] * 4,
             "close": [100.0, 110.0, 99.0, 108.9, 50.0, 45.0, 49.5, 44.55],
         }
@@ -464,10 +520,32 @@ def test_evaluation_baselines_include_trivial_comparators_without_lookahead():
 
 def test_compare_model_to_baselines_reports_deltas_and_decision():
     comparison = compare_model_to_baselines(
-        {"total_return_pct": 4.0, "max_drawdown_pct": -3.0, "trade_count": 7, "hit_rate_pct": 60.0, "profit_factor": 1.5},
         {
-            "zero_return_no_trade": {"metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0, "hit_rate_pct": 0.0, "profit_factor": 0.0}},
-            "buy_and_hold_equal_weight": {"metrics": {"total_return_pct": 5.0, "max_drawdown_pct": -6.0, "trade_count": 2, "hit_rate_pct": 50.0, "profit_factor": 1.2}},
+            "total_return_pct": 4.0,
+            "max_drawdown_pct": -3.0,
+            "trade_count": 7,
+            "hit_rate_pct": 60.0,
+            "profit_factor": 1.5,
+        },
+        {
+            "zero_return_no_trade": {
+                "metrics": {
+                    "total_return_pct": 0.0,
+                    "max_drawdown_pct": 0.0,
+                    "trade_count": 0,
+                    "hit_rate_pct": 0.0,
+                    "profit_factor": 0.0,
+                }
+            },
+            "buy_and_hold_equal_weight": {
+                "metrics": {
+                    "total_return_pct": 5.0,
+                    "max_drawdown_pct": -6.0,
+                    "trade_count": 2,
+                    "hit_rate_pct": 50.0,
+                    "profit_factor": 1.2,
+                }
+            },
         },
     )
 
@@ -483,7 +561,9 @@ def test_compare_model_to_baselines_reports_deltas_and_decision():
 
 def test_enrich_model_metrics_from_execution_derives_trade_and_order_metrics():
     trades = pd.DataFrame({"pnl": [100.0, -50.0, 25.0], "return_pct": [2.0, -1.0, 0.5]})
-    orders = pd.DataFrame({"shares": [10, -5, 3], "fill_price": [20.0, 22.0, 21.0], "fees": [1.0, 1.5, 0.5]})
+    orders = pd.DataFrame(
+        {"shares": [10, -5, 3], "fill_price": [20.0, 22.0, 21.0], "fees": [1.0, 1.5, 0.5]}
+    )
 
     metrics = enrich_model_metrics_from_execution(
         {"total_return_pct": 3.0, "max_drawdown_pct": -2.0},
@@ -584,7 +664,12 @@ def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
         "tickers": ["PETR4.SA"],
         "rebalance_days": 5,
         "warmup_bars": 2,
-        "metrics": {"trade_count": 1, "total_return_pct": 2.5, "win_rate": 100.0, "total_pnl": 250.0},
+        "metrics": {
+            "trade_count": 1,
+            "total_return_pct": 2.5,
+            "win_rate": 100.0,
+            "total_pnl": 250.0,
+        },
         "baselines": {
             "zero_return_no_trade": {
                 "metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}
@@ -668,8 +753,18 @@ def test_refine_renderer_shows_family_count_and_share(monkeypatch):
                     "mae_return": 0.012,
                     "latest_prediction_return": 0.018,
                     "confidence": 0.60,
-                    "family_counts": {"technical": 1, "context": 1, "fundamentals": 0, "sentiment": 0},
-                    "family_relevance_share_pct": {"technical": 70.0, "context": 30.0, "fundamentals": 0.0, "sentiment": 0.0},
+                    "family_counts": {
+                        "technical": 1,
+                        "context": 1,
+                        "fundamentals": 0,
+                        "sentiment": 0,
+                    },
+                    "family_relevance_share_pct": {
+                        "technical": 70.0,
+                        "context": 30.0,
+                        "fundamentals": 0.0,
+                        "sentiment": 0.0,
+                    },
                     "decision": "keep",
                 }
             ],
@@ -701,7 +796,9 @@ def test_feature_removal_trains_shadow_profiles(monkeypatch):
             )
         )
         idx = prices.index
-        X = pd.DataFrame({"ret_1": [0.0, 0.01, 0.01, 0.01, 0.01], "ctx_x": [1, 2, 3, 4, 5]}, index=idx)
+        X = pd.DataFrame(
+            {"ret_1": [0.0, 0.01, 0.01, 0.01, 0.01], "ctx_x": [1, 2, 3, 4, 5]}, index=idx
+        )
         y = pd.DataFrame(
             {
                 "target_return_d1": [0.01, 0.01, 0.01, 0.01, None],
@@ -713,7 +810,15 @@ def test_feature_removal_trains_shadow_profiles(monkeypatch):
         return X, y, {"latest_price": 10.4}
 
     def fake_train_models(cfg, ticker, X, y, meta, autotune=False, horizon="d1", inner_threads=1):
-        calls.append(("train", ticker, meta["removal_profile"], horizon, cfg.get("app", {}).get("artifact_dir")))
+        calls.append(
+            (
+                "train",
+                ticker,
+                meta["removal_profile"],
+                horizon,
+                cfg.get("app", {}).get("artifact_dir"),
+            )
+        )
         profile = meta["removal_profile"]
         features = ["ret_1"] if profile == "technical_only" else ["ret_1", "ctx_x"]
         mae = 0.010 if profile == "full" else 0.012
@@ -748,12 +853,20 @@ def test_feature_removal_trains_shadow_profiles(monkeypatch):
 
     assert len(summary["rows"]) == 3
     assert summary["errors"] == []
-    assert all("artifacts/refine/" in row["artifact_dir"].replace("\\", "/") for row in summary["rows"])
+    assert all(
+        "artifacts/refine/" in row["artifact_dir"].replace("\\", "/") for row in summary["rows"]
+    )
     assert Path(summary["artifacts"]["summary_json"]).exists()
     assert Path(summary["artifacts"]["summary_txt"]).exists()
     assert Path(summary["artifacts"]["results_csv"]).exists()
     assert "technical_only" in Path(summary["artifacts"]["results_csv"]).read_text(encoding="utf-8")
-    assert ("train", "PETR4.SA", "technical_only", "d1", summary["rows"][1]["artifact_dir"]) not in calls
+    assert (
+        "train",
+        "PETR4.SA",
+        "technical_only",
+        "d1",
+        summary["rows"][1]["artifact_dir"],
+    ) not in calls
     dataset_calls = [call for call in calls if call[0] == "dataset"]
     assert dataset_calls[1][2] is False
     assert dataset_calls[1][3] is False
@@ -772,7 +885,12 @@ def test_removal_renderer_compares_delta_against_full(monkeypatch):
                     "profile": "full",
                     "mae_return": 0.010,
                     "confidence": 0.50,
-                    "family_counts": {"technical": 1, "context": 1, "fundamentals": 0, "sentiment": 0},
+                    "family_counts": {
+                        "technical": 1,
+                        "context": 1,
+                        "fundamentals": 0,
+                        "sentiment": 0,
+                    },
                 },
                 {
                     "ticker": "PETR4.SA",
@@ -780,19 +898,35 @@ def test_removal_renderer_compares_delta_against_full(monkeypatch):
                     "profile": "technical_only",
                     "mae_return": 0.012,
                     "confidence": 0.45,
-                    "family_counts": {"technical": 1, "context": 0, "fundamentals": 0, "sentiment": 0},
+                    "family_counts": {
+                        "technical": 1,
+                        "context": 0,
+                        "fundamentals": 0,
+                        "sentiment": 0,
+                    },
                 },
             ],
             "errors": [],
+            "decisions": [
+                {"profile": "full", "removed_family": "none", "decision": "reference"},
+                {
+                    "profile": "technical_only",
+                    "removed_family": "context+fundamentals+sentiment",
+                    "return_delta_pct": "",
+                    "drawdown_delta_pct": "",
+                    "profit_factor_delta": "",
+                    "decision": "keep_family",
+                },
+            ],
             "artifacts": {"dir": "artifacts/refine/refine_test"},
         }
     )
     output = "\n".join(lines)
-    assert "feature removal" in output
+    assert "controlled removal" in output
     assert "technical_only" in output
     assert "+0.20%" in output
     assert "worse" in output
-    assert "Artifacts:" in output
+    assert "REFINE DECISION" in output
 
 
 def test_feature_removal_walkforward_uses_shadow_profiles(monkeypatch):
@@ -814,7 +948,14 @@ def test_feature_removal_walkforward_uses_shadow_profiles(monkeypatch):
         inner_threads=1,
     ):
         profile = str(cfg.get("app", {}).get("artifact_dir", "")).split("/")[-1]
-        calls.append((profile, mode, cfg["features"]["context"]["enabled"], cfg["features"]["sentiment"]["enabled"]))
+        calls.append(
+            (
+                profile,
+                mode,
+                cfg["features"]["context"]["enabled"],
+                cfg["features"]["sentiment"]["enabled"],
+            )
+        )
         return {
             "run_id": f"sim_{profile}",
             "mode": "pybroker_walkforward_shadow",
@@ -891,15 +1032,26 @@ def test_removal_walkforward_renderer_compares_return_against_full(monkeypatch):
                 },
             ],
             "errors": [],
+            "decisions": [
+                {"profile": "full", "removed_family": "none", "decision": "reference"},
+                {
+                    "profile": "no_context",
+                    "removed_family": "context",
+                    "return_delta_pct": -0.75,
+                    "drawdown_delta_pct": -0.2,
+                    "profit_factor_delta": -0.4,
+                    "decision": "keep_family",
+                },
+            ],
             "artifacts": {"dir": "artifacts/refine/refine_wf_test"},
         }
     )
     output = "\n".join(lines)
-    assert "feature removal walk-forward" in output
+    assert "controlled removal walk-forward" in output
     assert "no_context" in output
     assert "-0.75%" in output
     assert "worse" in output
-    assert "Artifacts:" in output
+    assert "REFINE DECISION" in output
 
 
 def test_normalize_signal_plan_assigns_weights_only_to_actionable_signals():
@@ -908,23 +1060,40 @@ def test_normalize_signal_plan_assigns_weights_only_to_actionable_signals():
             "2026-05-06": {
                 "ABEV3.SA": {
                     "ticker": "ABEV3.SA",
-                    "policy": {"label": "BUY", "score_pct": 2.0, "confidence_pct": 70.0, "horizon": "d5"},
+                    "policy": {
+                        "label": "BUY",
+                        "score_pct": 2.0,
+                        "confidence_pct": 70.0,
+                        "horizon": "d5",
+                    },
                     "horizons": {"d5": {"prediction_return": 0.02}},
                 },
                 "PETR4.SA": {
                     "ticker": "PETR4.SA",
-                    "policy": {"label": "SELL", "score_pct": -1.0, "confidence_pct": 60.0, "horizon": "d1"},
+                    "policy": {
+                        "label": "SELL",
+                        "score_pct": -1.0,
+                        "confidence_pct": 60.0,
+                        "horizon": "d1",
+                    },
                     "horizons": {"d1": {"prediction_return": -0.01}},
                 },
                 "VALE3.SA": {
                     "ticker": "VALE3.SA",
-                    "policy": {"label": "NEUTRAL", "score_pct": 0.0, "confidence_pct": 10.0, "horizon": "d1"},
+                    "policy": {
+                        "label": "NEUTRAL",
+                        "score_pct": 0.0,
+                        "confidence_pct": 10.0,
+                        "horizon": "d1",
+                    },
                     "horizons": {"d1": {"prediction_return": 0.0}},
                 },
             }
         }
     )
-    weights = {ticker: payload["target_weight"] for ticker, payload in by_date["2026-05-06"].items()}
+    weights = {
+        ticker: payload["target_weight"] for ticker, payload in by_date["2026-05-06"].items()
+    }
     assert pytest.approx(sum(weights.values())) == 1.0
     assert weights["VALE3.SA"] == pytest.approx(0.0)
     assert by_symbol["ABEV3.SA"]["2026-05-06"]["score"] > 0
@@ -937,7 +1106,9 @@ def test_pybroker_strategy_config_uses_native_execution_controls():
         "simulation": {"costs": {"fee_mode": "order_percent", "fee_amount": 0.03}},
     }
 
-    config = _build_strategy_config(cfg, initial_cash=None, max_positions=3, allow_short=False, symbol_count=5)
+    config = _build_strategy_config(
+        cfg, initial_cash=None, max_positions=3, allow_short=False, symbol_count=5
+    )
 
     assert config.initial_cash == pytest.approx(20000.0)
     assert config.max_long_positions == 3
@@ -955,7 +1126,12 @@ def test_pybroker_entry_sizing_combines_risk_score_weight_and_cap():
     }
     signal = {
         "target_weight": 0.8,
-        "trade_plan": {"stop_initial": 9.5, "position_size": 999, "action": "ENTER", "side": "LONG"},
+        "trade_plan": {
+            "stop_initial": 9.5,
+            "position_size": 999,
+            "action": "ENTER",
+            "side": "LONG",
+        },
     }
 
     shares = _planned_entry_shares(cfg, signal, price=10.0, equity=10000.0)
@@ -974,7 +1150,12 @@ def test_pybroker_position_size_handler_sets_ranked_risk_shares():
                 "PETR4.SA": {
                     "pending_buy_signal": {
                         "target_weight": 0.5,
-                        "trade_plan": {"stop_initial": 9.5, "position_size": 0, "action": "ENTER", "side": "LONG"},
+                        "trade_plan": {
+                            "stop_initial": 9.5,
+                            "position_size": 0,
+                            "action": "ENTER",
+                            "side": "LONG",
+                        },
                     }
                 }
             }
@@ -1004,7 +1185,12 @@ def test_pybroker_position_size_handler_sets_ranked_risk_shares():
         "PETR4.SA": {
             "2026-05-06": {
                 "target_weight": 0.5,
-                "trade_plan": {"stop_initial": 9.5, "position_size": 0, "action": "ENTER", "side": "LONG"},
+                "trade_plan": {
+                    "stop_initial": 9.5,
+                    "position_size": 0,
+                    "action": "ENTER",
+                    "side": "LONG",
+                },
             }
         }
     }
@@ -1064,8 +1250,19 @@ def test_model5_ui_renders_clean_without_color():
     lines = []
     lines.extend(ui5.render_header("VALIDATE - PYBROKER - REPLAY", width=80, use_color=False))
     lines.extend(ui5.render_section("RESUMO", width=80, use_color=False))
-    lines.extend(ui5.render_key_values({"Experimento": "Teste", "Conclusao preliminar": "Ok"}, width=80, use_color=False))
-    lines.extend(ui5.render_table(["Configuracao", "Erro", "Decisao"], [["base", "0.01", ui5.render_badge("ok", "ok", use_color=False)]], width=80, use_color=False))
+    lines.extend(
+        ui5.render_key_values(
+            {"Experimento": "Teste", "Conclusao preliminar": "Ok"}, width=80, use_color=False
+        )
+    )
+    lines.extend(
+        ui5.render_table(
+            ["Configuracao", "Erro", "Decisao"],
+            [["base", "0.01", ui5.render_badge("ok", "ok", use_color=False)]],
+            width=80,
+            use_color=False,
+        )
+    )
     lines.extend(ui5.render_operational_closing(["Revisar resultado."], width=80, use_color=False))
     output = "\n".join(lines)
     assert "\x1b[" not in output
@@ -1122,6 +1319,18 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
                     }
                 ],
             },
+            "validation_decision": {
+                "final_decision": "observe",
+                "score": 80.0,
+                "checks": {
+                    "beats_required_baselines": {"passed": True},
+                    "enough_trades": {"passed": False},
+                    "profit_factor_ok": {"passed": True},
+                    "max_drawdown_ok": {"passed": True},
+                    "exposure_ok": {"passed": True},
+                },
+                "explanation": ["Model beat 1/1 required baselines."],
+            },
         },
         mode="replay",
         screen_title="VALIDATE",
@@ -1130,6 +1339,7 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
     assert "ECONOMIA" in output
     assert "Profit F" in output
     assert "MODELO VS BASELINES" in output
+    assert "VALIDATION DECISION" in output
     assert "passes_baselines" in output
     assert "zero_return_no_trade" in output
 

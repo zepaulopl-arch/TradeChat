@@ -40,8 +40,7 @@ def _connect_state_db(path: Path) -> sqlite3.Connection:
 
 
 def _ensure_state_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(
-        """
+    conn.executescript("""
         CREATE TABLE IF NOT EXISTS metadata (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -65,8 +64,7 @@ def _ensure_state_schema(conn: sqlite3.Connection) -> None:
             payload TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-        """
-    )
+        """)
     conn.commit()
 
 
@@ -144,13 +142,11 @@ def _write_portfolio_db(conn: sqlite3.Connection, portfolio: dict[str, Any]) -> 
                 created_at,
             ),
         )
-    conn.execute(
-        """
+    conn.execute("""
         INSERT INTO metadata (key, value)
         VALUES ('state_format', 'sqlite_v1')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """
-    )
+        """)
     conn.commit()
 
 

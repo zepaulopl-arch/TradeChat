@@ -5,8 +5,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_preparation_module_exists_and_is_used():
     assert (ROOT / "app" / "preparation.py").exists()
+    models_py = (ROOT / "app" / "models.py").read_text(encoding="utf-8")
     features_py = (ROOT / "app" / "features.py").read_text(encoding="utf-8")
-    assert "prepare_training_matrix" in features_py
+    assert "prepare_training_matrix" in models_py
     assert "generated_feature_count" in features_py
     assert "selected_features" in features_py
 

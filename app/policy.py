@@ -20,7 +20,9 @@ def _ridge_mae_pct(prediction: dict[str, Any]) -> float:
     return abs(float(ridge.get("mae_return", 0.0) or 0.0)) * 100.0
 
 
-def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: dict[str, Any]) -> dict[str, Any]:
+def classify_signal(
+    cfg: dict[str, Any], results: dict[str, Any], dataset_meta: dict[str, Any]
+) -> dict[str, Any]:
     """Classify the tactical signal using D1/D5/D20 predictions."""
     pcfg = cfg.get("policy", {}) or {}
     floor_pct = _confidence_floor_pct(pcfg)
@@ -60,7 +62,9 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
         h_reasons = [f"{h_name}_ret={ret_pct:+.2f}%", f"{h_name}_quality={conf_pct:.0f}%"]
 
         if conf_pct < floor_pct:
-            skipped_by_confidence.append(f"{h_name} quality below floor ({conf_pct:.0f}% < {floor_pct:.0f}%)")
+            skipped_by_confidence.append(
+                f"{h_name} quality below floor ({conf_pct:.0f}% < {floor_pct:.0f}%)"
+            )
             continue
 
         h_label = "NEUTRAL"
@@ -86,25 +90,33 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
 
         if h_label == "STRONG BUY" and conf_pct < high_conf_pct:
             h_label, h_posture = "BUY", f"buy_{posture_type}_selective"
-            h_reasons.append(f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%")
+            h_reasons.append(
+                f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%"
+            )
         elif h_label == "STRONG SELL" and conf_pct < high_conf_pct:
             h_label, h_posture = "SELL", f"sell_{posture_type}_selective"
-            h_reasons.append(f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%")
+            h_reasons.append(
+                f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%"
+            )
 
         if h_label != "NEUTRAL":
-            candidates.append({
-                "label": h_label,
-                "posture": h_posture,
-                "score_pct": ret_pct,
-                "confidence_pct": conf_pct,
-                "quality_pct": conf_pct,
-                "horizon": h_name,
-                "reasons": h_reasons,
-            })
+            candidates.append(
+                {
+                    "label": h_label,
+                    "posture": h_posture,
+                    "score_pct": ret_pct,
+                    "confidence_pct": conf_pct,
+                    "quality_pct": conf_pct,
+                    "horizon": h_name,
+                    "reasons": h_reasons,
+                }
+            )
 
     priority = {"STRONG BUY": 4, "STRONG SELL": 4, "BUY": 3, "SELL": 3, "NEUTRAL": 1}
     if candidates:
-        candidates.sort(key=lambda x: (priority.get(x["label"], 0), x["confidence_pct"]), reverse=True)
+        candidates.sort(
+            key=lambda x: (priority.get(x["label"], 0), x["confidence_pct"]), reverse=True
+        )
         best_signal = candidates[0]
     else:
         d1 = results.get("d1", {}) or {}
@@ -140,7 +152,11 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
         if sent > max_sent:
             filters.append(f"sentiment {sent:+.2f} above strong-sell limit")
 
-    if "BUY" in best_signal["label"] and risk_pct and risk_pct > float(pcfg.get("max_risk_pct_for_buy", 4.0)):
+    if (
+        "BUY" in best_signal["label"]
+        and risk_pct
+        and risk_pct > float(pcfg.get("max_risk_pct_for_buy", 4.0))
+    ):
         filters.append(f"risk {risk_pct:.2f}% above buy limit")
 
     if filters:
@@ -211,7 +227,9 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
     allow_short = bool(
         pcfg.get(
             "allow_short",
-            cfg.get("trading", {}).get("allow_short", cfg.get("simulation", {}).get("allow_short", False)),
+            cfg.get("trading", {}).get(
+                "allow_short", cfg.get("simulation", {}).get("allow_short", False)
+            ),
         )
     )
     actionable = best_signal["label"] != "NEUTRAL"

@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     rows: list[dict[str, Any]] = []
     if workers == 1:
         for idx, ticker in enumerate(tickers, start=1):
-            print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> predict", end=" ", flush=True)
+            print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> signal", end=" ", flush=True)
             row = diagnose_one_asset(cfg, ticker, no_data=bool(args.no_data), autotune=bool(args.autotune), inner_threads=None)
             rows.append(row)
             _print_status(row)
@@ -183,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
                         "traceback": "",
                     }
                 rows.append(row)
-                print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> predict", end=" ", flush=True)
+                print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> signal", end=" ", flush=True)
                 _print_status(row)
 
     rows.sort(key=lambda row: str(row.get("ticker") or row.get("input_ticker") or ""))

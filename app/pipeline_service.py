@@ -28,7 +28,11 @@ def resolve_tickers(cfg: dict[str, Any], raw_tickers: list[str]) -> list[str]:
     if "ALL" in [ticker.upper() for ticker in raw_tickers]:
         registry = load_data_registry(cfg)
         assets = registry.get("assets", {})
-        return [ticker for ticker, meta in assets.items() if isinstance(meta, dict) and meta.get("registry_status") == "active"]
+        return [
+            ticker
+            for ticker, meta in assets.items()
+            if isinstance(meta, dict) and meta.get("registry_status") == "active"
+        ]
     return [ticker for ticker in parse_tickers(raw_tickers) if is_active_asset(cfg, ticker)]
 
 

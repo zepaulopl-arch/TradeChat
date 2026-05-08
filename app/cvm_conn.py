@@ -1,12 +1,15 @@
-import yfinance as yf
-import re
+import io
 import logging
+import os
+import re
+import zipfile
+
 import pandas as pd
 import requests
-import zipfile
-import io
-import os
 import urllib3
+import yfinance as yf
+
+from .config import historical_dir, load_config
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -14,12 +17,12 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # CVM Connector
 # ==============================================================================
 
-from .config import historical_dir, load_config
 
 def _get_cvm_cache_path() -> str:
     # Use the same historical directory as other data
     cfg = load_config()
     return str(historical_dir(cfg) / "cvm_history.parquet")
+
 
 CVM_CACHE_FILE = _get_cvm_cache_path()
 
@@ -45,57 +48,81 @@ class CVMConnector:
         """
         if years is None:
             years = list(range(2022, 2027))
-        
+
         frames = []
         for year in years:
-            for doc_type in ['DFP', 'ITR']:
+            for doc_type in ["DFP", "ITR"]:
                 try:
                     url = f"https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/{doc_type}/DADOS/{doc_type.lower()}_cia_aberta_{year}.zip"
                     logging.info(f"Baixando base CVM: {doc_type} referente a {year}...")
-                    
+
                     r = requests.get(url, verify=False, timeout=30)
                     if r.status_code != 200:
                         continue
-                        
+
                     z = zipfile.ZipFile(io.BytesIO(r.content))
-                    lag_days = 45 if doc_type == 'ITR' else 90
-                    
+                    lag_days = 45 if doc_type == "ITR" else 90
+
                     # DRE Consolidado (3.11 = Lucro Liquido)
-                    dre_file = f'{doc_type.lower()}_cia_aberta_DRE_con_{year}.csv'
+                    dre_file = f"{doc_type.lower()}_cia_aberta_DRE_con_{year}.csv"
                     if dre_file in z.namelist():
-                        dre = pd.read_csv(z.open(dre_file), sep=';', encoding='iso-8859-1')
-                        if 'DT_FIM_EXERC' in dre.columns:
-                            dre = dre[(dre['CD_CONTA'] == '3.11') & (dre['ORDEM_EXERC'] == 'ÚLTIMO')]
-                            dre['INDICADOR'] = 'LUCRO_LIQUIDO'
-                            dre['DT_FIM_EXERC'] = pd.to_datetime(dre['DT_FIM_EXERC'])
-                            dre['DT_DISPONIVEL'] = dre['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
-                            frames.append(dre[['CNPJ_CIA', 'DT_DISPONIVEL', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
-                        
+                        dre = pd.read_csv(z.open(dre_file), sep=";", encoding="iso-8859-1")
+                        if "DT_FIM_EXERC" in dre.columns:
+                            dre = dre[
+                                (dre["CD_CONTA"] == "3.11") & (dre["ORDEM_EXERC"] == "ÚLTIMO")
+                            ]
+                            dre["INDICADOR"] = "LUCRO_LIQUIDO"
+                            dre["DT_FIM_EXERC"] = pd.to_datetime(dre["DT_FIM_EXERC"])
+                            dre["DT_DISPONIVEL"] = dre["DT_FIM_EXERC"] + pd.Timedelta(days=lag_days)
+                            frames.append(
+                                dre[
+                                    [
+                                        "CNPJ_CIA",
+                                        "DT_DISPONIVEL",
+                                        "DT_FIM_EXERC",
+                                        "VL_CONTA",
+                                        "INDICADOR",
+                                    ]
+                                ]
+                            )
+
                     # BPP Consolidado (2.03 = Patrimonio Liquido)
-                    bpp_file = f'{doc_type.lower()}_cia_aberta_BPP_con_{year}.csv'
+                    bpp_file = f"{doc_type.lower()}_cia_aberta_BPP_con_{year}.csv"
                     if bpp_file in z.namelist():
-                        bpp = pd.read_csv(z.open(bpp_file), sep=';', encoding='iso-8859-1')
-                        if 'DT_FIM_EXERC' in bpp.columns:
-                            bpp = bpp[(bpp['CD_CONTA'] == '2.03') & (bpp['ORDEM_EXERC'] == 'ÚLTIMO')]
-                            bpp['INDICADOR'] = 'PATRIMONIO_LIQUIDO'
-                            bpp['DT_FIM_EXERC'] = pd.to_datetime(bpp['DT_FIM_EXERC'])
-                            bpp['DT_DISPONIVEL'] = bpp['DT_FIM_EXERC'] + pd.Timedelta(days=lag_days)
-                            frames.append(bpp[['CNPJ_CIA', 'DT_DISPONIVEL', 'DT_FIM_EXERC', 'VL_CONTA', 'INDICADOR']])
+                        bpp = pd.read_csv(z.open(bpp_file), sep=";", encoding="iso-8859-1")
+                        if "DT_FIM_EXERC" in bpp.columns:
+                            bpp = bpp[
+                                (bpp["CD_CONTA"] == "2.03") & (bpp["ORDEM_EXERC"] == "ÚLTIMO")
+                            ]
+                            bpp["INDICADOR"] = "PATRIMONIO_LIQUIDO"
+                            bpp["DT_FIM_EXERC"] = pd.to_datetime(bpp["DT_FIM_EXERC"])
+                            bpp["DT_DISPONIVEL"] = bpp["DT_FIM_EXERC"] + pd.Timedelta(days=lag_days)
+                            frames.append(
+                                bpp[
+                                    [
+                                        "CNPJ_CIA",
+                                        "DT_DISPONIVEL",
+                                        "DT_FIM_EXERC",
+                                        "VL_CONTA",
+                                        "INDICADOR",
+                                    ]
+                                ]
+                            )
                 except Exception as e:
                     logging.error(f"Erro ao processar {doc_type} {year}: {e}")
-                    
+
         if frames:
             df = pd.concat(frames)
-            df['CNPJ_CLEAN'] = df['CNPJ_CIA'].str.replace(r'\D', '', regex=True)
-            
+            df["CNPJ_CLEAN"] = df["CNPJ_CIA"].str.replace(r"\D", "", regex=True)
+
             df_pivot = df.pivot_table(
-                index=['CNPJ_CLEAN', 'DT_DISPONIVEL'], 
-                columns='INDICADOR', 
-                values='VL_CONTA',
-                aggfunc='last'
+                index=["CNPJ_CLEAN", "DT_DISPONIVEL"],
+                columns="INDICADOR",
+                values="VL_CONTA",
+                aggfunc="last",
             ).reset_index()
-            
-            df_pivot = df_pivot.sort_values(by=['CNPJ_CLEAN', 'DT_DISPONIVEL'])
+
+            df_pivot = df_pivot.sort_values(by=["CNPJ_CLEAN", "DT_DISPONIVEL"])
             df_pivot.to_parquet(CVM_CACHE_FILE)
             self.db = df_pivot
             logging.info(f"Banco de dados CVM atualizado ({len(df_pivot)} registros).")
@@ -109,23 +136,23 @@ class CVMConnector:
         """
         if not cnpj:
             cnpj = self._get_cnpj(ticker)
-        
+
         if cnpj:
             cnpj = re.sub(r"\D", "", str(cnpj))
-            
+
         if not cnpj or self.db is None or self.db.empty:
             return pd.DataFrame()
-            
-        df_ticker = self.db[self.db['CNPJ_CLEAN'] == cnpj].copy()
+
+        df_ticker = self.db[self.db["CNPJ_CLEAN"] == cnpj].copy()
         if df_ticker.empty:
             return pd.DataFrame()
-            
-        df_ticker = df_ticker.set_index('DT_DISPONIVEL')
-        
+
+        df_ticker = df_ticker.set_index("DT_DISPONIVEL")
+
         # Preencher possíveis NAs se uma das planilhas faltar num trimestre
         df_ticker = df_ticker.ffill()
-        
-        return df_ticker[['LUCRO_LIQUIDO', 'PATRIMONIO_LIQUIDO']]
+
+        return df_ticker[["LUCRO_LIQUIDO", "PATRIMONIO_LIQUIDO"]]
 
     def fetch_essentials(self, ticker):
         """
@@ -139,16 +166,20 @@ class CVMConnector:
 
         # Se temos o DB local e há dados para esse CNPJ, usamos o real.
         if self.db is not None and not self.db.empty:
-            df_ticker = self.db[self.db['CNPJ_CLEAN'] == cnpj]
+            df_ticker = self.db[self.db["CNPJ_CLEAN"] == cnpj]
             if not df_ticker.empty:
                 # Pega a linha mais recente
                 latest = df_ticker.iloc[-1]
                 return {
                     "cnpj": cnpj,
-                    "lucro_liquido": float(latest.get('LUCRO_LIQUIDO', 0.0) or 0.0),
-                    "patrimonio_liquido": float(latest.get('PATRIMONIO_LIQUIDO', 0.0) or 0.0),
+                    "lucro_liquido": float(latest.get("LUCRO_LIQUIDO", 0.0) or 0.0),
+                    "patrimonio_liquido": float(latest.get("PATRIMONIO_LIQUIDO", 0.0) or 0.0),
                     "ticker_source": ticker,
-                    "data_referencia": str(latest.name if 'DT_FIM_EXERC' not in df_ticker.columns else latest['DT_FIM_EXERC'])
+                    "data_referencia": str(
+                        latest.name
+                        if "DT_FIM_EXERC" not in df_ticker.columns
+                        else latest["DT_FIM_EXERC"]
+                    ),
                 }
 
         # Fallback (mock) caso ainda não tenha baixado ou a empresa não exista na CVM
@@ -168,16 +199,14 @@ class CVMConnector:
 
         try:
             t = yf.Ticker(f"{clean_ticker}.SA")
-            summary = t.info.get("longBusinessSummary", "") or t.info.get(
-                "description", ""
-            )
+            summary = t.info.get("longBusinessSummary", "") or t.info.get("description", "")
             match = re.search(r"\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}", summary)
 
             if match:
                 cnpj = re.sub(r"\D", "", match.group(0))
                 self._cache_cnpj[clean_ticker] = cnpj
                 return cnpj
-        except:
+        except Exception:
             pass
 
         return None

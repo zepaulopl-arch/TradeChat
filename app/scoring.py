@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from typing import Any
 
-
 HORIZON_DAYS = {"d1": 1, "d5": 5, "d20": 20}
 SIGNAL_PRIORITY_MAP = {
     "STRONG BUY": 100,
@@ -45,7 +44,11 @@ def signal_score(signal: dict[str, Any]) -> float:
 
 
 def signal_side(label_or_signal: str | dict[str, Any]) -> str | None:
-    label = signal_label(label_or_signal) if isinstance(label_or_signal, dict) else str(label_or_signal).upper()
+    label = (
+        signal_label(label_or_signal)
+        if isinstance(label_or_signal, dict)
+        else str(label_or_signal).upper()
+    )
     if "BUY" in label:
         return "LONG"
     if "SELL" in label:

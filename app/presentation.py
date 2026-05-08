@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import shutil
 import textwrap
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 
 class C:
@@ -84,7 +85,9 @@ def fit_cell(text: Any, width: int) -> str:
     if len(plain) <= width:
         return raw
     clipped = _ellipsis(plain, width)
-    match = re.match(r"^(?P<prefix>(?:\x1b\[[0-9;]*m)*)(?P<body>.*?)(?P<suffix>(?:\x1b\[[0-9;]*m)*)$", raw)
+    match = re.match(
+        r"^(?P<prefix>(?:\x1b\[[0-9;]*m)*)(?P<body>.*?)(?P<suffix>(?:\x1b\[[0-9;]*m)*)$", raw
+    )
     if match and match.group("prefix"):
         return f"{match.group('prefix')}{clipped}{match.group('suffix') or C.RESET}"
     return clipped
@@ -105,7 +108,11 @@ def banner(title: str, *parts: Any, width: int | None = None, use_color: bool = 
     colored_title = paint(title, C.BOLD, use_color=use_color)
     visible_parts = [str(part) for part in parts if str(part).strip()]
     line = colored_title if not visible_parts else f"{colored_title} | {' | '.join(visible_parts)}"
-    return [divider(size, use_color=use_color), fit_cell(line, size), divider(size, use_color=use_color)]
+    return [
+        divider(size, use_color=use_color),
+        fit_cell(line, size),
+        divider(size, use_color=use_color),
+    ]
 
 
 def render_facts(
@@ -123,7 +130,13 @@ def render_facts(
             tone = ""
         else:
             label, value, tone = item
-        prepared.append((strip_ansi(str(label)) if not use_color else str(label), strip_ansi(str(value)) if not use_color else str(value), tone))
+        prepared.append(
+            (
+                strip_ansi(str(label)) if not use_color else str(label),
+                strip_ansi(str(value)) if not use_color else str(value),
+                tone,
+            )
+        )
     if not prepared:
         return []
 
@@ -147,7 +160,9 @@ def render_facts(
     return rows
 
 
-def render_wrapped(label: str, value: Any, *, width: int | None = None, use_color: bool = True) -> list[str]:
+def render_wrapped(
+    label: str, value: Any, *, width: int | None = None, use_color: bool = True
+) -> list[str]:
     size = width or screen_width()
     prefix = f"{label}: "
     body_width = max(12, size - len(prefix))
@@ -176,10 +191,11 @@ def render_table(
     aligns = aligns or ["left"] * len(headers)
     mins = list(min_widths or [max(5, min(len(h), 12)) for h in headers])
     cell_rows = [
-        [strip_ansi(str(cell)) if not use_color else str(cell) for cell in row]
-        for row in rows
+        [strip_ansi(str(cell)) if not use_color else str(cell) for cell in row] for row in rows
     ]
-    widths = [visible_len(strip_ansi(str(header)) if not use_color else str(header)) for header in headers]
+    widths = [
+        visible_len(strip_ansi(str(header)) if not use_color else str(header)) for header in headers
+    ]
     for row in cell_rows:
         for idx, cell in enumerate(row[: len(widths)]):
             widths[idx] = max(widths[idx], visible_len(cell))

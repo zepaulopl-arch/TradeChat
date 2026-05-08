@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from typing import Any
+
 import numpy as np
 import pandas as pd
 
-
 from .feature_audit import feature_family as _family_of
-
 
 _DEFAULT_LEVEL_FEATURES = {
     "frac_mem",
@@ -24,7 +23,9 @@ def _looks_like_raw_provider_column(name: str) -> bool:
     return value.startswith("^") or value.endswith(".SA") or "=" in value
 
 
-def _drop_stationarity_blocked_features(X: pd.DataFrame, cfg: dict[str, Any]) -> tuple[pd.DataFrame, list[str]]:
+def _drop_stationarity_blocked_features(
+    X: pd.DataFrame, cfg: dict[str, Any]
+) -> tuple[pd.DataFrame, list[str]]:
     prep = cfg.get("features", {}).get("preparation", {}) or {}
     stationarity = prep.get("stationarity", {}) or {}
     blocked_names: set[str] = set()
@@ -115,10 +116,18 @@ def _greedy_low_correlation_selection(
         if col in selected:
             return False, "already_selected"
         fam = _family_of(col)
-        if enforce_family_max and fam in family_maximums and family_count(fam) >= family_maximums[fam]:
+        if (
+            enforce_family_max
+            and fam in family_maximums
+            and family_count(fam) >= family_maximums[fam]
+        ):
             return False, f"family_limit:{fam}:{family_maximums[fam]}"
         for chosen in selected:
-            value = float(corr.loc[col, chosen]) if col in corr.index and chosen in corr.columns else 0.0
+            value = (
+                float(corr.loc[col, chosen])
+                if col in corr.index and chosen in corr.columns
+                else 0.0
+            )
             if value > threshold:
                 return False, f"correlated_with:{chosen}:{value:.4f}"
         return True, "ok"
@@ -170,14 +179,20 @@ def _greedy_low_correlation_selection(
         "family_maximums": family_maximums,
         "selected_count": len(selected),
         "relevance": {k: float(v) for k, v in relevance.loc[selected].items()},
-        "families": {fam: len([c for c in selected if _family_of(c) == fam]) for fam in ("technical", "context", "fundamentals", "sentiment")},
+        "families": {
+            fam: len([c for c in selected if _family_of(c) == fam])
+            for fam in ("technical", "context", "fundamentals", "sentiment")
+        },
         "forced_fill": forced,
         "rejected_count": len(rejected),
         "rejected_sample": dict(list(rejected.items())[:20]),
     }
     return selected, meta
 
-def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
+
+def prepare_training_matrix(
+    X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]
+) -> tuple[pd.DataFrame, pd.Series, dict[str, Any]]:
     """Pre-model data preparation: clean, reduce collinearity, select features.
 
     This is intentionally internal. The CLI stays unchanged; features.yaml controls
@@ -228,10 +243,14 @@ def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) 
     select_cfg = prep.get("selection", {}) or {}
     if bool(select_cfg.get("enabled", True)):
         max_features = int(select_cfg.get("max_features", 20))
-        threshold = float(select_cfg.get("correlation_threshold", fcfg.get("multicollinearity_threshold", 0.88)))
+        threshold = float(
+            select_cfg.get("correlation_threshold", fcfg.get("multicollinearity_threshold", 0.88))
+        )
         family_minimums = select_cfg.get("family_minimums", {}) or {}
         family_limits = select_cfg.get("family_limits", {}) or {}
-        selected, selection_meta = _greedy_low_correlation_selection(X1, y1, max_features, threshold, family_minimums, family_limits)
+        selected, selection_meta = _greedy_low_correlation_selection(
+            X1, y1, max_features, threshold, family_minimums, family_limits
+        )
         X2 = X1[selected]
         meta["selection"] = selection_meta
     else:
@@ -240,5 +259,8 @@ def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) 
 
     meta["selected_features"] = list(X2.columns)
     meta["selected_feature_count"] = len(X2.columns)
-    meta["families"] = {fam: len([c for c in X2.columns if _family_of(c) == fam]) for fam in ("technical", "context", "fundamentals", "sentiment")}
+    meta["families"] = {
+        fam: len([c for c in X2.columns if _family_of(c) == fam])
+        for fam in ("technical", "context", "fundamentals", "sentiment")
+    }
     return X2, y1.loc[X2.index], meta

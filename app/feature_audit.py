@@ -44,7 +44,9 @@ def abbreviate_feature_name(feature: str, max_len: int = 22) -> str:
     return name[: max(3, max_len - 1)] + "…"
 
 
-def selected_feature_scores(prep_meta: dict[str, Any], features: list[str] | None = None) -> dict[str, float]:
+def selected_feature_scores(
+    prep_meta: dict[str, Any], features: list[str] | None = None
+) -> dict[str, float]:
     sel = (prep_meta or {}).get("selection", {}) or {}
     rel = sel.get("relevance", {}) or {}
     out: dict[str, float] = {}
@@ -57,17 +59,21 @@ def selected_feature_scores(prep_meta: dict[str, Any], features: list[str] | Non
     return out
 
 
-def top_selected_features(prep_meta: dict[str, Any], features: list[str], n: int = 5) -> list[dict[str, Any]]:
+def top_selected_features(
+    prep_meta: dict[str, Any], features: list[str], n: int = 5
+) -> list[dict[str, Any]]:
     scores = selected_feature_scores(prep_meta, features)
     ordered = sorted([str(f) for f in features], key=lambda f: scores.get(f, 0.0), reverse=True)
     result: list[dict[str, Any]] = []
     for feature in ordered[: max(0, int(n))]:
-        result.append({
-            "name": feature,
-            "short": abbreviate_feature_name(feature),
-            "family": feature_family(feature),
-            "score": float(scores.get(feature, 0.0)),
-        })
+        result.append(
+            {
+                "name": feature,
+                "short": abbreviate_feature_name(feature),
+                "family": feature_family(feature),
+                "score": float(scores.get(feature, 0.0)),
+            }
+        )
     return result
 
 

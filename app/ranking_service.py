@@ -6,7 +6,16 @@ from typing import Any
 import pandas as pd
 
 from .portfolio_service import iter_latest_signals
-from .presentation import C, banner, divider, paint, render_facts, render_table, screen_width, tone_signal
+from .presentation import (
+    C,
+    banner,
+    divider,
+    paint,
+    render_facts,
+    render_table,
+    screen_width,
+    tone_signal,
+)
 from .scoring import signal_priority, signal_score, trigger_horizon, trigger_result
 
 
@@ -25,9 +34,12 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
                     "signal": str(policy.get("label", "NEUTRAL")),
                     "horizon": trigger_horizon(data).upper(),
                     "trigger_ret": triggered_ret,
-                    "d1_ret": float(horizons.get("d1", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
-                    "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
-                    "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
+                    "d1_ret": float(horizons.get("d1", {}).get("prediction_return", 0.0) or 0.0)
+                    * 100.0,
+                    "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0) or 0.0)
+                    * 100.0,
+                    "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0) or 0.0)
+                    * 100.0,
                     "quality_pct": quality_pct,
                     "score": signal_score(data),
                     "priority": signal_priority(data),
@@ -54,7 +66,13 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
     lines: list[str] = []
 
     lines.append("")
-    lines.extend(banner("TRADECHAT RANKING", paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE), width=width))
+    lines.extend(
+        banner(
+            "TRADECHAT RANKING",
+            paint(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), C.BLUE),
+            width=width,
+        )
+    )
     lines.extend(
         render_facts(
             [

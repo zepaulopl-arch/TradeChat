@@ -5,7 +5,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_presentation_module_provides_shared_layout_helpers():
     text = (ROOT / "app" / "presentation.py").read_text(encoding="utf-8")
-    for token in ["def screen_width", "def banner", "def render_facts", "def render_table", "class C:"]:
+    for token in [
+        "def screen_width",
+        "def banner",
+        "def render_facts",
+        "def render_table",
+        "class C:",
+    ]:
         assert token in text
 
 

@@ -97,11 +97,15 @@ def _safe_stage(row: dict[str, Any], stage: str, fn) -> Any:
         return None
 
 
-def _skip_insufficient_rows(row: dict[str, Any], *, stage: str, rows: int, min_rows: int) -> dict[str, Any]:
+def _skip_insufficient_rows(
+    row: dict[str, Any], *, stage: str, rows: int, min_rows: int
+) -> dict[str, Any]:
     row["status"] = "skipped"
     row["stage"] = stage
     row["failed_stage"] = stage
-    row["error"] = f"insufficient rows: {rows} < {min_rows}; wait for more history or remove from reference sample"
+    row["error"] = (
+        f"insufficient rows: {rows} < {min_rows}; wait for more history or remove from reference sample"
+    )
     row["traceback"] = ""
     return row
 
@@ -153,7 +157,9 @@ def diagnose_one_asset(
             "context_available": ",".join(st.get("context_tickers", []) or []),
             "context_requested": ",".join(st.get("requested_context_tickers", []) or []),
             "context_unavailable": ",".join(st.get("unavailable_context_tickers", []) or []),
-            "linked_indices": ",".join((st.get("asset_profile", {}) or {}).get("linked_indices", []) or []),
+            "linked_indices": ",".join(
+                (st.get("asset_profile", {}) or {}).get("linked_indices", []) or []
+            ),
         }
     )
     min_rows = int(cfg.get("data", {}).get("min_rows", 150))
@@ -184,20 +190,24 @@ def diagnose_one_asset(
         return row
     raw_X, all_y, meta = built
     if len(raw_X) < min_rows:
-        return _skip_insufficient_rows(row, stage="dataset_rows", rows=len(raw_X), min_rows=min_rows)
+        return _skip_insufficient_rows(
+            row, stage="dataset_rows", rows=len(raw_X), min_rows=min_rows
+        )
 
     for t_col in ["target_return_d1", "target_return_d5", "target_return_d20"]:
         horizon = t_col.split("_")[-1]
         y_series = all_y[t_col].dropna()
         if len(y_series) < min_rows:
-            return _skip_insufficient_rows(row, stage=f"target_rows_{horizon}", rows=len(y_series), min_rows=min_rows)
+            return _skip_insufficient_rows(
+                row, stage=f"target_rows_{horizon}", rows=len(y_series), min_rows=min_rows
+            )
 
         h_meta = meta.copy()
         h_meta["horizon"] = horizon
         manifest = _safe_stage(
             row,
             f"train_{horizon}",
-            lambda: train_models(
+            lambda t_col=t_col, h_meta=h_meta, horizon=horizon: train_models(
                 cfg,
                 canonical,
                 raw_X,
@@ -228,7 +238,10 @@ def diagnose_one_asset(
                     "mae_arbiter": ridge_metrics.get("mae_return", ""),
                     "engine_dispersion": manifest.get("engine_dispersion", 0.0),
                     "train_prediction_pct": _fmt_pct(manifest.get("latest_prediction_return", 0.0)),
-                    "train_quality_pct": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0) * 100.0,
+                    "train_quality_pct": float(
+                        manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0
+                    )
+                    * 100.0,
                 }
             )
 
@@ -242,7 +255,9 @@ def diagnose_one_asset(
             "signal": policy.get("label", ""),
             "posture": policy.get("posture", ""),
             "prediction_pct": float(policy.get("score_pct", 0.0) or 0.0),
-            "quality_pct": float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0),
+            "quality_pct": float(
+                policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0
+            ),
             "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0)) * 100.0,
             "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0)) * 100.0,
             "reasons": "; ".join(policy.get("reasons", []) or []),

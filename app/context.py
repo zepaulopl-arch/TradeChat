@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -15,7 +16,9 @@ def _rolling_beta(asset_ret: pd.Series, macro_ret: pd.Series, window: int) -> pd
     return cov / var.replace(0, np.nan)
 
 
-def add_market_context_features(dataset: pd.DataFrame, prices: pd.DataFrame, ticker: str, cfg: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, Any]]:
+def add_market_context_features(
+    dataset: pd.DataFrame, prices: pd.DataFrame, ticker: str, cfg: dict[str, Any]
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Add temporal market-context features from the asset's configured index basket.
 
     Context is no longer a generic snapshot. Each macro/index column is transformed by
@@ -68,7 +71,9 @@ def add_market_context_features(dataset: pd.DataFrame, prices: pd.DataFrame, tic
                 columns_added.append(col)
 
     benchmark = ccfg.get("benchmark", "^BVSP")
-    bench = prices[benchmark].ffill() if benchmark in prices.columns else prices[macro_cols[0]].ffill()
+    bench = (
+        prices[benchmark].ffill() if benchmark in prices.columns else prices[macro_cols[0]].ffill()
+    )
     short_w = int(ccfg.get("alignment_short_window", 5))
     long_w = int(ccfg.get("alignment_long_window", 20))
     rel_short_w = int(ccfg.get("relative_strength_short_window", short_w))

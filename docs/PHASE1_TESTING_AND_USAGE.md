@@ -22,9 +22,9 @@ O help deve mostrar apenas:
 ```text
 data
 train
-predict
+signal
 validate
-report
+refine
 portfolio
 ```
 
@@ -46,8 +46,8 @@ Smokes seguros, sem rebalancear carteira:
 
 ```powershell
 & $PY trade.py --help
-& $PY trade.py predict --rank
-& $PY trade.py portfolio
+& $PY trade.py signal rank
+& $PY trade.py portfolio status
 & $PY trade.py validate ABEV3.SA --start 2026-03-01 --end 2026-05-05
 ```
 
@@ -56,18 +56,18 @@ Smokes seguros, sem rebalancear carteira:
 Fluxo diario enxuto:
 
 ```powershell
-& $PY trade.py data PETR4.SA VALE3.SA ITUB4.SA
-& $PY trade.py predict PETR4.SA VALE3.SA ITUB4.SA --rank
-& $PY trade.py portfolio
+& $PY trade.py data load PETR4.SA VALE3.SA ITUB4.SA
+& $PY trade.py signal rank PETR4.SA VALE3.SA ITUB4.SA
+& $PY trade.py portfolio status
 ```
 
 Fluxo com treino:
 
 ```powershell
-& $PY trade.py data PETR4.SA VALE3.SA ITUB4.SA
+& $PY trade.py data load PETR4.SA VALE3.SA ITUB4.SA
 & $PY trade.py train PETR4.SA VALE3.SA ITUB4.SA
-& $PY trade.py predict PETR4.SA VALE3.SA ITUB4.SA --rank
-& $PY trade.py report PETR4.SA VALE3.SA ITUB4.SA
+& $PY trade.py signal rank PETR4.SA VALE3.SA ITUB4.SA
+& $PY trade.py signal report PETR4.SA VALE3.SA ITUB4.SA
 ```
 
 Treino em paralelo por ativo:
@@ -88,22 +88,22 @@ Validacao PyBroker:
 Consulta sem alterar alocacao:
 
 ```powershell
-& $PY trade.py portfolio
+& $PY trade.py portfolio status
 ```
 
 Rebalanceamento por sinais atuais:
 
 ```powershell
-& $PY trade.py portfolio --rebalance
+& $PY trade.py portfolio rebalance
 ```
 
 Monitoramento intraday com target/stop:
 
 ```powershell
-& $PY trade.py portfolio --live
+& $PY trade.py portfolio live
 ```
 
-Importante: `portfolio --rebalance` e `portfolio --live` alteram o estado unico da carteira virtual em `data/tradechat_state.db`.
+Importante: `portfolio rebalance` e `portfolio live` alteram o estado unico da carteira virtual em `data/tradechat_state.db`.
 
 ## 5. O que cada comando grava
 
@@ -111,12 +111,12 @@ Importante: `portfolio --rebalance` e `portfolio --live` alteram o estado unico 
 | --- | --- | --- |
 | `data` | Sim | Atualiza cache em `data/cache`. |
 | `train` | Sim | Grava modelos e manifests em `artifacts/models`. |
-| `predict` | Sim | Atualiza `latest_signal.json` por ativo. |
-| `predict --rank` | Nao, se usado sem tickers | Le sinais existentes e apresenta ranking. |
-| `report` | Sim | Grava TXT em `artifacts/reports`. |
+| `signal generate` | Sim | Atualiza `latest_signal.json` por ativo. |
+| `signal rank` | Nao, se usado sem tickers | Le sinais existentes e apresenta ranking. |
+| `signal report` | Sim | Grava TXT em `artifacts/reports`. |
 | `portfolio` | Nao | Apenas le estado. |
-| `portfolio --rebalance` | Sim | Recalcula posicoes da carteira virtual. |
-| `portfolio --live` | Sim, se target/stop for acionado | Pode fechar posicoes automaticamente. |
+| `portfolio rebalance` | Sim | Recalcula posicoes da carteira virtual. |
+| `portfolio live` | Sim, se target/stop for acionado | Pode fechar posicoes automaticamente. |
 | `validate` | Sim | Grava artefatos de validacao em `artifacts/simulations`. |
 
 ## 6. Diagnostico tecnico
@@ -139,9 +139,9 @@ Rodada pesada para todos os ativos atuais:
 
 - `pytest -q` passa sem falhas.
 - `trade.py --help` mostra apenas seis comandos publicos.
-- `predict --rank` abre sem recalcular tudo quando usado sem tickers.
-- `portfolio` consulta estado sem alterar carteira.
-- `portfolio --rebalance` e `portfolio --live` sao usados conscientemente, porque alteram estado.
+- `signal rank` abre sem recalcular tudo quando usado sem tickers.
+- `portfolio status` consulta estado sem alterar carteira.
+- `portfolio rebalance` e `portfolio live` sao usados conscientemente, porque alteram estado.
 - `validate --mode replay` roda rapido para sanidade.
 - `validate --mode walkforward` e usado para validacao historica mais honesta.
 

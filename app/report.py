@@ -44,7 +44,9 @@ def _manifest_from_signal(signal: dict[str, Any]) -> dict[str, Any]:
     return (trigger_result.get("train_manifest") or {}) if isinstance(trigger_result, dict) else {}
 
 
-def _compact_items(items: list[str] | tuple[str, ...] | None, *, limit: int = 4, empty: str = "none") -> str:
+def _compact_items(
+    items: list[str] | tuple[str, ...] | None, *, limit: int = 4, empty: str = "none"
+) -> str:
     values = [str(item) for item in (items or []) if str(item).strip()]
     if not values:
         return empty
@@ -97,7 +99,9 @@ def print_data_summary(status: dict[str, Any]) -> None:
     profile = status.get("asset_profile", {}) or {}
     fundamentals = status.get("fundamentals", {}) or {}
     sentiment = status.get("sentiment", {}) or {}
-    sent_info = "fresh" if sentiment.get("is_fresh") else f"cache_rows={sentiment.get('cache_rows', 0)}"
+    sent_info = (
+        "fresh" if sentiment.get("is_fresh") else f"cache_rows={sentiment.get('cache_rows', 0)}"
+    )
 
     facts = [
         ("Status", status.get("status", "updated")),
@@ -105,12 +109,18 @@ def print_data_summary(status: dict[str, Any]) -> None:
         ("Range", f"{status.get('start') or 'n/a'} -> {status.get('end') or 'n/a'}"),
         ("Period", status.get("period", "max")),
         ("Context", _compact_items(status.get("context_tickers", []) or [], limit=5)),
-        ("Ctx Skipped", _compact_items(status.get("unavailable_context_tickers", []) or [], limit=5)),
+        (
+            "Ctx Skipped",
+            _compact_items(status.get("unavailable_context_tickers", []) or [], limit=5),
+        ),
         (
             "Registry",
             f"{profile.get('group', 'n/a')} / {profile.get('subgroup', 'n/a')} / {profile.get('cnpj', 'n/a')}",
         ),
-        ("Fundamentals", f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}"),
+        (
+            "Fundamentals",
+            f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}",
+        ),
         ("Sentiment", f"{sentiment.get('status', 'n/a')} | {sent_info}"),
     ]
 
@@ -126,7 +136,9 @@ def print_multi_horizon_train_summary(manifests: list[dict[str, Any]]) -> None:
 
     width = screen_width()
     order = {"d1": 0, "d5": 1, "d20": 2}
-    sorted_m = sorted(manifests, key=lambda item: order.get(str(item.get("horizon", "")).lower(), 99))
+    sorted_m = sorted(
+        manifests, key=lambda item: order.get(str(item.get("horizon", "")).lower(), 99)
+    )
     sample_manifest = sorted_m[0]
     ticker = sample_manifest.get("ticker", "N/A")
     base_engines = sample_manifest.get("base_engines", [])
@@ -158,7 +170,9 @@ def print_multi_horizon_train_summary(manifests: list[dict[str, Any]]) -> None:
     ]
 
     print()
-    _print_lines(banner("TRAIN REPORT", paint(ticker, C.BLUE), paint("MULTI-HORIZON", C.CYAN), width=width))
+    _print_lines(
+        banner("TRAIN REPORT", paint(ticker, C.BLUE), paint("MULTI-HORIZON", C.CYAN), width=width)
+    )
     _print_lines(render_facts(facts, width=width, max_columns=2))
     _print_lines(
         render_table(
@@ -170,7 +184,11 @@ def print_multi_horizon_train_summary(manifests: list[dict[str, Any]]) -> None:
         )
     )
     _print_lines(render_wrapped("Family Mix", _family_mix_summary(families), width=width))
-    _print_lines(render_wrapped("Top Feats", _top_feature_summary(latest_manifest.get("top_features", [])), width=width))
+    _print_lines(
+        render_wrapped(
+            "Top Feats", _top_feature_summary(latest_manifest.get("top_features", [])), width=width
+        )
+    )
     print(divider(width))
 
 
@@ -235,7 +253,11 @@ def _horizon_rows(signal: dict[str, Any]) -> list[list[str]]:
 def _signal_context_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] | tuple[str, str]]:
     fundamentals = signal.get("fundamentals", {}) or {}
     sent = float(signal.get("sentiment_value", 0.0) or 0.0)
-    context_desc = "aligned_with_ibov" if "ctx_BVSP_corr_20" in signal.get("features_used", []) else "neutral_context"
+    context_desc = (
+        "aligned_with_ibov"
+        if "ctx_BVSP_corr_20" in signal.get("features_used", [])
+        else "neutral_context"
+    )
     return [
         ("Sentiment", f"{sent:+.2f}", tone_delta(sent)),
         ("Context", context_desc),
@@ -273,7 +295,11 @@ def _render_signal_meta(signal: dict[str, Any], *, width: int, use_color: bool =
             use_color=use_color,
         )
     )
-    lines.extend(render_wrapped("Run Id", signal.get("train_run_id", "n/a"), width=width, use_color=use_color))
+    lines.extend(
+        render_wrapped(
+            "Run Id", signal.get("train_run_id", "n/a"), width=width, use_color=use_color
+        )
+    )
     return lines
 
 
@@ -281,7 +307,9 @@ def print_signal(signal: dict[str, Any]) -> None:
     width = screen_width()
     ticker = signal["ticker"]
     print()
-    _print_lines(banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width))
+    _print_lines(
+        banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width)
+    )
     _print_lines(render_facts(_signal_facts(signal), width=width, max_columns=2))
     _print_lines(
         render_table(
@@ -302,7 +330,9 @@ def print_signal_brief(signal: dict[str, Any]) -> None:
     ticker = signal["ticker"]
     brief_facts = _signal_facts(signal)[:8]
     print()
-    _print_lines(banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width))
+    _print_lines(
+        banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width)
+    )
     _print_lines(render_facts(brief_facts, width=width, max_columns=2))
     print(divider(width))
 
@@ -319,14 +349,25 @@ def render_txt_report(signal: dict[str, Any]) -> str:
     tune_summary = manifest.get("tune_summary", {}) or {}
 
     lines: list[str] = []
-    lines.extend(banner("TRADECHAT AUDIT REPORT", ticker, signal.get("latest_date"), width=width, use_color=False))
+    lines.extend(
+        banner(
+            "TRADECHAT AUDIT REPORT",
+            ticker,
+            signal.get("latest_date"),
+            width=width,
+            use_color=False,
+        )
+    )
     lines.extend(
         render_facts(
             [
                 ("Last Price", _money(price)),
                 ("Signal", f"{policy.get('label', 'N/A')} ({policy.get('posture', 'n/a')})"),
                 ("Trigger", str(policy.get("horizon", "d1")).upper()),
-                ("Signal Quality", f"{float(policy.get('quality_pct', policy.get('confidence_pct', 0.0)) or 0.0):.0f}%"),
+                (
+                    "Signal Quality",
+                    f"{float(policy.get('quality_pct', policy.get('confidence_pct', 0.0)) or 0.0):.0f}%",
+                ),
                 ("Size", policy.get("position_size", 0)),
                 ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
                 ("Target T1", _money(float(policy.get("target_partial", 0.0) or 0.0))),
@@ -345,16 +386,36 @@ def render_txt_report(signal: dict[str, Any]) -> str:
             [
                 ("Architecture", manifest.get("architecture", "n/a")),
                 ("Base Engines", _compact_items(manifest.get("base_engines", []) or [], limit=8)),
-                ("Used Engines", _compact_items(trigger_result.get("used_engines", []) or [], limit=8)),
-                ("Neutralized", _compact_items(trigger_result.get("discarded_engines", []) or [], limit=8)),
+                (
+                    "Used Engines",
+                    _compact_items(trigger_result.get("used_engines", []) or [], limit=8),
+                ),
+                (
+                    "Neutralized",
+                    _compact_items(trigger_result.get("discarded_engines", []) or [], limit=8),
+                ),
             ],
             width=width,
             max_columns=2,
             use_color=False,
         )
     )
-    lines.extend(render_wrapped("Raw Outputs", _engine_values_summary(trigger_result.get("raw_by_engine", {}) or {}), width=width, use_color=False))
-    lines.extend(render_wrapped("Guarded Outputs", _engine_values_summary(trigger_result.get("by_engine", {}) or {}), width=width, use_color=False))
+    lines.extend(
+        render_wrapped(
+            "Raw Outputs",
+            _engine_values_summary(trigger_result.get("raw_by_engine", {}) or {}),
+            width=width,
+            use_color=False,
+        )
+    )
+    lines.extend(
+        render_wrapped(
+            "Guarded Outputs",
+            _engine_values_summary(trigger_result.get("by_engine", {}) or {}),
+            width=width,
+            use_color=False,
+        )
+    )
     lines.extend(
         render_table(
             ["H", "RETURN", "TARGET", "QUAL"],
@@ -378,7 +439,11 @@ def render_txt_report(signal: dict[str, Any]) -> str:
             use_color=False,
         )
     )
-    lines.extend(render_wrapped("Top Feats", _top_feature_summary(top_features), width=width, use_color=False))
+    lines.extend(
+        render_wrapped(
+            "Top Feats", _top_feature_summary(top_features), width=width, use_color=False
+        )
+    )
     lines.append(divider(width, use_color=False))
     lines.append("AUTOTUNE SUMMARY")
     lines.extend(
@@ -391,7 +456,11 @@ def render_txt_report(signal: dict[str, Any]) -> str:
             use_color=False,
         )
     )
-    lines.extend(render_wrapped("Details", tune_summary if tune_summary else "not used", width=width, use_color=False))
+    lines.extend(
+        render_wrapped(
+            "Details", tune_summary if tune_summary else "not used", width=width, use_color=False
+        )
+    )
     lines.append(divider(width, use_color=False))
     lines.append("REASONS")
     reasons = _clean_reasons(policy)
