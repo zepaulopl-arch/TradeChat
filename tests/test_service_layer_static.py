@@ -9,6 +9,16 @@ def test_pipeline_service_extracts_cli_runtime_helpers():
         assert token in text
 
 
+def test_cli_is_parser_shell_and_handlers_own_command_logic():
+    cli_text = (ROOT / "app" / "cli.py").read_text(encoding="utf-8")
+    handlers_text = (ROOT / "app" / "cli_handlers.py").read_text(encoding="utf-8")
+    assert "from . import cli_handlers as handlers" in cli_text
+    assert "def cmd_validate" in handlers_text
+    assert "def cmd_portfolio" in handlers_text
+    assert "run_pybroker_replay" not in cli_text
+    assert len(cli_text.splitlines()) < 140
+
+
 def test_portfolio_service_centralizes_state_and_signal_access():
     text = (ROOT / "app" / "portfolio_service.py").read_text(encoding="utf-8")
     for token in ["def get_state_db_path", "def load_portfolio_state", "def save_portfolio_state", "def load_latest_signal", "sqlite3.connect"]:
@@ -51,6 +61,8 @@ def test_batch_and_simulator_services_exist():
 def test_model5_ui_layer_exists_and_cli_uses_it_for_simulation():
     ui_text = (ROOT / "app" / "ui" / "model5.py").read_text(encoding="utf-8")
     cli_text = (ROOT / "app" / "cli.py").read_text(encoding="utf-8")
+    handlers_text = (ROOT / "app" / "cli_handlers.py").read_text(encoding="utf-8")
+    validation_view_text = (ROOT / "app" / "validation_view.py").read_text(encoding="utf-8")
     for token in [
         "def render_header",
         "def render_section",
@@ -61,7 +73,8 @@ def test_model5_ui_layer_exists_and_cli_uses_it_for_simulation():
         "def render_callout",
     ]:
         assert token in ui_text
-    assert "from .ui import model5 as ui5" in cli_text
+    assert "from .ui import model5 as ui5" in validation_view_text
+    assert "render_validation_summary" in handlers_text
     assert "screen_title" in cli_text
-    assert "PYBROKER" in cli_text
+    assert "PYBROKER" in validation_view_text
     assert "--verbose" in cli_text

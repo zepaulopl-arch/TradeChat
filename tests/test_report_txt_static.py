@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_report_command_writes_txt_instead_of_printing_signal():
-    cli = (ROOT / "app" / "cli.py").read_text(encoding="utf-8")
+    cli = (ROOT / "app" / "cli_handlers.py").read_text(encoding="utf-8")
     report_block = cli.split("def cmd_report", 1)[1].split("def cmd_portfolio", 1)[0]
     assert "write_txt_report" in report_block
     assert "print_signal(signal)" not in report_block

@@ -6,6 +6,7 @@ import pytest
 
 from app import cli
 from app import batch_service
+from app import cli_handlers
 from app import features as feature_builder
 from app import models as model_module
 from app import portfolio_monitor_service as monitor
@@ -30,6 +31,7 @@ from app.simulator_service import (
 )
 from app.trade_plan_service import build_trade_plan
 from app.ui import model5 as ui5
+from app.validation_view import render_validation_summary
 
 
 def test_live_monitor_closes_short_using_signed_cash_flow(monkeypatch):
@@ -368,9 +370,9 @@ def test_live_monitor_executes_partial_and_moves_stop_to_breakeven(monkeypatch):
 
 
 def test_cmd_portfolio_handles_positions_without_execution_targets(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "load_config", lambda path: {})
+    monkeypatch.setattr(cli_handlers, "load_config", lambda path: {})
     monkeypatch.setattr(
-        cli,
+        cli_handlers,
         "load_portfolio_state",
         lambda **kwargs: {
             "account": {"initial_capital": 10000.0, "cash": 9000.0, "currency": "BRL"},
@@ -380,7 +382,7 @@ def test_cmd_portfolio_handles_positions_without_execution_targets(monkeypatch, 
             "history": [],
         },
     )
-    monkeypatch.setattr(cli, "_latest_signal_for", lambda cfg, ticker: None)
+    monkeypatch.setattr(cli_handlers, "_latest_signal_for", lambda cfg, ticker: None)
 
     class Args:
         config = None
@@ -868,6 +870,42 @@ def test_model5_table_separator_uses_screen_width():
     )
     separator = next(line for line in lines if set(line) == {"-"})
     assert len(separator) == 80
+
+
+def test_validation_view_renders_model_vs_baselines(monkeypatch):
+    monkeypatch.setattr("app.validation_view.ui5.screen_width", lambda: 96)
+    lines = render_validation_summary(
+        {
+            "mode": "pybroker_artifact_replay",
+            "start_date": "2026-01-01",
+            "end_date": "2026-02-01",
+            "tickers": ["PETR4.SA"],
+            "metrics": {"total_return_pct": 2.0, "max_drawdown_pct": -1.0, "trade_count": 3},
+            "baselines": {
+                "zero_return_no_trade": {
+                    "metrics": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "trade_count": 0}
+                }
+            },
+            "baseline_comparison": {
+                "decision": "passes_baselines",
+                "beat_rate_pct": 100.0,
+                "rows": [
+                    {
+                        "baseline": "zero_return_no_trade",
+                        "return_delta_pct": 2.0,
+                        "drawdown_delta_pct": -1.0,
+                        "beat_return": True,
+                    }
+                ],
+            },
+        },
+        mode="replay",
+        screen_title="VALIDATE",
+    )
+    output = "\n".join(lines)
+    assert "MODELO VS BASELINES" in output
+    assert "passes_baselines" in output
+    assert "zero_return_no_trade" in output
 
 
 def test_diagnose_marks_low_history_as_skipped(monkeypatch):

@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def test_data_command_uses_screen_renderer():
-    text = Path('app/cli.py').read_text(encoding='utf-8')
+    text = Path('app/cli_handlers.py').read_text(encoding='utf-8')
     assert 'print_data_summary' in text
     assert 'data updated | rows=' not in text
 
