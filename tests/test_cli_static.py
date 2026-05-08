@@ -40,9 +40,9 @@ def test_predict_rank_and_portfolio_rebalance_are_first_class_modes():
     assert val.mode == "walkforward"
     refine = parser.parse_args(["refine", "PETR4"])
     assert refine.tickers == ["PETR4"]
-    ablation = parser.parse_args(["refine", "PETR4", "--ablation", "--horizons", "d1", "--profiles", "full,technical_only"])
-    assert ablation.ablation is True
-    assert ablation.horizons == "d1"
+    removal = parser.parse_args(["refine", "PETR4", "--removal", "--horizons", "d1", "--profiles", "full,technical_only"])
+    assert removal.removal is True
+    assert removal.horizons == "d1"
 
 
 def test_portfolio_live_and_rebalance_are_mutually_exclusive():

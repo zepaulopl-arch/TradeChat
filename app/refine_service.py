@@ -17,7 +17,7 @@ from .utils import normalize_ticker, read_json, safe_ticker, write_json
 
 HORIZONS = ["d1", "d5", "d20"]
 FAMILIES = ["technical", "context", "fundamentals", "sentiment"]
-ABLATION_PROFILES = ["full", "technical_only", "no_context", "no_fundamentals", "no_sentiment"]
+REMOVAL_PROFILES = ["full", "technical_only", "no_context", "no_fundamentals", "no_sentiment"]
 
 
 def _latest_manifest_path(cfg: dict[str, Any], ticker: str, horizon: str) -> Any:
@@ -99,15 +99,15 @@ def _parse_horizons(raw: str | list[str] | None) -> list[str]:
 
 def _parse_profiles(raw: str | list[str] | None) -> list[str]:
     if raw is None:
-        return list(ABLATION_PROFILES)
+        return list(REMOVAL_PROFILES)
     if isinstance(raw, str):
         items = [item.strip().lower() for item in raw.replace(";", ",").split(",") if item.strip()]
     else:
         items = [str(item).strip().lower() for item in raw if str(item).strip()]
-    invalid = [item for item in items if item not in ABLATION_PROFILES]
+    invalid = [item for item in items if item not in REMOVAL_PROFILES]
     if invalid:
-        raise ValueError(f"unknown ablation profile(s): {', '.join(invalid)}")
-    return items or list(ABLATION_PROFILES)
+        raise ValueError(f"unknown removal profile(s): {', '.join(invalid)}")
+    return items or list(REMOVAL_PROFILES)
 
 
 def _shadow_cfg(cfg: dict[str, Any], run_id: str, profile: str) -> dict[str, Any]:
@@ -118,7 +118,7 @@ def _shadow_cfg(cfg: dict[str, Any], run_id: str, profile: str) -> dict[str, Any
     return shadow
 
 
-def _ablation_cfg(cfg: dict[str, Any], profile: str, run_id: str) -> dict[str, Any]:
+def _removal_cfg(cfg: dict[str, Any], profile: str, run_id: str) -> dict[str, Any]:
     shadow = _shadow_cfg(cfg, run_id, profile)
     features = shadow.setdefault("features", {})
     for family in FAMILIES:
@@ -135,7 +135,7 @@ def _ablation_cfg(cfg: dict[str, Any], profile: str, run_id: str) -> dict[str, A
     elif profile == "no_sentiment":
         features["sentiment"]["enabled"] = False
     elif profile != "full":
-        raise ValueError(f"unknown ablation profile: {profile}")
+        raise ValueError(f"unknown removal profile: {profile}")
     return shadow
 
 
@@ -145,11 +145,11 @@ def refine_dir(cfg: dict[str, Any], run_id: str) -> Path:
     return path
 
 
-def _write_ablation_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
+def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> dict[str, str]:
     out_dir = refine_dir(cfg, str(summary.get("run_id", "refine")))
     summary_json = out_dir / "summary.json"
     summary_txt = out_dir / "summary.txt"
-    results_csv = out_dir / "ablation_results.csv"
+    results_csv = out_dir / "removal_results.csv"
 
     write_json(summary_json, summary)
     rows = list(summary.get("rows", []) or [])
@@ -191,7 +191,7 @@ def _write_ablation_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> d
                 }
             )
 
-    lines = render_ablation_summary(summary)
+    lines = render_removal_summary(summary)
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {
         "dir": str(out_dir),
@@ -201,7 +201,7 @@ def _write_ablation_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> d
     }
 
 
-def run_feature_ablation(
+def run_feature_removal(
     cfg: dict[str, Any],
     tickers: list[str],
     *,
@@ -221,7 +221,7 @@ def run_feature_ablation(
     for ticker in canonical:
         prices = load_prices(cfg, ticker, update=update)
         for profile in selected_profiles:
-            profile_cfg = _ablation_cfg(cfg, profile, run_id)
+            profile_cfg = _removal_cfg(cfg, profile, run_id)
             try:
                 raw_X, all_y, meta = build_dataset(profile_cfg, prices, ticker)
             except Exception as exc:
@@ -238,7 +238,7 @@ def run_feature_ablation(
                         ticker,
                         raw_X,
                         all_y[target_col],
-                        {**meta, "ablation_profile": profile, "refine_run_id": run_id},
+                        {**meta, "removal_profile": profile, "refine_run_id": run_id},
                         autotune=autotune,
                         horizon=horizon,
                         inner_threads=inner_threads,
@@ -269,7 +269,7 @@ def run_feature_ablation(
         "rows": rows,
         "errors": errors,
     }
-    summary["artifacts"] = _write_ablation_artifacts(cfg, summary)
+    summary["artifacts"] = _write_removal_artifacts(cfg, summary)
     return summary
 
 
@@ -316,14 +316,14 @@ def render_refine_summary(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
-def render_ablation_summary(summary: dict[str, Any]) -> list[str]:
+def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     width = screen_width()
     lines: list[str] = []
     rows = list(summary.get("rows", []) or [])
     errors = list(summary.get("errors", []) or [])
-    lines.extend(banner("REFINE", "feature ablation", str(summary.get("run_id", "")), width=width))
+    lines.extend(banner("REFINE", "feature removal", str(summary.get("run_id", "")), width=width))
     if not rows:
-        lines.append("No ablation result was produced.")
+        lines.append("No removal result was produced.")
         if errors:
             lines.append(f"Errors: {len(errors)}")
         lines.extend(divider(width).splitlines())
@@ -361,7 +361,7 @@ def render_ablation_summary(summary: dict[str, Any]) -> list[str]:
     )
     if errors:
         lines.append("")
-        lines.append(f"Ablation errors: {len(errors)}. Use the artifacts and logs before drawing conclusions.")
+        lines.append(f"Removal errors: {len(errors)}. Use the artifacts and logs before drawing conclusions.")
     artifacts = summary.get("artifacts", {}) or {}
     if artifacts:
         lines.append("")

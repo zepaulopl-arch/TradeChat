@@ -49,11 +49,11 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
 
 def _add_refine_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("tickers", nargs="+")
-    parser.add_argument("--ablation", action="store_true", help="train shadow feature-family ablations")
-    parser.add_argument("--horizons", default="d1,d5,d20", help="comma-separated horizons for ablation: d1,d5,d20")
-    parser.add_argument("--profiles", default=None, help="comma-separated ablation profiles; default runs all")
-    parser.add_argument("--update", action="store_true", help="refresh price cache before ablation")
-    parser.add_argument("--autotune", action="store_true", help="run autotune inside shadow ablation artifacts")
+    parser.add_argument("--removal", action="store_true", help="train shadow feature-family removals")
+    parser.add_argument("--horizons", default="d1,d5,d20", help="comma-separated horizons for removal: d1,d5,d20")
+    parser.add_argument("--profiles", default=None, help="comma-separated removal profiles; default runs all")
+    parser.add_argument("--update", action="store_true", help="refresh price cache before removal")
+    parser.add_argument("--autotune", action="store_true", help="run autotune inside shadow removal artifacts")
 
 
 def build_parser() -> argparse.ArgumentParser:

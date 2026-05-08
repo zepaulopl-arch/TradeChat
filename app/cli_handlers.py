@@ -19,7 +19,7 @@ from .portfolio_service import load_portfolio_state, position_side
 from .presentation import banner, divider, money_br, paint, render_facts, render_table, screen_width, tone_delta
 from .ranking_service import render_ranking
 from .rebalance_service import rebalance_portfolio, render_rebalance_summary
-from .refine_service import collect_refine_summary, render_ablation_summary, render_refine_summary, run_feature_ablation
+from .refine_service import collect_refine_summary, render_removal_summary, render_refine_summary, run_feature_removal
 from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, write_txt_report
 from .simulator_service import run_pybroker_replay
 from .utils import safe_ticker, read_json
@@ -264,8 +264,8 @@ def cmd_validate(args: argparse.Namespace) -> None:
 def cmd_refine(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     tickers = _resolve_tickers(cfg, args.tickers)
-    if bool(getattr(args, "ablation", False)):
-        summary = run_feature_ablation(
+    if bool(getattr(args, "removal", False)):
+        summary = run_feature_removal(
             cfg,
             tickers,
             horizons=args.horizons,
@@ -274,7 +274,7 @@ def cmd_refine(args: argparse.Namespace) -> None:
             autotune=bool(args.autotune),
             inner_threads=1,
         )
-        for line in render_ablation_summary(summary):
+        for line in render_removal_summary(summary):
             print(line)
         return
     summary = collect_refine_summary(cfg, tickers)

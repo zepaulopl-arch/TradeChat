@@ -8,6 +8,7 @@ from app import cli
 from app import batch_service
 from app import cli_handlers
 from app import features as feature_builder
+from app.methodology_service import methodology_report
 from app import models as model_module
 from app import portfolio_monitor_service as monitor
 from app.models import _split_train_test_raw
@@ -18,7 +19,7 @@ from app.evaluation_service import compare_model_to_baselines, evaluate_baseline
 from app.policy import classify_signal
 from app.preparation import prepare_training_matrix
 from app.portfolio_service import get_state_db_path, load_portfolio_state, save_portfolio_state
-from app.refine_service import collect_refine_summary, render_ablation_summary, render_refine_summary, run_feature_ablation
+from app.refine_service import collect_refine_summary, render_removal_summary, render_refine_summary, run_feature_removal
 from app.scoring import is_actionable_signal
 from app.simulator_service import (
     _write_simulation_artifacts,
@@ -469,6 +470,78 @@ def test_compare_model_to_baselines_reports_deltas_and_decision():
     assert comparison["rows"][1]["return_delta_pct"] == pytest.approx(-1.0)
 
 
+def test_methodology_report_catches_leakage_and_shadow_contracts():
+    manifest = {
+        "horizon": "d5",
+        "features": ["ret_1", "ctx_BVSP_ret_5"],
+        "train_rows": 100,
+        "test_rows": 20,
+        "preparation": {
+            "selected_feature_count": 2,
+            "selection": {"method": "target_relevance_low_correlation_greedy_family_balanced"},
+        },
+        "validation_split": {
+            "test_target": "raw_unclipped",
+            "embargo_bars": 5,
+            "split_index": 90,
+            "train_end_index": 85,
+            "dropped_embargo_rows": 5,
+        },
+    }
+    validation_summary = {
+        "baselines": {
+            "zero_return_no_trade": {},
+            "buy_and_hold_equal_weight": {},
+            "last_return_long_flat": {},
+        },
+        "baseline_comparison": {"rows": [{"baseline": "zero_return_no_trade"}]},
+    }
+    removal_summary = {
+        "rows": [{"artifact_dir": "artifacts/refine/refine_test/full/models/PETR4_SA"}],
+        "artifacts": {"results_csv": "artifacts/refine/refine_test/removal_results.csv"},
+    }
+
+    report = methodology_report(
+        manifest=manifest,
+        validation_summary=validation_summary,
+        removal_summary=removal_summary,
+    )
+
+    assert report["passed"] is True
+    assert {item["check"] for item in report["checks"]} == {
+        "no_target_features",
+        "temporal_split_embargo",
+        "train_only_feature_selection",
+        "validation_baselines_present",
+        "refine_removal_shadow_artifacts",
+    }
+
+
+def test_methodology_report_fails_on_target_feature_or_missing_baselines():
+    report = methodology_report(
+        manifest={
+            "horizon": "d20",
+            "features": ["target_return_d1"],
+            "train_rows": 100,
+            "test_rows": 10,
+            "preparation": {"selected_feature_count": 1, "selection": {}},
+            "validation_split": {"embargo_bars": 1, "split_index": 90, "train_end_index": 89},
+        },
+        validation_summary={"baselines": {}, "baseline_comparison": {}},
+        removal_summary={
+            "rows": [{"artifact_dir": "artifacts/models/PETR4_SA"}],
+            "artifacts": {"results_csv": "artifacts/refine/refine_test/removal_results.csv"},
+        },
+    )
+
+    failed = {item["check"] for item in report["failed_checks"]}
+    assert report["passed"] is False
+    assert "no_target_features" in failed
+    assert "temporal_split_embargo" in failed
+    assert "validation_baselines_present" in failed
+    assert "refine_removal_shadow_artifacts" in failed
+
+
 def test_simulation_artifact_writes_baselines_to_summary_txt(tmp_path):
     cfg = {"app": {"artifact_dir": str(tmp_path)}}
     summary = {
@@ -577,7 +650,7 @@ def test_refine_renderer_shows_family_count_and_share(monkeypatch):
     assert "T70/C30/F0/S0" in output
 
 
-def test_feature_ablation_trains_shadow_profiles(monkeypatch):
+def test_feature_removal_trains_shadow_profiles(monkeypatch):
     calls = []
 
     def fake_load_prices(cfg, ticker, update=False):
@@ -608,8 +681,8 @@ def test_feature_ablation_trains_shadow_profiles(monkeypatch):
         return X, y, {"latest_price": 10.4}
 
     def fake_train_models(cfg, ticker, X, y, meta, autotune=False, horizon="d1", inner_threads=1):
-        calls.append(("train", ticker, meta["ablation_profile"], horizon, cfg.get("app", {}).get("artifact_dir")))
-        profile = meta["ablation_profile"]
+        calls.append(("train", ticker, meta["removal_profile"], horizon, cfg.get("app", {}).get("artifact_dir")))
+        profile = meta["removal_profile"]
         features = ["ret_1"] if profile == "technical_only" else ["ret_1", "ctx_x"]
         mae = 0.010 if profile == "full" else 0.012
         return {
@@ -633,7 +706,7 @@ def test_feature_ablation_trains_shadow_profiles(monkeypatch):
             "sentiment": {"enabled": True},
         },
     }
-    summary = run_feature_ablation(
+    summary = run_feature_removal(
         cfg,
         ["PETR4.SA"],
         horizons="d1",
@@ -655,9 +728,9 @@ def test_feature_ablation_trains_shadow_profiles(monkeypatch):
     assert dataset_calls[2][2] is False
 
 
-def test_ablation_renderer_compares_delta_against_full(monkeypatch):
+def test_removal_renderer_compares_delta_against_full(monkeypatch):
     monkeypatch.setattr("app.refine_service.screen_width", lambda: 100)
-    lines = render_ablation_summary(
+    lines = render_removal_summary(
         {
             "run_id": "refine_test",
             "rows": [
@@ -683,7 +756,7 @@ def test_ablation_renderer_compares_delta_against_full(monkeypatch):
         }
     )
     output = "\n".join(lines)
-    assert "feature ablation" in output
+    assert "feature removal" in output
     assert "technical_only" in output
     assert "+0.20%" in output
     assert "worse" in output

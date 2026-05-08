@@ -33,6 +33,18 @@ def test_scoring_module_owns_signal_score_formula():
     assert "math.sqrt" in text
 
 
+def test_methodology_service_owns_methodology_checks():
+    text = (ROOT / "app" / "methodology_service.py").read_text(encoding="utf-8")
+    for token in [
+        "def check_no_target_features",
+        "def check_temporal_split",
+        "def check_validation_has_baselines",
+        "def check_refine_removal_uses_shadow_artifacts",
+        "def methodology_report",
+    ]:
+        assert token in text
+
+
 def test_batch_and_simulator_services_exist():
     batch_text = (ROOT / "app" / "batch_service.py").read_text(encoding="utf-8")
     sim_text = (ROOT / "app" / "simulator_service.py").read_text(encoding="utf-8")
@@ -48,7 +60,7 @@ def test_batch_and_simulator_services_exist():
     for token in ["def evaluate_baselines", "zero_return_no_trade", "buy_and_hold_equal_weight", "last_return_long_flat"]:
         assert token in evaluation_text
     assert "evaluate_baselines" in sim_text
-    for token in ["def collect_refine_summary", "def run_feature_ablation", "def render_ablation_summary", "family_relevance_share_pct"]:
+    for token in ["def collect_refine_summary", "def run_feature_removal", "def render_removal_summary", "family_relevance_share_pct"]:
         assert token in refine_text
     for token in ["def collect_ranked_signals", "def render_ranking"]:
         assert token in ranking_text
