@@ -28,7 +28,7 @@ def _merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, An
     return out
 
 
-def _legacy_family_block(family: str, preset_cfg: dict[str, Any], enabled: bool) -> dict[str, Any]:
+def _runtime_family_block(family: str, preset_cfg: dict[str, Any], enabled: bool) -> dict[str, Any]:
     """Adapt the organized features.yaml schema to the runtime keys used by code.
 
     The public schema is family-first: each family owns windows, attributes and
@@ -41,7 +41,7 @@ def _legacy_family_block(family: str, preset_cfg: dict[str, Any], enabled: bool)
 
     if family == "technical":
         block.update({
-            "legacy_macro_features": bool(features.get("legacy_macro_features", False)),
+            "macro_features": bool(features.get("macro_features", False)),
             "rsi_window": int(windows.get("rsi", 14)),
             "sma_short": int((windows.get("sma", {}) or {}).get("short", 10)),
             "sma_long": int((windows.get("sma", {}) or {}).get("long", 50)),
@@ -49,6 +49,7 @@ def _legacy_family_block(family: str, preset_cfg: dict[str, Any], enabled: bool)
             "ema_long": int((windows.get("ema", {}) or {}).get("long", 100)),
             "roc_window": int(windows.get("roc", 10)),
             "vol_window": int((windows.get("volatility", [20]) or [20])[0]),
+            "vol_windows": [int(w) for w in (windows.get("volatility", [20]) or [20]) if int(w) > 1],
             "frac_diff_d": float((windows.get("fractional_memory", {}) or {}).get("d", 0.5)),
             "windows": windows,
             "features": features,
@@ -159,7 +160,7 @@ def _normalize_features_config(features: dict[str, Any]) -> dict[str, Any]:
         preset_cfg = (family_def.get("presets", {}) or {}).get(preset_name, {}) or {}
         preset_cfg = _merge_dicts(preset_cfg, family_choice.get("overrides", {}) or {})
         enabled = bool(family_choice.get("enabled", preset_cfg.get("enabled", True)))
-        block = _legacy_family_block(family, preset_cfg, enabled)
+        block = _runtime_family_block(family, preset_cfg, enabled)
         block["preset"] = preset_name
         features[family] = block
     return features

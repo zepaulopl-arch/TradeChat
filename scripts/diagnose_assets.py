@@ -2,40 +2,24 @@ import argparse
 import csv
 import json
 import sys
-import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-
-import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.cli import _build_current_dataset, _fundamentals_data_status, _make_signal, _sentiment_data_status
+from app.batch_service import diagnose_one_asset, safe_worker_count
 from app.config import artifact_dir, load_config, load_data_registry
-from app.data import data_status, load_prices, resolve_asset
-from app.feature_audit import abbreviate_feature_name, feature_family_profile
-from app.models import train_models
+from app.data import resolve_asset
+from app.presentation import C, banner, divider, paint, render_facts, render_table, render_wrapped, screen_width
 from app.utils import normalize_ticker, parse_tickers
-from app.preparation import prepare_training_matrix
-
-class C:
-    """Discrete, opaque color palette for professional CLI."""
-    HEADER = '\033[90m'  # Dark Gray
-    BLUE = '\033[38;5;67m'  # Steel Blue (discrete)
-    CYAN = '\033[38;5;109m' # Muted Cyan
-    GREEN = '\033[38;5;108m' # Sage Green
-    YELLOW = '\033[38;5;144m' # Sand/Beige
-    RED = '\033[38;5;131m'   # Muted Red
-    DIM = '\033[2m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
 
 
 def _now_id() -> str:
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+    return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
 
 def _registered_assets(cfg: dict[str, Any]) -> list[str]:
@@ -45,172 +29,35 @@ def _registered_assets(cfg: dict[str, Any]) -> list[str]:
     for ticker, meta in assets.items():
         if not isinstance(meta, dict):
             continue
-        status = str(meta.get("registry_status", "active"))
-        if status == "inactive_alias":
-            continue
-        if bool(meta.get("use_in_reference_sample", True)):
+        if str(meta.get("registry_status", "active")).lower() == "active" and bool(meta.get("use_in_reference_sample", True)):
             out.append(normalize_ticker(ticker))
     return sorted(dict.fromkeys(out))
 
 
 def _asset_list(cfg: dict[str, Any], args: argparse.Namespace) -> list[str]:
     if args.assets:
-        tickers = parse_tickers([args.assets])
+        raw_assets = str(args.assets).strip()
+        tickers = _registered_assets(cfg) if raw_assets.upper() == "ALL" else parse_tickers([raw_assets])
     else:
         tickers = _registered_assets(cfg)
+    tickers = [
+        ticker
+        for ticker in tickers
+        if str((resolve_asset(cfg, ticker).get("profile", {}) or {}).get("registry_status", "active")).lower() == "active"
+    ]
     if args.limit:
         tickers = tickers[: int(args.limit)]
     return tickers
 
 
-def _pct(value: Any) -> float | None:
-    try:
-        return float(value) * 100.0
-    except Exception:
-        return None
-
-
-def _fmt_pct(value: Any) -> str:
-    pct = _pct(value)
-    return "" if pct is None else f"{pct:+.2f}"
-
-
-def _join_dict_pct(values: dict[str, Any] | None) -> str:
-    if not values:
-        return ""
-    return " | ".join(f"{k} {_fmt_pct(v)}%" for k, v in values.items())
-
-
-def _top_feature_line(items: list[dict[str, Any]] | None) -> str:
-    if not items:
-        return ""
-    return ", ".join(str(item.get("short") or abbreviate_feature_name(str(item.get("name", "")))) for item in items[:5])
-
-
-def _safe_stage(row: dict[str, Any], stage: str, fn) -> Any:
-    row["stage"] = stage
-    try:
-        return fn()
-    except Exception as exc:
-        row["status"] = "error"
-        row["failed_stage"] = stage
-        row["error"] = f"{type(exc).__name__}: {exc}"
-        row["traceback"] = traceback.format_exc(limit=6)
-        return None
-
-
-def _diagnose_one(cfg: dict[str, Any], ticker: str, args: argparse.Namespace) -> dict[str, Any]:
-    row: dict[str, Any] = {
-        "input_ticker": ticker,
-        "status": "ok",
-        "failed_stage": "",
-        "error": "",
-        "traceback": "",
-    }
-
-    resolved = resolve_asset(cfg, ticker)
-    canonical = resolved.get("canonical", normalize_ticker(ticker))
-    profile = resolved.get("profile", {}) or {}
-    row.update({
-        "ticker": canonical,
-        "ticker_changed": bool(resolved.get("changed")),
-        "alias_reason": (resolved.get("alias", {}) or {}).get("reason", ""),
-        "name": profile.get("name", ""),
-        "group": profile.get("group", ""),
-        "subgroup": profile.get("subgroup", ""),
-        "financial_class": profile.get("financial_class", ""),
-        "cnpj": profile.get("cnpj") or "",
-        "registry_status": profile.get("registry_status", ""),
-    })
-
-    if not args.no_data:
-        if _safe_stage(row, "data", lambda: load_prices(cfg, canonical, update=True)) is None:
-            return row
-
-    st = _safe_stage(row, "data_status", lambda: data_status(cfg, canonical))
-    if st is None:
-        return row
-    row.update({
-        "data_rows": st.get("rows", 0),
-        "data_start": st.get("start") or "",
-        "data_end": st.get("end") or "",
-        "context_available": ",".join(st.get("context_tickers", []) or []),
-        "context_requested": ",".join(st.get("requested_context_tickers", []) or []),
-        "context_unavailable": ",".join(st.get("unavailable_context_tickers", []) or []),
-        "linked_indices": ",".join((st.get("asset_profile", {}) or {}).get("linked_indices", []) or []),
-    })
-
-    try:
-        fstat = _fundamentals_data_status(cfg, canonical)
-        row["fundamentals_status"] = fstat.get("status", "")
-        row["fundamentals_source"] = fstat.get("source", "")
-    except Exception as exc:
-        row["fundamentals_status"] = "error"
-        row["fundamentals_source"] = str(exc)[:80]
-    try:
-        sstat = _sentiment_data_status(cfg, canonical)
-        row["sentiment_status"] = sstat.get("status", "")
-        row["sentiment_cache_rows"] = sstat.get("cache_rows", 0)
-        row["sentiment_new_items"] = sstat.get("new_items", 0)
-    except Exception as exc:
-        row["sentiment_status"] = "error"
-        row["sentiment_cache_rows"] = 0
-        row["sentiment_new_items"] = 0
-        row["sentiment_error"] = str(exc)[:80]
-
-    built = _safe_stage(row, "dataset", lambda: _build_current_dataset(cfg, canonical, update=False))
-    if built is None:
-        return row
-    raw_X, all_y, meta = built
-    
-    targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
-    for t_col in targets:
-        horizon = t_col.split("_")[-1]
-        y_series = all_y[t_col].dropna()
-        if len(y_series) < 20:
-            continue
-            
-        X_p, y_p, prep_m = prepare_training_matrix(raw_X.loc[y_series.index], y_series, cfg)
-        h_meta = meta.copy()
-        h_meta["preparation"] = prep_m
-        h_meta["horizon"] = horizon
-        
-        manifest = _safe_stage(row, f"train_{horizon}", lambda: train_models(cfg, canonical, X_p, y_p, h_meta, autotune=bool(args.autotune), horizon=horizon))
-        if manifest is None:
-            return row
-            
-        if horizon == "d1":
-            metrics = manifest.get("metrics", {}) or {}
-            ridge_metrics = metrics.get("ridge_arbiter", {}) or {}
-            row.update({
-                "run_id": manifest.get("run_id", ""),
-                "train_rows": manifest.get("train_rows", ""),
-                "test_rows": manifest.get("test_rows", ""),
-                "features": len(manifest.get("features", []) or []),
-                "top_features": _top_feature_line(manifest.get("top_features", []) or []),
-                "feature_family_profile": json.dumps(manifest.get("feature_family_profile", {}) or {}, ensure_ascii=False),
-                "mae_arbiter": ridge_metrics.get("mae_return", ""),
-                "engine_dispersion": manifest.get("engine_dispersion", 0.0),
-                "train_prediction_pct": _fmt_pct(manifest.get("latest_prediction_return", 0.0)),
-                "train_confidence_pct": float(manifest.get("confidence", 0.0) or 0.0) * 100.0,
-            })
-
-    signal = _safe_stage(row, "predict", lambda: _make_signal(cfg, canonical, update=False))
-    if signal is None:
-        return row
-    policy = signal.get("policy", {}) or {}
-    horizons = signal.get("horizons", {}) or {}
-    row.update({
-        "signal": policy.get("label", ""),
-        "posture": policy.get("posture", ""),
-        "prediction_pct": float(policy.get("score_pct", 0.0) or 0.0),
-        "confidence_pct": float(policy.get("confidence_pct", 0.0) or 0.0),
-        "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0)) * 100.0,
-        "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0)) * 100.0,
-        "reasons": "; ".join(policy.get("reasons", []) or []),
-    })
-    row["stage"] = "done"
-    return row
+def _print_status(row: dict[str, Any]) -> None:
+    status = str(row.get("status", "error"))
+    if status == "ok":
+        print(f"| {paint('OK', C.GREEN)}")
+    elif status == "skipped":
+        print(f"| {paint('SKIP', C.YELLOW)} at {row.get('failed_stage')}")
+    else:
+        print(f"| {paint('FAIL', C.RED)} at {row.get('failed_stage')}")
 
 
 def _write_outputs(cfg: dict[str, Any], rows: list[dict[str, Any]], run_id: str) -> dict[str, Path]:
@@ -237,29 +84,39 @@ def _write_outputs(cfg: dict[str, Any], rows: list[dict[str, Any]], run_id: str)
         json.dump(rows, fh, indent=2, ensure_ascii=False)
 
     ok = [r for r in rows if r.get("status") == "ok"]
-    err = [r for r in rows if r.get("status") != "ok"]
-    
-    gray_line = C.DIM + "-" * 72 + C.RESET
-    
+    skipped = [r for r in rows if r.get("status") == "skipped"]
+    err = [r for r in rows if r.get("status") not in {"ok", "skipped"}]
+    width = 88
     lines: list[str] = []
-    lines.append(gray_line)
-    lines.append(f"{C.BOLD}ASSET DIAGNOSTIC SUMMARY{C.RESET} | {C.BLUE}{run_id}{C.RESET}")
-    lines.append(gray_line)
-    lines.append(f"TOTAL ASSETS  : {len(rows)}")
-    lines.append(f"OK            : {C.GREEN}{len(ok)}{C.RESET}")
-    lines.append(f"ERRORS        : {C.RED}{len(err)}{C.RESET}")
-    lines.append(gray_line)
-    if err:
-        lines.append("ERROR LOG")
-        for r in err[:30]:
-            lines.append(f"{C.BOLD}{r.get('ticker') or r.get('input_ticker'):<12}{C.RESET} | STAGE: {r.get('failed_stage'):<10} | {C.RED}{r.get('error')}{C.RESET}")
-        lines.append(gray_line)
-        
+    lines.extend(banner("ASSET DIAGNOSTIC SUMMARY", run_id, width=width, use_color=False))
+    lines.extend(
+        render_facts(
+            [("Total Assets", len(rows)), ("OK", len(ok)), ("Skipped", len(skipped)), ("Errors", len(err))],
+            width=width,
+            max_columns=4,
+            use_color=False,
+        )
+    )
+    lines.append(divider(width, use_color=False))
+    issues = skipped + err
+    if issues:
+        lines.append("ISSUE LOG")
+        for row in issues[:30]:
+            lines.extend(
+                render_wrapped(
+                    str(row.get("ticker") or row.get("input_ticker") or "n/a"),
+                    f"stage={row.get('failed_stage', 'n/a')} | {row.get('error', 'n/a')}",
+                    width=width,
+                    use_color=False,
+                )
+            )
+        lines.append(divider(width, use_color=False))
+
     lines.append("OUTPUT FILES")
-    lines.append(f"CSV : {C.DIM}{csv_path}{C.RESET}")
-    lines.append(f"JSON: {C.DIM}{json_path}{C.RESET}")
-    lines.append(f"TXT : {C.DIM}{txt_path}{C.RESET}")
-    lines.append(gray_line)
+    lines.extend(render_wrapped("CSV", csv_path, width=width, use_color=False))
+    lines.extend(render_wrapped("JSON", json_path, width=width, use_color=False))
+    lines.extend(render_wrapped("TXT", txt_path, width=width, use_color=False))
+    lines.append(divider(width, use_color=False))
     txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"csv": csv_path, "json": json_path, "txt": txt_path}
 
@@ -271,35 +128,70 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--no-data", action="store_true")
     parser.add_argument("--autotune", action="store_true")
+    parser.add_argument("--workers", type=int, default=0, help="parallel workers; 0 uses config default")
     args = parser.parse_args(argv)
 
     cfg = load_config(args.config)
     tickers = _asset_list(cfg, args)
     run_id = f"diag_{_now_id()}"
-    gray_line = C.DIM + "-" * 80 + C.RESET
-    
-    print("\n" + gray_line)
-    print(f"{C.BOLD}TRADECHAT MULTI-HORIZON DIAGNOSTIC{C.RESET} | assets={len(tickers)} | run_id={run_id}")
-    print(gray_line)
-    
+    width = screen_width()
+    requested_workers = args.workers if args.workers > 0 else int(cfg.get("batch", {}).get("diagnose_workers", 1) or 1)
+    workers = safe_worker_count(len(tickers), requested=requested_workers, default=1)
+
+    print()
+    for line in banner("MULTI-HORIZON DIAGNOSTIC", f"assets={len(tickers)}", f"run_id={run_id}", width=width):
+        print(line)
+    for line in render_facts(
+        [("Assets", len(tickers)), ("Workers", workers), ("Autotune", bool(args.autotune)), ("No Data", bool(args.no_data))],
+        width=width,
+        max_columns=4,
+    ):
+        print(line)
+
     rows: list[dict[str, Any]] = []
-    for idx, ticker in enumerate(tickers, start=1):
-        print(f"[{C.DIM}{idx:>3}/{len(tickers):<3}{C.RESET}] {C.BOLD}{ticker:<12}{C.RESET} data -> train -> predict", end=" ", flush=True)
-        row = _diagnose_one(cfg, ticker, args)
-        rows.append(row)
-        status = row.get("status", "ok")
-        if status == "ok":
-            print(f"| {C.GREEN}OK{C.RESET}")
-            # Optional sub-line with details if verbose
-            # print(f"          D1:{row.get('prediction_pct', 0):+5.2f}% | D5:{row.get('d5_ret', 0):+5.2f}% | conf={row.get('confidence_pct', 0):.0f}%")
-        else:
-            print(f"| {C.RED}FAIL{C.RESET} at {row.get('failed_stage')}")
-            
+    if workers == 1:
+        for idx, ticker in enumerate(tickers, start=1):
+            print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> predict", end=" ", flush=True)
+            row = diagnose_one_asset(cfg, ticker, no_data=bool(args.no_data), autotune=bool(args.autotune), inner_threads=None)
+            rows.append(row)
+            _print_status(row)
+    else:
+        futures = {}
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            for idx, ticker in enumerate(tickers, start=1):
+                futures[
+                    executor.submit(
+                        diagnose_one_asset,
+                        cfg,
+                        ticker,
+                        no_data=bool(args.no_data),
+                        autotune=bool(args.autotune),
+                        inner_threads=1,
+                    )
+                ] = (idx, ticker)
+            for future in as_completed(futures):
+                idx, ticker = futures[future]
+                try:
+                    row = future.result()
+                except Exception as exc:
+                    row = {
+                        "input_ticker": ticker,
+                        "ticker": ticker,
+                        "status": "error",
+                        "failed_stage": "worker",
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "traceback": "",
+                    }
+                rows.append(row)
+                print(f"[{paint(f'{idx:>3}/{len(tickers):<3}', C.DIM)}] {paint(f'{ticker:<12}', C.BOLD)} data -> train -> predict", end=" ", flush=True)
+                _print_status(row)
+
+    rows.sort(key=lambda row: str(row.get("ticker") or row.get("input_ticker") or ""))
     paths = _write_outputs(cfg, rows, run_id)
-    print(gray_line)
-    print(f"SUMMARY: {C.BLUE}{paths['txt']}{C.RESET}")
-    print(gray_line)
-    return 0 if all(r.get("status") == "ok" for r in rows) else 1
+    print(divider(width))
+    print(f"Summary: {paint(paths['txt'], C.BLUE)}")
+    print(divider(width))
+    return 0 if all(r.get("status") in {"ok", "skipped"} for r in rows) else 1
 
 
 if __name__ == "__main__":

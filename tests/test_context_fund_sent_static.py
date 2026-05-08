@@ -19,10 +19,10 @@ def test_context_registry_exists_and_cli_is_not_expanded():
     assert 'sub.add_parser("fundamentals"' not in cli
 
 
-def test_context_has_temporal_beta_and_no_legacy_macro_default():
+def test_context_has_temporal_beta_and_no_macro_default():
     technical = _preset('technical', 'standard')
     context = _preset('context', 'asset_linked')
-    assert technical['features']['legacy_macro_features'] is False
+    assert technical['features']['macro_features'] is False
     assert context['features']['beta'] is True
     assert context['windows']['beta'] == [20, 60]
     text = (ROOT / 'app' / 'context.py').read_text(encoding='utf-8')

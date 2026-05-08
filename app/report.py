@@ -4,256 +4,410 @@ from pathlib import Path
 from typing import Any
 
 from .config import reports_dir
-from .feature_audit import abbreviate_feature_name, feature_family, selected_feature_scores, top_selected_features
-from .utils import run_id, safe_ticker, write_json
-
-
-class C:
-    """Discrete, opaque color palette for professional CLI."""
-    HEADER = '\033[90m'  # Dark Gray
-    BLUE = '\033[38;5;67m'  # Steel Blue (discrete)
-    CYAN = '\033[38;5;109m' # Muted Cyan
-    GREEN = '\033[38;5;108m' # Sage Green
-    YELLOW = '\033[38;5;144m' # Sand/Beige
-    RED = '\033[38;5;131m'   # Muted Red
-    DIM = '\033[2m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+from .presentation import (
+    C,
+    banner,
+    divider,
+    money_br,
+    paint,
+    render_facts,
+    render_table,
+    render_wrapped,
+    screen_width,
+    tone_delta,
+    tone_signal,
+)
+from .utils import safe_ticker
 
 
 def _money(value: float) -> str:
-    return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return money_br(value)
+
+
+def _clean_reasons(policy: dict[str, Any]) -> list[str]:
+    return [reason for reason in policy.get("reasons", []) if "=" not in reason]
+
+
+def _signal_horizon_result(signal: dict[str, Any]) -> dict[str, Any]:
+    policy = signal.get("policy", {}) or {}
+    horizon = str(policy.get("horizon", "d1")).lower()
+    horizons = signal.get("horizons", {}) or {}
+    return horizons.get(horizon, horizons.get("d1", {})) or {}
+
+
+def _manifest_from_signal(signal: dict[str, Any]) -> dict[str, Any]:
+    primary = signal.get("prediction", {}) or {}
+    manifest = primary.get("train_manifest")
+    if manifest:
+        return manifest
+    trigger_result = _signal_horizon_result(signal)
+    return (trigger_result.get("train_manifest") or {}) if isinstance(trigger_result, dict) else {}
+
+
+def _compact_items(items: list[str] | tuple[str, ...] | None, *, limit: int = 4, empty: str = "none") -> str:
+    values = [str(item) for item in (items or []) if str(item).strip()]
+    if not values:
+        return empty
+    if len(values) <= limit:
+        return ", ".join(values)
+    return ", ".join(values[:limit]) + f" (+{len(values) - limit})"
+
+
+def _top_feature_summary(top_features: list[dict[str, Any]] | None, *, limit: int = 5) -> str:
+    items = top_features or []
+    if not items:
+        return "top_5=n/a"
+    chunks = []
+    for item in items[:limit]:
+        short_name = item.get("short") or item.get("name", "n/a")
+        family = item.get("family", "n/a")
+        relevance = float(item.get("relevance", 0.0) or 0.0)
+        chunks.append(f"{short_name} [{family}, {relevance:.3f}]")
+    return "top_5=" + "; ".join(chunks)
+
+
+def _family_mix_summary(families: dict[str, Any] | None) -> str:
+    profile = families or {}
+    pairs = [f"{name}={count}" for name, count in profile.items() if count]
+    return " | ".join(pairs) if pairs else "n/a"
+
+
+def _engine_values_summary(values: dict[str, Any] | None) -> str:
+    payload = values or {}
+    if not payload:
+        return "n/a"
+    parts = []
+    for name, value in payload.items():
+        try:
+            pct = float(value) * 100.0
+            parts.append(f"{name}={pct:+.2f}%")
+        except Exception:
+            parts.append(f"{name}=n/a")
+    return "; ".join(parts)
+
+
+def _print_lines(lines: list[str]) -> None:
+    for line in lines:
+        print(line)
 
 
 def print_data_summary(status: dict[str, Any]) -> None:
+    width = screen_width()
     ticker = status.get("ticker", "N/A")
     profile = status.get("asset_profile", {}) or {}
-    context = status.get("context_tickers", []) or []
     fundamentals = status.get("fundamentals", {}) or {}
-    fund_source = fundamentals.get("source", "n/a")
     sentiment = status.get("sentiment", {}) or {}
-    
-    gray_line = C.DIM + "─" * 72 + C.RESET
-    
-    print("\n" + gray_line)
-    print(f"{C.BOLD}DATA REPORT{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {status.get('end')}")
-    print(gray_line)
-    
-    # Block 1: Inventory Status
-    st_val = status.get('status', 'updated').upper()
-    rows_val = str(status.get('rows', 0))
-    period_val = status.get('period', 'max')
-    print(f"STATUS: {C.GREEN}{st_val:<12}{C.RESET} | ROWS: {C.BOLD}{rows_val:<12}{C.RESET} | PERIOD: {C.DIM}{period_val}{C.RESET}")
-    
-    # Block 2: Registry & Profile
-    group = (profile.get("group") or "n/a").upper()
-    cnpj = profile.get("cnpj") or "n/a"
-    source = status.get("source", "yfinance")
-    print(f"GROUP : {C.BOLD}{group:<12}{C.RESET} | CNPJ: {C.DIM}{cnpj:<12}{C.RESET} | SOURCE: {C.DIM}{source}{C.RESET}")
-    
-    print(gray_line)
-    # Block 3: Support Intelligence
-    ctx_str = ", ".join([str(x) for x in context]) if context else "none"
-    print(f"CONTEXT     : {C.DIM}{ctx_str}{C.RESET}")
-    print(f"FUNDAMENTALS: {C.BOLD}{fundamentals.get('status', 'available').upper():<10}{C.RESET} | SOURCE: {C.DIM}{fund_source}{C.RESET}")
-    sent_status = sentiment.get("status", "updated").upper()
-    sent_info = "FRESH" if sentiment.get("is_fresh") else f"CACHE: {sentiment.get('cache_rows', 0)}d"
-    print(f"SENTIMENT   : {C.BOLD}{sent_status:<10}{C.RESET} | {C.DIM}{sent_info}{C.RESET}")
-    
-    print(gray_line)
+    sent_info = "fresh" if sentiment.get("is_fresh") else f"cache_rows={sentiment.get('cache_rows', 0)}"
+
+    facts = [
+        ("Status", status.get("status", "updated")),
+        ("Rows", status.get("rows", 0)),
+        ("Range", f"{status.get('start') or 'n/a'} -> {status.get('end') or 'n/a'}"),
+        ("Period", status.get("period", "max")),
+        ("Context", _compact_items(status.get("context_tickers", []) or [], limit=5)),
+        ("Ctx Skipped", _compact_items(status.get("unavailable_context_tickers", []) or [], limit=5)),
+        (
+            "Registry",
+            f"{profile.get('group', 'n/a')} / {profile.get('subgroup', 'n/a')} / {profile.get('cnpj', 'n/a')}",
+        ),
+        ("Fundamentals", f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}"),
+        ("Sentiment", f"{sentiment.get('status', 'n/a')} | {sent_info}"),
+    ]
+
+    print()
+    _print_lines(banner("TRADECHAT DATA", ticker, width=width))
+    _print_lines(render_facts(facts, width=width, max_columns=2))
+    print(divider(width))
 
 
 def print_multi_horizon_train_summary(manifests: list[dict[str, Any]]) -> None:
     if not manifests:
         return
-    
-    # Sort by horizon to ensure order D1, D5, D20
+
+    width = screen_width()
     order = {"d1": 0, "d5": 1, "d20": 2}
-    sorted_m = sorted(manifests, key=lambda x: order.get(x.get("horizon", "").lower(), 99))
-    
-    m0 = sorted_m[0]
-    ticker = m0.get("ticker", "N/A")
-    base_engines = m0.get("base_engines", [])
-    
-    gray_line = C.DIM + "─" * 72 + C.RESET
-    
-    print("\n" + gray_line)
-    print(f"{C.BOLD}TRAIN REPORT{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {C.CYAN}{C.BOLD}MULTI-HORIZON{C.RESET}")
-    print(gray_line)
-    
-    # Header for Grid
-    print(f"{'ENGINE':<15} {'MAE (D1)':>12} {'MAE (D5)':>12} {'MAE (D20)':>12}   {'STATUS'}")
-    
-    # Table Rows
+    sorted_m = sorted(manifests, key=lambda item: order.get(str(item.get("horizon", "")).lower(), 99))
+    sample_manifest = sorted_m[0]
+    ticker = sample_manifest.get("ticker", "N/A")
+    base_engines = sample_manifest.get("base_engines", [])
+    latest_manifest = sorted_m[-1]
+    prep = latest_manifest.get("preparation", {}) or {}
+    families = latest_manifest.get("feature_family_profile", {}) or {}
+
+    rows: list[list[str]] = []
     for name in base_engines:
-        row = f"{name:<15}"
-        for m in sorted_m:
-            mae = m.get("metrics", {}).get(name, {}).get("mae_return_raw", 0.0)
-            row += f" {C.YELLOW}{mae:>12.5f}{C.RESET}"
-        row += f"   {C.GREEN}OK{C.RESET}"
-        print(row)
-    
-    # Arbiter Row
-    arb_row = f"{C.BOLD}{'ridge_arbiter':<15}{C.RESET}"
-    for m in sorted_m:
-        mae = m.get("metrics", {}).get("ridge_arbiter", {}).get("mae_return", 0.0)
-        arb_row += f" {C.GREEN}{mae:>12.5f}{C.RESET}"
-    arb_row += f"   {C.BOLD}FINAL{C.RESET}"
-    print(arb_row)
-    
-    print(gray_line)
-    # Block 3: Intelligence Mix (from latest/largest model)
-    m_last = sorted_m[-1]
-    families = m_last.get("feature_family_profile", {})
-    top_feats = m_last.get("top_features", [])
-    prep = m_last.get("preparation", {}) or {}
-    samples = prep.get("output_rows", 0)
-    features = prep.get("selected_feature_count", 0)
-    
-    print(f"SAMPLES     : {C.DIM}{samples:<10}{C.RESET} | FEATURES: {C.DIM}{features}{C.RESET}")
-    line = " | ".join([f"{k}: {v}" for k, v in families.items() if v > 0])
-    print(f"INTELLIGENCE: {C.DIM}{line}{C.RESET}")
-    if top_feats:
-        top_str = ", ".join([f"{f['short']}" for f in top_feats[:4]])
-        print(f"TOP FEATURES: {C.DIM}{top_str}{C.RESET}")
-    print(gray_line)
+        row = [name]
+        for manifest in sorted_m:
+            mae = manifest.get("metrics", {}).get(name, {}).get("mae_return_raw", 0.0)
+            row.append(f"{mae:.5f}")
+        row.append(paint("OK", C.GREEN))
+        rows.append(row)
+
+    arb_row = [paint("ridge_arbiter", C.BOLD)]
+    for manifest in sorted_m:
+        mae = manifest.get("metrics", {}).get("ridge_arbiter", {}).get("mae_return", 0.0)
+        arb_row.append(paint(f"{mae:.5f}", C.GREEN))
+    arb_row.append(paint("FINAL", C.BOLD))
+    rows.append(arb_row)
+
+    facts = [
+        ("Samples", prep.get("output_rows", 0)),
+        ("Features", prep.get("selected_feature_count", 0)),
+        ("Horizons", "D1 / D5 / D20"),
+        ("Engines", len(base_engines)),
+    ]
+
+    print()
+    _print_lines(banner("TRAIN REPORT", paint(ticker, C.BLUE), paint("MULTI-HORIZON", C.CYAN), width=width))
+    _print_lines(render_facts(facts, width=width, max_columns=2))
+    _print_lines(
+        render_table(
+            ["ENGINE", "D1 MAE", "D5 MAE", "D20 MAE", "STATE"],
+            rows,
+            width=width,
+            aligns=["left", "right", "right", "right", "left"],
+            min_widths=[12, 8, 8, 9, 5],
+        )
+    )
+    _print_lines(render_wrapped("Family Mix", _family_mix_summary(families), width=width))
+    _print_lines(render_wrapped("Top Feats", _top_feature_summary(latest_manifest.get("top_features", [])), width=width))
+    print(divider(width))
+
+
+def _signal_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] | tuple[str, str]]:
+    price = float(signal["latest_price"])
+    policy = signal["policy"]
+    trigger_h = str(policy.get("horizon", "d1")).upper()
+    label = str(policy.get("label", "NEUTRAL"))
+    is_neutral = label in ["NEUTRAL", "LATERAL"]
+    facts: list[tuple[str, str, str] | tuple[str, str]] = [
+        ("Price", _money(price)),
+        ("Signal", f"{label} ({policy.get('posture', 'n/a')})", tone_signal(label)),
+        ("Conf", f"{policy.get('confidence_pct', 0.0):.0f}%"),
+        ("Horizon", trigger_h),
+    ]
+    if is_neutral:
+        facts.extend(
+            [
+                ("Target", "n/a"),
+                ("Stop", "n/a"),
+                ("Size", "0"),
+                ("R/R", "n/a"),
+            ]
+        )
+    else:
+        facts.extend(
+            [
+                ("Target", _money(float(policy.get("target_price", 0.0) or 0.0)), C.GREEN),
+                ("Stop", _money(float(policy.get("stop_loss_price", 0.0) or 0.0)), C.RED),
+                ("Size", str(policy.get("position_size", 0))),
+                ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
+                ("Partial", _money(float(policy.get("target_partial", 0.0) or 0.0)), C.CYAN),
+                ("Breakeven", _money(float(policy.get("breakeven_trigger", 0.0) or 0.0))),
+            ]
+        )
+    return facts
+
+
+def _horizon_rows(signal: dict[str, Any]) -> list[list[str]]:
+    price = float(signal["latest_price"])
+    horizons = signal.get("horizons", {}) or {}
+    rows: list[list[str]] = []
+    for horizon in ["d1", "d5", "d20"]:
+        h_data = horizons.get(horizon, {}) or {}
+        if "error" in h_data:
+            rows.append([horizon.upper(), "n/a", "-", "-"])
+            continue
+        ret = float(h_data.get("prediction_return", 0.0) or 0.0)
+        conf = float(h_data.get("confidence", 0.0) or 0.0) * 100.0
+        target_price = price * (1 + ret)
+        rows.append(
+            [
+                horizon.upper(),
+                paint(f"{ret * 100:+.2f}%", tone_delta(ret)),
+                _money(target_price),
+                f"{conf:.0f}%",
+            ]
+        )
+    return rows
+
+
+def _signal_context_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] | tuple[str, str]]:
+    fundamentals = signal.get("fundamentals", {}) or {}
+    sent = float(signal.get("sentiment_value", 0.0) or 0.0)
+    context_desc = "aligned_with_ibov" if "ctx_BVSP_corr_20" in signal.get("features_used", []) else "neutral_context"
+    return [
+        ("Sentiment", f"{sent:+.2f}", tone_delta(sent)),
+        ("Context", context_desc),
+        (
+            "Fundamentals",
+            f"pl={float(fundamentals.get('pl', 0.0) or 0.0):.1f} | roe={float(fundamentals.get('roe', 0.0) or 0.0) * 100:.1f}%",
+        ),
+    ]
+
+
+def _render_signal_meta(signal: dict[str, Any], *, width: int, use_color: bool = True) -> list[str]:
+    trigger_result = _signal_horizon_result(signal)
+    lines: list[str] = []
+    lines.extend(
+        render_wrapped(
+            "Used Engines",
+            _compact_items(trigger_result.get("used_engines", []) or [], limit=8),
+            width=width,
+            use_color=use_color,
+        )
+    )
+    lines.extend(
+        render_wrapped(
+            "Neutralized",
+            _compact_items(trigger_result.get("discarded_engines", []) or [], limit=8),
+            width=width,
+            use_color=use_color,
+        )
+    )
+    lines.extend(
+        render_wrapped(
+            "Reasons",
+            "; ".join(_clean_reasons(signal.get("policy", {}) or {})) or "none",
+            width=width,
+            use_color=use_color,
+        )
+    )
+    lines.extend(render_wrapped("Run Id", signal.get("train_run_id", "n/a"), width=width, use_color=use_color))
+    return lines
 
 
 def print_signal(signal: dict[str, Any]) -> None:
+    width = screen_width()
     ticker = signal["ticker"]
-    price = signal["latest_price"]
-    policy = signal["policy"]
-    fundamentals = signal.get("fundamentals", {})
-    horizons = signal.get("horizons", {})
-    is_neutral = policy['label'] in ["NEUTRAL", "LATERAL"]
-    trigger_h = policy.get("horizon", "d1").upper()
-    
-    # Values for Tactical Block
-    p_val = _money(price)
-    s_val = f"{policy['label']} ({policy['posture']})"
-    c_val = f"{policy['confidence_pct']:.0f}% | {trigger_h}"
-    
-    if is_neutral:
-        t_val, st_val, rr_val = "---", "---", "---"
-        sz_val, pr_val, be_val = "0", "---", "---"
-    else:
-        t_val = _money(policy.get('target_price', 0.0))
-        st_val = _money(policy.get('stop_loss_price', 0.0))
-        rr_val = f"{policy.get('risk_reward_ratio', 0.0):.2f}"
-        sz_val = str(policy.get('position_size', 0))
-        pr_val = _money(policy.get('target_partial', 0.0))
-        be_val = _money(policy.get('breakeven_trigger', 0.0))
-
-    print("\n" + C.HEADER + "─" * 72 + C.RESET)
-    print(f"{C.BOLD}SIGNAL REPORT{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {signal.get('latest_date')}")
-    print(C.HEADER + "─" * 72 + C.RESET)
-    
-    # Block 1: Cockpit Tático
-    print(f"PRICE: {C.BOLD}{p_val:<12}{C.RESET} | SIGNAL: {C.BOLD}{s_val:<18}{C.RESET} | CONF: {C.YELLOW}{c_val}{C.RESET}")
-    print(f"TARGET: {C.GREEN}{t_val:<11}{C.RESET} | STOP: {C.RED}{st_val:<20}{C.RESET} | R/R: {C.CYAN}{rr_val}{C.RESET}")
-    print(f"SIZE: {C.BOLD}{sz_val:<13}{C.RESET} | PARTIAL: {C.CYAN}{pr_val:<17}{C.RESET} | BE: {C.DIM}{be_val}{C.RESET}")
-    
-    print(C.HEADER + "─" * 72 + C.RESET)
-    # Block 2: Horizons Table
-    print(f"{'HORIZON':<12} {'EXP. RETURN':>14} {'TARGET PRICE':>14} {'CONFIDENCE':>12}")
-    for h in ["d1", "d5", "d20"]:
-        h_data = horizons.get(h, {})
-        h_label = h.upper()
-        if "error" in h_data:
-            print(f"{C.CYAN}{C.BOLD}{h_label:<12}{C.RESET} {C.RED}{'n/a':>14}{C.RESET} {'-':>14} {'-':>12}")
-            continue
-        ret = float(h_data.get("prediction_return", 0.0))
-        conf = float(h_data.get("confidence", 0.0)) * 100
-        t_price = price * (1 + ret)
-        color = C.GREEN if ret > 0.001 else C.RED if ret < -0.001 else C.RESET
-        print(f"{C.CYAN}{C.BOLD}{h_label:<12}{C.RESET} {color}{ret*100:>+13.2f}%{C.RESET} {_money(t_price):>14} {conf:>11.0f}%")
-    
-    print(C.HEADER + "─" * 72 + C.RESET)
-    # Block 3: Context & Fundamentals
-    sent = float(signal.get("sentiment_value", 0.0))
-    context_desc = "Aligned with IBOV" if "ctx_BVSP_corr_20" in signal.get("features_used", []) else "Neutral Context"
-    sent_color = C.GREEN if sent > 0.1 else C.RED if sent < -0.1 else C.DIM
-    pl_val = f"{float(fundamentals.get('pl', 0) or 0):.1f}"
-    roe_val = f"{float(fundamentals.get('roe', 0) or 0)*100:.1f}%"
-    
-    print(f"SENTIMENT: {sent_color}{sent:>+6.2f}{C.RESET}     | CONTEXT: {C.DIM}{context_desc}{C.RESET}")
-    print(f"P/L      : {C.DIM}{pl_val:<10}{C.RESET} | ROE    : {C.DIM}{roe_val}{C.RESET}")
-    
-    print(C.HEADER + "─" * 72 + C.RESET)
-    # Block 4: Audit
-    # Filter out technical reasons containing '='
-    cleaned_reasons = [r for r in policy.get("reasons", []) if "=" not in r]
-    
-    print(f"REASONS     : " + "; ".join(cleaned_reasons))
-    print(f"RUN ID      : {C.DIM}{signal.get('train_run_id')}{C.RESET}")
-    print(C.HEADER + "─" * 72 + C.RESET)
+    print()
+    _print_lines(banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width))
+    _print_lines(render_facts(_signal_facts(signal), width=width, max_columns=2))
+    _print_lines(
+        render_table(
+            ["H", "RETURN", "TARGET", "CONF"],
+            _horizon_rows(signal),
+            width=width,
+            aligns=["left", "right", "right", "right"],
+            min_widths=[4, 8, 12, 6],
+        )
+    )
+    _print_lines(render_facts(_signal_context_facts(signal), width=width, max_columns=2))
+    _print_lines(_render_signal_meta(signal, width=width))
+    print(divider(width))
 
 
 def print_signal_brief(signal: dict[str, Any]) -> None:
+    width = screen_width()
     ticker = signal["ticker"]
-    price = signal["latest_price"]
-    policy = signal["policy"]
-    is_neutral = policy['label'] in ["NEUTRAL", "LATERAL"]
-    trigger_h = policy.get("horizon", "d1").upper()
-    
-    # Values
-    p_val = _money(price)
-    s_val = f"{policy['label']} ({policy['posture']})"
-    c_val = f"{policy['confidence_pct']:.0f}% | {trigger_h}"
-    
-    if is_neutral:
-        t_val, st_val, rr_val = "---", "---", "---"
-        sz_val, pr_val, be_val = "0", "---", "---"
-    else:
-        t_val = _money(policy.get('target_price', 0.0))
-        st_val = _money(policy.get('stop_loss_price', 0.0))
-        rr_val = f"{policy.get('risk_reward_ratio', 0.0):.2f}"
-        sz_val = str(policy.get('position_size', 0))
-        pr_val = _money(policy.get('target_partial', 0.0))
-        be_val = _money(policy.get('breakeven_trigger', 0.0))
+    brief_facts = _signal_facts(signal)[:8]
+    print()
+    _print_lines(banner("SIGNAL REPORT", paint(ticker, C.BLUE), signal.get("latest_date"), width=width))
+    _print_lines(render_facts(brief_facts, width=width, max_columns=2))
+    print(divider(width))
 
-    print("\n" + C.HEADER + "─" * 72 + C.RESET)
-    print(f"{C.BOLD}SIGNAL REPORT{C.RESET} | {C.BLUE}{ticker}{C.RESET} | {signal.get('latest_date')}")
-    print(C.HEADER + "─" * 72 + C.RESET)
-    
-    # Line 1: Status
-    print(f"PRICE: {C.BOLD}{p_val:<12}{C.RESET} | SIGNAL: {C.BOLD}{s_val:<18}{C.RESET} | CONF: {C.YELLOW}{c_val}{C.RESET}")
-    
-    # Line 2: Targets
-    print(f"TARGET: {C.GREEN}{t_val:<11}{C.RESET} | STOP: {C.RED}{st_val:<20}{C.RESET} | R/R: {C.CYAN}{rr_val}{C.RESET}")
-    
-    # Line 3: Execution
-    print(f"SIZE: {C.BOLD}{sz_val:<13}{C.RESET} | PARTIAL: {C.CYAN}{pr_val:<17}{C.RESET} | BE: {C.DIM}{be_val}{C.RESET}")
-    
-    print(C.HEADER + "─" * 72 + C.RESET)
+
+def render_txt_report(signal: dict[str, Any]) -> str:
+    width = 88
+    ticker = signal["ticker"]
+    price = float(signal["latest_price"])
+    policy = signal.get("policy", {}) or {}
+    manifest = _manifest_from_signal(signal)
+    trigger_result = _signal_horizon_result(signal)
+    top_features = manifest.get("top_features", []) or []
+    family_profile = manifest.get("feature_family_profile", {}) or {}
+    tune_summary = manifest.get("tune_summary", {}) or {}
+
+    lines: list[str] = []
+    lines.extend(banner("TRADECHAT AUDIT REPORT", ticker, signal.get("latest_date"), width=width, use_color=False))
+    lines.extend(
+        render_facts(
+            [
+                ("Last Price", _money(price)),
+                ("Signal", f"{policy.get('label', 'N/A')} ({policy.get('posture', 'n/a')})"),
+                ("Trigger", str(policy.get("horizon", "d1")).upper()),
+                ("Confidence", f"{float(policy.get('confidence_pct', 0.0) or 0.0):.0f}%"),
+                ("Size", policy.get("position_size", 0)),
+                ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
+                ("Target T1", _money(float(policy.get("target_partial", 0.0) or 0.0))),
+                ("Target T2", _money(float(policy.get("target_price", 0.0) or 0.0))),
+                ("Stop Loss", _money(float(policy.get("stop_loss_price", 0.0) or 0.0))),
+            ],
+            width=width,
+            max_columns=2,
+            use_color=False,
+        )
+    )
+    lines.append(divider(width, use_color=False))
+    lines.append("BASE ENGINES AND ARBITER")
+    lines.extend(
+        render_facts(
+            [
+                ("Architecture", manifest.get("architecture", "n/a")),
+                ("Base Engines", _compact_items(manifest.get("base_engines", []) or [], limit=8)),
+                ("Used Engines", _compact_items(trigger_result.get("used_engines", []) or [], limit=8)),
+                ("Neutralized", _compact_items(trigger_result.get("discarded_engines", []) or [], limit=8)),
+            ],
+            width=width,
+            max_columns=2,
+            use_color=False,
+        )
+    )
+    lines.extend(render_wrapped("Raw Outputs", _engine_values_summary(trigger_result.get("raw_by_engine", {}) or {}), width=width, use_color=False))
+    lines.extend(render_wrapped("Guarded Outputs", _engine_values_summary(trigger_result.get("by_engine", {}) or {}), width=width, use_color=False))
+    lines.extend(
+        render_table(
+            ["H", "RETURN", "TARGET", "CONF"],
+            [[cell for cell in row] for row in _horizon_rows(signal)],
+            width=width,
+            aligns=["left", "right", "right", "right"],
+            min_widths=[4, 8, 12, 6],
+            use_color=False,
+        )
+    )
+    lines.append(divider(width, use_color=False))
+    lines.append("FEATURE AUDIT")
+    lines.extend(
+        render_facts(
+            [
+                ("Selected", len(manifest.get("features", []) or [])),
+                ("Family Mix", _family_mix_summary(family_profile)),
+            ],
+            width=width,
+            max_columns=2,
+            use_color=False,
+        )
+    )
+    lines.extend(render_wrapped("Top Feats", _top_feature_summary(top_features), width=width, use_color=False))
+    lines.append(divider(width, use_color=False))
+    lines.append("AUTOTUNE SUMMARY")
+    lines.extend(
+        render_facts(
+            [
+                ("Enabled", _fmt_bool(manifest.get("autotune", False))),
+            ],
+            width=width,
+            max_columns=1,
+            use_color=False,
+        )
+    )
+    lines.extend(render_wrapped("Details", tune_summary if tune_summary else "not used", width=width, use_color=False))
+    lines.append(divider(width, use_color=False))
+    lines.append("REASONS")
+    reasons = _clean_reasons(policy)
+    if reasons:
+        for reason in reasons:
+            lines.extend(render_wrapped("Reason", reason, width=width, use_color=False))
+    else:
+        lines.append("Reason: none")
+    lines.append(divider(width, use_color=False))
+    lines.append(f"RUN ID: {signal.get('train_run_id')}")
+    return "\n".join(lines) + "\n"
 
 
 def write_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> Path:
-    ticker = signal["ticker"]
-    policy = signal["policy"]
-    path = reports_dir(cfg) / f"{safe_ticker(ticker)}_audit.txt"
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(f"TRADECHAT AUDIT | {ticker} | {signal.get('latest_date')}\n")
-        f.write("-" * 72 + "\n")
-        f.write(f"LAST PRICE : {signal['latest_price']}\n")
-        f.write(f"SIGNAL     : {signal['policy']['label']} ({signal['policy']['posture']})\n")
-        trigger_h = policy.get("horizon", "d1").upper()
-        f.write(f"CONFIDENCE : {int(policy.get('confidence_pct', 0))}% | {trigger_h}\n")
-        is_n = policy['label'] in ["NEUTRAL", "LATERAL"]
-        f.write(f"SUGG. SIZE : {policy.get('position_size', 0) if not is_n else 0} units\n")
-        f.write(f"PARTIAL T1 : R$ {policy.get('target_partial', 0.0) if not is_n else 0.0:.2f} (Realize 50%)\n")
-        f.write(f"TARGET T2  : R$ {policy.get('target_price', 0.0) if not is_n else 0.0:.2f}\n")
-        f.write(f"STOP-LOSS  : R$ {policy.get('stop_loss_price', 0.0) if not is_n else 0.0:.2f}\n")
-        f.write(f"BE TRIGGER : R$ {policy.get('breakeven_trigger', 0.0) if not is_n else 0.0:.2f} (Move Stop to Entry)\n")
-        f.write(f"R/R RATIO  : {policy.get('risk_reward_ratio', 0.0) if not is_n else 0.0:.2f}\n")
-        f.write("-" * 72 + "\n")
-        f.write(f"REASONS:\n")
-        # Filter out technical reasons containing '='
-        cleaned = [r for r in policy.get("reasons", []) if "=" not in r]
-        for r in cleaned:
-            f.write(f" - {r}\n")
-        f.write("-" * 72 + "\n")
-        f.write(f"RUN ID: {signal.get('train_run_id')}\n")
+    path = reports_dir(cfg) / f"{safe_ticker(signal['ticker'])}_audit.txt"
+    path.write_text(render_txt_report(signal), encoding="utf-8")
     return path
 
 

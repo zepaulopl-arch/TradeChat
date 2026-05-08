@@ -450,8 +450,6 @@ assets:
     financial_class: non_financial
     cnpj: 02.916.265/0001-60
     cnpj_status: verified_seed
-    predecessor_ticker: JBSS3.SA
-    conversion_ratio: 2.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -995,8 +993,6 @@ assets:
     financial_class: non_financial
     cnpj: 00.001.180/0001-26
     cnpj_status: verified_seed
-    predecessor_ticker: ELET3.SA
-    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - ^IEE
@@ -1074,8 +1070,6 @@ assets:
     financial_class: non_financial
     cnpj: 02.846.056/0001-97
     cnpj_status: verified_seed
-    predecessor_ticker: CCRO3.SA
-    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1131,8 +1125,6 @@ assets:
     financial_class: non_financial
     cnpj: 09.296.295/0001-60
     cnpj_status: verified_seed
-    predecessor_ticker: AZUL4.SA
-    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1152,8 +1144,6 @@ assets:
     financial_class: non_financial
     cnpj: 07.689.002/0001-89
     cnpj_status: verified_seed
-    predecessor_ticker: EMBR3.SA
-    conversion_ratio: 1.0
     context_tickers:
     - ^BVSP
     - USDBRL=X
@@ -1213,6 +1203,28 @@ assets:
     - ICON
     use_in_reference_sample: true
     registry_status: active
+  GOLL54.SA:
+    name: GOL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: airlines
+    financial_class: non_financial
+    cnpj: 07.575.651/0001-59
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: false
+    registry_status: inactive
+    provider_status: delisted_b3
+    inactive_reason: delisted_after_restructuring
+    inactive_date: '2026-03-27'
+    note: excluded from operational universe; no longer suitable for ALL/data/train/diagnose
 context:
   description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to Yahoo tickers when available.
   global:

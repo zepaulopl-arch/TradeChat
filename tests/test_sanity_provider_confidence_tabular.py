@@ -1,33 +1,15 @@
-from app.config import load_config, load_data_registry
+from app.config import load_config
 from app.data import resolve_asset
 from app.models import _confidence_from, _make_base_engines
 
 
-def test_known_b3_ticker_migrations_resolve_to_current_codes():
+def test_old_b3_tickers_are_not_resolved_as_aliases():
     cfg = load_config()
-    expected = {
-        "ARZZ3": "AZZA3.SA",
-        "SOMA3": "AZZA3.SA",
-        "CCRO3": "MOTV3.SA",
-        "RRRP3": "BRAV3.SA",
-        "BRFS3": "MBRF3.SA",
-        "MRFG3": "MBRF3.SA",
-        "AZUL4": "AZUL54.SA",
-        "GOLL4": "GOLL54.SA",
-        "EMBR3": "EMBJ3.SA",
-    }
-    for old, new in expected.items():
-        resolved = resolve_asset(cfg, old)
-        assert resolved["canonical"] == new
-        assert resolved["changed"] is True
-
-
-def test_legacy_ticker_aliases_are_excluded_from_reference_sample():
-    registry = load_data_registry(load_config())
-    for old in ["ARZZ3.SA", "SOMA3.SA", "CCRO3.SA", "RRRP3.SA", "BRFS3.SA", "MRFG3.SA", "AZUL4.SA", "GOLL4.SA", "EMBR3.SA"]:
-        meta = registry["assets"][old]
-        assert meta["registry_status"] == "inactive_alias"
-        assert meta["use_in_reference_sample"] is False
+    for ticker in ["ARZZ3", "SOMA3", "CCRO3", "RRRP3", "BRFS3", "MRFG3", "AZUL4", "GOLL4", "EMBR3"]:
+        resolved = resolve_asset(cfg, ticker)
+        assert resolved["canonical"] == f"{ticker}.SA"
+        assert resolved["changed"] is False
+        assert resolved["profile"] == {}
 
 
 def test_operational_engines_are_three_tabular_specialists():

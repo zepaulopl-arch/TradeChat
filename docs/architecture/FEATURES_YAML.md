@@ -2,7 +2,7 @@
 
 `features.yaml` is the feature contract of TradeGem. It is intentionally separate from:
 
-- `config.yaml`: operational parameters, model, policy, UI and daily behavior.
+- `config.yaml`: operational parameters, model, policy, simulation and UI.
 - `data.yaml`: asset registry, groups, subgroups, CNPJ and context/index baskets.
 
 ## Structural rule

@@ -12,3 +12,4 @@ nltk
 deep-translator
 
 scikit-optimize
+lib-pybroker

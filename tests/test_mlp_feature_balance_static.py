@@ -7,7 +7,7 @@ def test_features_yaml_has_family_limits():
     text = (ROOT / "config" / "features.yaml").read_text(encoding="utf-8")
     assert "family_limits:" in text
     assert "context:" in text
-    assert "max: 5" in text
+    assert "max: 7" in text
     assert "target_relevance_low_correlation_greedy_family_balanced" in text
 
 
@@ -21,5 +21,6 @@ def test_tabular_engines_share_prepared_feature_contract():
 
 def test_signal_reports_used_and_discarded_engines():
     text = (ROOT / "app" / "report.py").read_text(encoding="utf-8")
-    assert "used engines:" in text
-    assert "neutralized before Ridge" in text
+    assert "Used Engines" in text
+    assert "Neutralized" in text
+    assert "def _render_signal_meta" in text

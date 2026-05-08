@@ -1,2 +1,2 @@
 @echo off
-python scripts\generate_portfolio.py %*
+python trade.py portfolio --live %*

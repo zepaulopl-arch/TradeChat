@@ -7,6 +7,7 @@ __pycache__/
 data_cache/
 *.parquet
 *.sqlite
+data/tradechat_state.db
 *.pkl
 *.csv
 *.zip

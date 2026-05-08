@@ -15,11 +15,12 @@ def test_prediction_guards_exist_and_clip_outliers():
     assert "max_final_return_abs" in text
     assert "_clip_return_float" in text
     assert "def _latest_engine_guard" in text
+    assert "def _oof_valid_mask" in text
 
 
 def test_policy_confidence_floor_is_conservative():
     cfg = (ROOT / "config" / "config.yaml").read_text(encoding="utf-8")
-    assert "min_confidence_pct: 0.55" in cfg
+    assert "min_confidence_pct: 0.45" in cfg
     assert "high_confidence_pct: 0.7" in cfg
     policy = (ROOT / "app" / "policy.py").read_text(encoding="utf-8")
     assert "_confidence_floor_pct" in policy

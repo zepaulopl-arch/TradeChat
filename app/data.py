@@ -60,18 +60,6 @@ def _download_yahoo(tickers: list[str], period: str, cfg: dict[str, Any] | None 
         
         item = _download_one_yahoo(ticker, period, is_context=idx > 0)
         
-        # Ticker Stitching: If this is the main asset and has a predecessor, merge them.
-        if idx == 0 and item is not None and cfg:
-            profile = get_asset_profile(cfg, ticker)
-            predecessor = profile.get("predecessor_ticker")
-            if predecessor:
-                ratio = float(profile.get("conversion_ratio", 1.0))
-                if delay > 0: time.sleep(delay)
-                old_data = _download_one_yahoo(predecessor, period, is_context=False)
-                if old_data is not None and not old_data.empty:
-                    old_data = old_data * ratio
-                    item = item.combine_first(old_data)
-
         if item is not None and not item.empty:
             series.append(item)
             
@@ -101,7 +89,6 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
     requested = normalize_ticker(ticker)
     registry = _registry(cfg)
     assets = registry.get("assets", {}) or {}
-    aliases = registry.get("aliases", {}) or {}
 
     def lookup_key(value: str) -> str | None:
         value = normalize_ticker(value)
@@ -113,21 +100,6 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         return None
 
     key = lookup_key(requested)
-    alias_info: dict[str, Any] = {}
-    if key and isinstance(assets.get(key), dict) and assets[key].get("registry_status") == "inactive_alias":
-        alias_target = assets[key].get("canonical_ticker")
-        alias_info = {"canonical": alias_target, "reason": "ticker_migration"}
-        key = lookup_key(str(alias_target)) or normalize_ticker(str(alias_target))
-    elif not key:
-        alias_target = aliases.get(requested) or aliases.get(requested.split(".")[0])
-        if isinstance(alias_target, dict):
-            alias_info = dict(alias_target)
-            alias_target = alias_info.get("canonical") or alias_info.get("to")
-        if alias_target:
-            key = lookup_key(str(alias_target)) or normalize_ticker(str(alias_target))
-            alias_info.setdefault("canonical", key)
-            alias_info.setdefault("reason", "ticker_alias")
-
     canonical = normalize_ticker(key or requested)
     profile = dict(assets.get(canonical, {}) or {})
     if not profile and canonical.split(".")[0] in assets:
@@ -136,7 +108,6 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         "requested": requested,
         "canonical": canonical,
         "changed": canonical != requested,
-        "alias": alias_info,
         "profile": profile,
     }
 
@@ -170,7 +141,7 @@ def resolve_context_tickers(cfg: dict[str, Any], ticker: str) -> list[str]:
 
     def add_many(values: list[str] | tuple[str, ...] | None) -> None:
         for value in values or []:
-            yahoo = _index_to_yahoo(registry, str(value)) or str(value)
+            yahoo = _index_to_yahoo(registry, str(value))
             if yahoo:
                 out.append(yahoo)
 
@@ -219,8 +190,7 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     close = close.dropna(axis=1, how="all")
     if canonical not in close.columns:
         requested = resolved.get("requested")
-        alias_msg = f" (resolved from {requested})" if requested and requested != canonical else ""
-        raise RuntimeError(f"Yahoo did not return close prices for {canonical}{alias_msg}.")
+        raise RuntimeError(f"Yahoo did not return close prices for {canonical}.")
     close.to_parquet(path)
     return close
 
@@ -255,7 +225,6 @@ def data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         "requested_ticker": resolved.get("requested"),
         "resolved_ticker": canonical,
         "ticker_changed": bool(resolved.get("changed")),
-        "alias": resolved.get("alias", {}),
         "cache_exists": exists,
         "rows": rows,
         "start": start,

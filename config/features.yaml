@@ -73,7 +73,9 @@ families:
           - 5
           - 20
           volatility:
+          - 5
           - 20
+          - 60
           rsi: 14
           sma:
             short: 10
@@ -94,7 +96,7 @@ families:
           roc: true
           bollinger: true
           fractional_memory: true
-          legacy_macro_features: false
+          macro_features: false
   context:
     description: Temporal market and macro context linked to the asset registry in
       data.yaml. Context must be dynamic by window, not a repeated snapshot.
@@ -238,9 +240,22 @@ preparation:
     It cleans constants, clips extreme targets, normalizes model inputs and selects
     a compact low-correlation feature set.
   enabled: true
+  stationarity:
+    drop_raw_price: true
+    drop_level_features: true
+    level_feature_names:
+    - frac_mem
+    - sma_10
+    - sma_50
+    - ema_20
+    - ema_100
+    - bb_mid
+    - bb_std
+    note: Keep only transformed/relative price features in model inputs. Raw price
+      levels are useful for reports and fundamentals, not for forecasting.
   normalization:
     enabled: true
-    scaler: standard
+    scaler: robust
     note: standard | robust | minmax. Applied once to all selected features before
       engines.
   target:
@@ -250,18 +265,18 @@ preparation:
   selection:
     enabled: true
     method: target_relevance_low_correlation_greedy_family_balanced
-    max_features: 20
+    max_features: 24
     correlation_threshold: 0.85
     family_limits:
       technical:
         min: 8
-        max: 10
+        max: 11
       context:
         min: 3
-        max: 5
+        max: 7
       fundamentals:
         min: 0
-        max: 3
+        max: 4
       sentiment:
         min: 0
         max: 2

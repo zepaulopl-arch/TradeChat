@@ -17,8 +17,8 @@ def test_data_download_has_context_period_fallback():
 
 def test_data_screen_shows_skipped_context():
     text = (ROOT / "app" / "report.py").read_text(encoding="utf-8")
-    assert "ctx skipped" in text
-    assert "unavailable_context_tickers" in text
+    assert '"Ctx Skipped"' in text
+    assert 'status.get("unavailable_context_tickers"' in text
 
 
 def test_data_yaml_has_group_and_subgroup_context_candidates():

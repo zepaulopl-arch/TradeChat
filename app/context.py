@@ -43,6 +43,8 @@ def add_market_context_features(dataset: pd.DataFrame, prices: pd.DataFrame, tic
     for macro in macro_cols:
         clean = _clean(str(macro))
         macro_px = prices[macro].ffill()
+        if macro_px.dropna().empty:
+            continue
         macro_ret_1 = macro_px.pct_change(1)
         if bool(ccfg.get("use_returns", True)):
             for w in return_windows:
@@ -69,6 +71,8 @@ def add_market_context_features(dataset: pd.DataFrame, prices: pd.DataFrame, tic
     bench = prices[benchmark].ffill() if benchmark in prices.columns else prices[macro_cols[0]].ffill()
     short_w = int(ccfg.get("alignment_short_window", 5))
     long_w = int(ccfg.get("alignment_long_window", 20))
+    rel_short_w = int(ccfg.get("relative_strength_short_window", short_w))
+    rel_long_w = int(ccfg.get("relative_strength_long_window", long_w))
 
     if bool(ccfg.get("use_alignment", ccfg.get("add_alignment_features", True))):
         asset_short = px_asset.pct_change(short_w)
@@ -80,10 +84,10 @@ def add_market_context_features(dataset: pd.DataFrame, prices: pd.DataFrame, tic
         columns_added.extend(["ctx_benchmark_alignment_short", "ctx_benchmark_alignment_long"])
 
     if bool(ccfg.get("use_relative_strength", True)):
-        asset_short = px_asset.pct_change(short_w)
-        bench_short = bench.pct_change(short_w)
-        asset_long = px_asset.pct_change(long_w)
-        bench_long = bench.pct_change(long_w)
+        asset_short = px_asset.pct_change(rel_short_w)
+        bench_short = bench.pct_change(rel_short_w)
+        asset_long = px_asset.pct_change(rel_long_w)
+        bench_long = bench.pct_change(rel_long_w)
         out["ctx_relative_strength_short"] = asset_short - bench_short
         out["ctx_relative_strength_long"] = asset_long - bench_long
         columns_added.extend(["ctx_relative_strength_short", "ctx_relative_strength_long"])

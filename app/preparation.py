@@ -8,6 +8,42 @@ import pandas as pd
 from .feature_audit import feature_family as _family_of
 
 
+_DEFAULT_LEVEL_FEATURES = {
+    "frac_mem",
+    "sma_10",
+    "sma_50",
+    "ema_20",
+    "ema_100",
+    "bb_mid",
+    "bb_std",
+}
+
+
+def _looks_like_raw_provider_column(name: str) -> bool:
+    value = str(name)
+    return value.startswith("^") or value.endswith(".SA") or "=" in value
+
+
+def _drop_stationarity_blocked_features(X: pd.DataFrame, cfg: dict[str, Any]) -> tuple[pd.DataFrame, list[str]]:
+    prep = cfg.get("features", {}).get("preparation", {}) or {}
+    stationarity = prep.get("stationarity", {}) or {}
+    blocked_names: set[str] = set()
+    if bool(stationarity.get("drop_level_features", True)):
+        configured = stationarity.get("level_feature_names")
+        blocked_names.update(str(item) for item in (configured or sorted(_DEFAULT_LEVEL_FEATURES)))
+
+    dropped: list[str] = []
+    keep: list[str] = []
+    drop_raw_price = bool(stationarity.get("drop_raw_price", True))
+    for col in X.columns:
+        name = str(col)
+        if name in blocked_names or (drop_raw_price and _looks_like_raw_provider_column(name)):
+            dropped.append(name)
+        else:
+            keep.append(name)
+    return X[keep], dropped
+
+
 def _safe_abs_target_corr(X: pd.DataFrame, y: pd.Series) -> pd.Series:
     vals: dict[str, float] = {}
     yy = pd.Series(y, index=X.index).astype(float)
@@ -164,6 +200,9 @@ def prepare_training_matrix(X: pd.DataFrame, y: pd.Series, cfg: dict[str, Any]) 
         "input_rows": int(len(X)),
         "output_rows": int(len(X0)),
     }
+
+    X0, stationarity_drops = _drop_stationarity_blocked_features(X0, cfg)
+    meta["dropped_stationarity_features"] = stationarity_drops
 
     X1, constant_drops = _drop_constant_features(X0)
     meta["dropped_constant_features"] = constant_drops

@@ -17,7 +17,8 @@ from .feature_audit import feature_family
 
 from .config import models_dir
 from .feature_audit import top_selected_features, feature_family_profile
-from .utils import latest_file, normalize_ticker, run_id, safe_ticker, write_json, read_json
+from .preparation import prepare_training_matrix
+from .utils import normalize_ticker, run_id, safe_ticker, write_json, read_json
 
 
 def _make_scaler(cfg: dict[str, Any]):
@@ -25,7 +26,7 @@ def _make_scaler(cfg: dict[str, Any]):
     norm = prep.get("normalization", {}) or {}
     if not bool(norm.get("enabled", True)):
         return None
-    scaler_name = str(norm.get("scaler", "standard")).lower()
+    scaler_name = str(norm.get("scaler", "robust")).lower()
     if scaler_name == "robust":
         return RobustScaler()
     if scaler_name == "minmax":
@@ -35,7 +36,7 @@ def _make_scaler(cfg: dict[str, Any]):
 
 
 def _make_named_scaler(name: str):
-    scaler_name = str(name or "standard").lower()
+    scaler_name = str(name or "robust").lower()
     if scaler_name == "robust":
         return RobustScaler()
     if scaler_name == "minmax":
@@ -56,6 +57,12 @@ def _engine_feature_columns(cfg: dict[str, Any], engine_name: str, all_features:
 def _make_engine_scaler(cfg: dict[str, Any], engine_name: str):
     return _make_scaler(cfg)
 
+
+def _oof_valid_mask(oof_predictions: dict[str, np.ndarray]) -> np.ndarray:
+    if not oof_predictions:
+        return np.array([], dtype=bool)
+    stacked = np.column_stack([np.asarray(values, dtype=float) for values in oof_predictions.values()])
+    return np.all(np.isfinite(stacked), axis=1)
 
 def _fit_engine_input(cfg: dict[str, Any], engine_name: str, X_train: pd.DataFrame, X_test: pd.DataFrame, X_latest: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray, Any, list[str]]:
     cols = _engine_feature_columns(cfg, engine_name, list(X_train.columns))
@@ -146,6 +153,12 @@ def _engine_safety_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _resolve_inner_threads(inner_threads: int | None) -> int | None:
+    if inner_threads is None:
+        return None
+    return max(1, int(inner_threads))
+
+
 def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any]]:
     """Limit one divergent engine without changing the architecture.
 
@@ -172,19 +185,19 @@ def _apply_consensus_guard(matrix: np.ndarray, cfg: dict[str, Any]) -> tuple[np.
     }
 
 
-def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
+def _make_base_engines(cfg: dict[str, Any], inner_threads: int | None = None) -> dict[str, Any]:
     """Create the specialist/base tabular engines.
 
     Operational architecture:
       XGB + CatBoost + ExtraTrees -> Ridge arbiter.
 
-    The old MLP path was intentionally removed from the production stack because
-    diagnostics showed frequent divergent raw predictions. Neural experiments
-    should live in a separate benchmark, not in the daily arbiter.
+    Neural experiments belong in a separate benchmark until they outperform this
+    tabular stack with stable walk-forward evidence.
     """
     model_cfg = cfg.get("model", {})
     random_state = int(model_cfg.get("random_state", 42))
     engines_cfg = model_cfg.get("engines", {})
+    threads = _resolve_inner_threads(inner_threads)
     engines: dict[str, Any] = {}
 
     if engines_cfg.get("xgb", {}).get("enabled", True):
@@ -199,6 +212,7 @@ def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
                 objective="reg:squarederror",
                 random_state=random_state,
                 verbosity=0,
+                n_jobs=threads,
             )
         except Exception:
             # Keep the CLI usable when xgboost is not installed.
@@ -216,6 +230,7 @@ def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
                 random_seed=random_state,
                 verbose=False,
                 allow_writing_files=False,
+                thread_count=threads,
             )
         except Exception:
             # CatBoost is optional at import time, but listed in requirements.
@@ -228,13 +243,9 @@ def _make_base_engines(cfg: dict[str, Any]) -> dict[str, Any]:
             max_depth=ecfg.get("max_depth", 10),
             min_samples_leaf=int(ecfg.get("min_samples_leaf", 2)),
             random_state=random_state,
-            n_jobs=-1,
+            n_jobs=-1 if threads is None else threads,
         )
     return engines
-
-def _make_arbiter(cfg: dict[str, Any]) -> Ridge:
-    arbiter_cfg = cfg.get("model", {}).get("arbiter", {}).get("ridge", {})
-    return Ridge(alpha=float(arbiter_cfg.get("alpha", 1.0)))
 
 def _space_from_pair(values: Any, kind: str):
     """Build skopt dimensions explicitly from YAML ranges."""
@@ -250,7 +261,50 @@ def _space_from_pair(values: Any, kind: str):
     return Categorical([values])
 
 
-def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_train: np.ndarray, y_train: pd.Series) -> tuple[dict[str, Any], dict[str, Any]]:
+def _horizon_bars(horizon: str) -> int:
+    value = str(horizon or "d1").lower().strip()
+    if value.startswith("d"):
+        value = value[1:]
+    try:
+        return max(1, int(value))
+    except Exception:
+        return 1
+
+
+def _validation_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
+    return cfg.get("model", {}).get("validation", {}) or {}
+
+
+def _embargo_gap(cfg: dict[str, Any], horizon: str) -> int:
+    vcfg = _validation_cfg(cfg)
+    if not bool(vcfg.get("embargo_by_horizon", True)):
+        return 0
+    raw_gap = vcfg.get("embargo_bars", "auto")
+    if str(raw_gap).lower() == "auto":
+        return _horizon_bars(horizon)
+    return max(0, int(raw_gap or 0))
+
+
+def _safe_cv_gap(train_rows: int, n_splits: int, requested_gap: int) -> int:
+    if requested_gap <= 0:
+        return 0
+    rows_per_fold = max(1, int(train_rows) // max(2, int(n_splits) + 1))
+    return max(0, min(int(requested_gap), rows_per_fold - 1))
+
+
+def _time_series_cv(n_splits: int, train_rows: int, gap: int) -> TimeSeriesSplit:
+    safe_gap = _safe_cv_gap(train_rows, n_splits, gap)
+    return TimeSeriesSplit(n_splits=int(n_splits), gap=safe_gap)
+
+
+def _tune_base_engines(
+    cfg: dict[str, Any],
+    base_engines: dict[str, Any],
+    X_train: np.ndarray,
+    y_train: pd.Series,
+    inner_threads: int | None = None,
+    horizon: str = "d1",
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Tune tabular specialists before Ridge arbitration."""
     try:
         from skopt import BayesSearchCV
@@ -264,6 +318,8 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
     scoring = tune_cfg.get("scoring", "neg_mean_absolute_error")
     random_state = int(model_cfg.get("random_state", 42))
     spaces = tune_cfg.get("spaces", {})
+    threads = _resolve_inner_threads(inner_threads)
+    cv_splitter = _time_series_cv(cv, len(X_train), _embargo_gap(cfg, horizon))
 
     tuned: dict[str, Any] = {}
     summary: dict[str, Any] = {}
@@ -286,10 +342,10 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
             estimator=engine,
             search_spaces=search_space,
             n_iter=n_iter,
-            cv=cv,
+            cv=cv_splitter,
             scoring=scoring,
             random_state=random_state,
-            n_jobs=-1,
+            n_jobs=-1 if threads is None else threads,
         )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="skopt.space.space")
@@ -306,8 +362,85 @@ def _tune_base_engines(cfg: dict[str, Any], base_engines: dict[str, Any], X_trai
 
 
 def _make_arbiter(cfg: dict[str, Any]) -> Ridge:
-    arbiter_cfg = cfg.get("model", {}).get("arbiter", {}).get("ridge", {})
-    return Ridge(alpha=float(arbiter_cfg.get("alpha", 1.0)))
+    """Create the final stacking arbiter from config."""
+    model_cfg = cfg.get("model", {}) or {}
+    arbiter_cfg = model_cfg.get("arbiter", {}) or {}
+    ridge_cfg = arbiter_cfg.get("ridge", {}) or {}
+    return Ridge(
+        alpha=float(ridge_cfg.get("alpha", 1.0)),
+        fit_intercept=bool(ridge_cfg.get("fit_intercept", True)),
+    )
+
+
+def _stacking_cv_splits(cfg: dict[str, Any], train_rows: int) -> int:
+    stack_cfg = cfg.get("model", {}).get("stacking", {}) or {}
+    configured = int(stack_cfg.get("cv", cfg.get("model", {}).get("autotune", {}).get("cv", 3)))
+    return max(2, min(configured, int(train_rows) - 1))
+
+
+def _stacking_cv(cfg: dict[str, Any], train_rows: int, horizon: str) -> TimeSeriesSplit:
+    n_splits = _stacking_cv_splits(cfg, train_rows)
+    return _time_series_cv(n_splits, train_rows, _embargo_gap(cfg, horizon))
+
+
+def _minimum_train_rows(cfg: dict[str, Any]) -> int:
+    min_rows = int(cfg.get("data", {}).get("min_rows", 220))
+    vcfg = _validation_cfg(cfg)
+    return max(40, int(vcfg.get("min_train_rows", max(60, int(min_rows * 0.60)))))
+
+
+def _align_training_input(X: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+    X0 = X.copy().replace([np.inf, -np.inf], np.nan)
+    y0 = pd.Series(y, index=X0.index).replace([np.inf, -np.inf], np.nan)
+    valid_idx = y0.dropna().index
+    X0 = X0.loc[valid_idx]
+    y0 = y0.loc[valid_idx].astype(float)
+    return X0, y0
+
+
+def _split_train_test_raw(
+    cfg: dict[str, Any],
+    X: pd.DataFrame,
+    y: pd.Series,
+    *,
+    horizon: str,
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, dict[str, Any]]:
+    X0, y0 = _align_training_input(X, y)
+    test_size = float(cfg.get("model", {}).get("test_size", 0.20))
+    split = max(1, int(len(X0) * (1 - test_size)))
+    gap = _embargo_gap(cfg, horizon)
+    train_end = max(1, split - gap)
+    min_train_rows = _minimum_train_rows(cfg)
+    if train_end < min_train_rows:
+        raise RuntimeError(f"insufficient train rows after embargo: {train_end} < {min_train_rows}")
+    if split >= len(X0):
+        raise RuntimeError("insufficient test rows for holdout evaluation")
+
+    X_train_raw = X0.iloc[:train_end]
+    y_train_raw = y0.iloc[:train_end]
+    X_test_raw = X0.iloc[split:]
+    y_test_raw = y0.iloc[split:]
+    split_meta = {
+        "test_size": test_size,
+        "target_rows": int(len(X0)),
+        "embargo_bars": int(gap),
+        "split_index": int(split),
+        "train_end_index": int(train_end),
+        "dropped_embargo_rows": int(max(0, split - train_end)),
+        "test_target": "raw_unclipped",
+    }
+    return X_train_raw, y_train_raw, X_test_raw, y_test_raw, split_meta
+
+
+def _apply_selected_features(
+    X: pd.DataFrame,
+    y: pd.Series,
+    features: list[str],
+) -> tuple[pd.DataFrame, pd.Series]:
+    X1 = X[list(features)].replace([np.inf, -np.inf], np.nan)
+    y1 = pd.Series(y, index=X1.index).replace([np.inf, -np.inf], np.nan).astype(float)
+    valid = X1.notna().all(axis=1) & y1.notna()
+    return X1.loc[valid], y1.loc[valid]
 
 
 def _confidence_from(
@@ -356,6 +489,9 @@ def _confidence_from(
     discarded = len(guard_meta.get("discarded", []) or [])
     total = max(used + discarded, len(clean), 1)
     engine_component = max(0.50, used / total) # Higher floor 0.50
+    discarded_engine_penalty = float(ccfg.get("discarded_engine_penalty", 0.75))
+    if discarded > 0:
+        engine_component *= max(0.20, discarded_engine_penalty ** discarded)
 
     # Sample Size
     if train_rows is None or int(train_rows or 0) <= 0:
@@ -381,21 +517,49 @@ def _confidence_from(
     return dispersion, confidence
 
 
-def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series, dataset_meta: dict[str, Any], autotune: bool = False, horizon: str = "d1") -> dict[str, Any]:
+def train_models(
+    cfg: dict[str, Any],
+    ticker: str,
+    X: pd.DataFrame,
+    y: pd.Series,
+    dataset_meta: dict[str, Any],
+    autotune: bool = False,
+    horizon: str = "d1",
+    inner_threads: int | None = None,
+) -> dict[str, Any]:
     ticker = normalize_ticker(ticker)
     min_rows = int(cfg.get("data", {}).get("min_rows", 220))
-    if len(X) < min_rows:
-        raise RuntimeError(f"insufficient rows for training: {len(X)} < {min_rows}")
+    target_rows = int(pd.Series(y, index=X.index).dropna().shape[0])
+    if target_rows < min_rows:
+        raise RuntimeError(f"insufficient rows for training: {target_rows} < {min_rows}")
 
-    test_size = float(cfg.get("model", {}).get("test_size", 0.20))
-    split = max(1, int(len(X) * (1 - test_size)))
-    X_train, X_test = X.iloc[:split], X.iloc[split:]
-    y_train, y_test = y.iloc[:split], y.iloc[split:]
+    X_train_raw, y_train_raw, X_test_raw, y_test_raw, split_meta = _split_train_test_raw(
+        cfg,
+        X,
+        y,
+        horizon=horizon,
+    )
+    X_train, y_train, prep_meta = prepare_training_matrix(X_train_raw, y_train_raw, cfg)
+    if len(X_train) < _minimum_train_rows(cfg):
+        raise RuntimeError(f"insufficient prepared train rows: {len(X_train)} < {_minimum_train_rows(cfg)}")
+    if not list(X_train.columns):
+        raise RuntimeError("feature preparation selected no usable columns")
 
-    # Model-preparation contract: features are selected globally, but each engine
-    # may have its own input scaler/subset. This keeps the tabular specialists on a consistent prepared data contract.
-    X_latest = X.tail(1)
-    base_engines = _make_base_engines(cfg)
+    X_test, y_test = _apply_selected_features(X_test_raw, y_test_raw, list(X_train.columns))
+    if len(X_test) == 0:
+        raise RuntimeError("holdout has no rows after applying train-selected features")
+
+    latest_raw = X[list(X_train.columns)].replace([np.inf, -np.inf], np.nan).dropna().tail(1)
+    if latest_raw.empty:
+        raise RuntimeError("latest row has no valid train-selected features")
+
+    # Model-preparation contract: feature selection is fitted on train only; the
+    # selected columns are then applied to holdout/latest without re-ranking.
+    X_latest = latest_raw
+    dataset_meta = dict(dataset_meta or {})
+    dataset_meta["preparation"] = prep_meta
+    dataset_meta["validation_split"] = split_meta
+    base_engines = _make_base_engines(cfg, inner_threads=inner_threads)
     if len(base_engines) < 2:
         raise RuntimeError("at least two base engines are required for Ridge stacking")
 
@@ -414,7 +578,14 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     if autotune:
         tuned: dict[str, Any] = {}
         for name, engine in base_engines.items():
-            tuned_one, summary_one = _tune_base_engines(cfg, {name: engine}, engine_inputs[name]["train"], y_train)
+            tuned_one, summary_one = _tune_base_engines(
+                cfg,
+                {name: engine},
+                engine_inputs[name]["train"],
+                y_train,
+                inner_threads=inner_threads,
+                horizon=horizon,
+            )
             tuned.update(tuned_one)
             tune_summary.update(summary_one)
         base_engines = tuned
@@ -425,8 +596,8 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     final_clip = guards["max_final_return_abs"]
 
     # --- Stacking with TimeSeriesSplit to avoid leakage ---
-    tscv = TimeSeriesSplit(n_splits=int(cfg.get("model", {}).get("autotune", {}).get("cv", 3)))
-    oof_predictions = {name: np.zeros(len(X_train)) for name in base_order}
+    tscv = _stacking_cv(cfg, len(X_train), horizon)
+    oof_predictions = {name: np.full(len(X_train), np.nan, dtype=float) for name in base_order}
 
     for train_idx, val_idx in tscv.split(X_train):
         X_fold_train = X_train.iloc[train_idx]
@@ -441,8 +612,12 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
             # Prepare fold input (subset of training)
             cols = engine_inputs[name]["features"]
             scaler = _make_engine_scaler(cfg, name)
-            fold_train_arr = scaler.fit_transform(X_fold_train[cols])
-            fold_val_arr = scaler.transform(X_fold_val[cols])
+            if scaler is None:
+                fold_train_arr = X_fold_train[cols].to_numpy(dtype=float)
+                fold_val_arr = X_fold_val[cols].to_numpy(dtype=float)
+            else:
+                fold_train_arr = scaler.fit_transform(X_fold_train[cols])
+                fold_val_arr = scaler.transform(X_fold_val[cols])
             
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=ConvergenceWarning)
@@ -453,7 +628,9 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
             oof_predictions[name][val_idx] = fold_pred
 
     # Only use indices where we have OOF predictions (first fold is skipped by TSS)
-    valid_idx = np.where(np.any([oof_predictions[name] != 0 for name in base_order], axis=0))[0]
+    valid_idx = np.where(_oof_valid_mask(oof_predictions))[0]
+    if len(valid_idx) == 0:
+        raise RuntimeError("time-series stacking produced no valid out-of-fold rows for ridge training")
     meta_train_oof = np.column_stack([oof_predictions[name][valid_idx] for name in base_order])
     y_train_oof = y_train.iloc[valid_idx]
 
@@ -486,7 +663,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     abs_meta_test = _clip_return_array(raw_meta_test, engine_clip)
     abs_meta_latest = _clip_return_array(raw_meta_latest, engine_clip)
 
-    meta_train_guarded, train_consensus_meta = _apply_consensus_guard(abs_meta_train, cfg)
+    meta_train, train_consensus_meta = _apply_consensus_guard(abs_meta_train, cfg)
     meta_test, test_consensus_meta = _apply_consensus_guard(abs_meta_test, cfg)
     meta_latest, latest_consensus_meta = _apply_consensus_guard(abs_meta_latest, cfg)
 
@@ -506,7 +683,7 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
 
     # --- Fit Arbiter on OOF meta-features ---
     arbiter = _make_arbiter(cfg)
-    arbiter.fit(meta_train_guarded, y_train_oof)
+    arbiter.fit(meta_train, y_train_oof)
     
     arbiter_test_pred = np.asarray(arbiter.predict(meta_test), dtype=float)
     arbiter_latest_raw = float(arbiter.predict(meta_latest)[0])
@@ -519,9 +696,10 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
     out_dir = models_dir(cfg) / safe_ticker(ticker) / rid
     out_dir.mkdir(parents=True, exist_ok=True)
     model_path = out_dir / f"model_{horizon}.pkl"
+    selected_features = list(X_train.columns)
     payload = {
         "ticker": ticker,
-        "features": list(X.columns),
+        "features": selected_features,
         "engine_inputs": {name: {"features": engine_inputs[name]["features"], "scaler": engine_inputs[name]["scaler"]} for name in base_order},
         "normalization": (cfg.get("features", {}).get("preparation", {}) or {}).get("normalization", {}),
         "base_models": fitted,
@@ -541,8 +719,8 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         pickle.dump(payload, fh)
 
     prep_meta = (dataset_meta or {}).get("preparation", {}) or {}
-    top_features = top_selected_features(prep_meta, list(X.columns), n=5)
-    family_profile = feature_family_profile(list(X.columns))
+    top_features = top_selected_features(prep_meta, selected_features, n=5)
+    family_profile = feature_family_profile(selected_features)
 
     manifest = {
         "run_id": rid,
@@ -556,10 +734,11 @@ def train_models(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, y: pd.Series
         "rows": int(len(X)),
         "train_rows": int(len(X_train)),
         "test_rows": int(len(X_test)),
-        "features": list(X.columns),
+        "features": selected_features,
         "top_features": top_features,
         "feature_family_profile": family_profile,
         "preparation": prep_meta,
+        "validation_split": split_meta,
         "autotune_performed": bool(autotune),
         "latest_price": dataset_meta.get("latest_price"),
         "latest_date": dataset_meta.get("latest_date"),
@@ -593,13 +772,7 @@ def load_latest_model(cfg: dict[str, Any], ticker: str, horizon: str = "d1") -> 
     ticker = normalize_ticker(ticker)
     latest = models_dir(cfg) / safe_ticker(ticker) / f"latest_train_{horizon}.json"
     if not latest.exists():
-        alt = latest_file(models_dir(cfg) / safe_ticker(ticker), f"train_*_{horizon}_*/manifest.json")
-        if not alt:
-            # Fallback to generic search if suffix not found (for legacy models)
-            alt = latest_file(models_dir(cfg) / safe_ticker(ticker), "train_*/manifest.json")
-            if not alt:
-                raise FileNotFoundError(f"no trained model found for {ticker} horizon {horizon}; run train first")
-        latest = alt
+        raise FileNotFoundError(f"no trained model found for {ticker} horizon {horizon}; run train first")
     manifest = read_json(latest)
     with Path(manifest["model_path"]).open("rb") as fh:
         model = pickle.load(fh)
@@ -665,19 +838,7 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizo
             "train_manifest": manifest,
         }
 
-    # Compatibility path for older artifacts produced before this correction.
-    by_engine = {name: float(est.predict(latest_X)[0]) for name, est in model["models"].items()}
-    prediction = float(np.mean(list(by_engine.values())))
-    dispersion, confidence = _confidence_from(list(by_engine.values()), prediction, cfg)
-    return {
-        "ticker": normalize_ticker(ticker),
-        "architecture": "legacy_mean_ensemble",
-        "prediction_return": prediction,
-        "by_engine": by_engine,
-        "dispersion": dispersion,
-        "confidence": confidence,
-        "train_manifest": manifest,
-    }
+    raise RuntimeError("trained artifact does not match the current Ridge-arbiter architecture; run train again")
 
 def predict_multi_horizon(cfg: dict[str, Any], ticker: str, X: pd.DataFrame) -> dict[str, dict[str, Any]]:
     """Generate predictions for all available horizons."""

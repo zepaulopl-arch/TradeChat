@@ -9,9 +9,15 @@ def test_diagnostic_script_exists_and_keeps_cli_separate():
     text = script.read_text(encoding="utf-8")
     assert "data -> train -> predict" in text
     assert "def main" in text
-    assert "train_models" in text
-    assert "_make_signal" in text
+    assert "from app.batch_service import diagnose_one_asset, safe_worker_count" in text
+    assert "ProcessPoolExecutor" in text
+    assert "--workers" in text
+    assert "%f" in text
+    assert "from app.cli import _" not in text
     assert "assets_diagnostic.csv" in text
+    assert 'raw_assets.upper() == "ALL"' in text
+    assert 'registry_status", "active"' in text
+    assert 'SKIP' in text
 
 
 def test_diagnostic_runner_exists():

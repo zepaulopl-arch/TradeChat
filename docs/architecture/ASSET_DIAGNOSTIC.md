@@ -1,7 +1,7 @@
 # Asset diagnostic batch
 
 Use this maintenance script when you need evidence before changing the model,
-feature selection, context registry or removed neural engine guards.
+feature selection, context registry or engine guards.
 
 It runs the current operational sequence for registered assets:
 
@@ -57,10 +57,12 @@ The CSV is the main analysis file. It includes:
 - raw/guarded engine outputs;
 - discarded or neutralized engines;
 - signal and policy reasons.
+- skipped assets when the available history is below `data.min_rows`.
 
 ## What to look for
 
 - Many assets with context-heavy feature selection: tune `features.yaml` selection limits.
-- Many assets with removed neural engine discarded: tune removed neural engine input/scaler/guards.
-- One isolated asset failing: fix `data.yaml` alias/context/registry, not the engine.
+- Many assets with discarded engines: inspect feature quality, guards and the affected base engine.
+- One isolated asset failing: fix its current `data.yaml` registry/context entry, not the engine.
 - Many assets with unavailable context: validate provider tickers in `data.yaml`.
+- `SKIP at data_rows` means the asset stayed in the registry, but does not have enough rows yet for honest training.

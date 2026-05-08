@@ -1,38 +1,37 @@
-import yaml
-import pandas as pd
-import os
+import sys
+from pathlib import Path
 
-config_path = r'c:\Users\zepau\ML\projetos\TradeChat\config\data.yaml'
-cache_dir = r'c:\Users\zepau\ML\projetos\TradeChat\data_cache'
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-with open(config_path, 'r', encoding='utf-8') as f:
-    config = yaml.safe_load(f)
+from app.config import load_config, load_data_registry
+from app.data import data_status
 
-assets = config.get('assets', {})
 
-low_data_assets = []
-results = []
+def main() -> int:
+    cfg = load_config()
+    registry = load_data_registry(cfg)
+    min_rows = int(cfg.get("data", {}).get("min_rows", 150))
+    assets = registry.get("assets", {}) or {}
+    active = [ticker for ticker, meta in assets.items() if isinstance(meta, dict) and meta.get("registry_status") == "active"]
 
-for ticker in assets.keys():
-    file_ticker = ticker.replace('.', '_')
-    file_path = os.path.join(cache_dir, f"prices_{file_ticker}.parquet")
-    
-    if os.path.exists(file_path):
-        try:
-            df = pd.read_parquet(file_path)
-            row_count = len(df)
-            results.append((ticker, row_count))
-            if row_count < 150:
-                low_data_assets.append((ticker, row_count))
-        except Exception as e:
-            low_data_assets.append((ticker, 0))
-    else:
-        low_data_assets.append((ticker, 0))
+    rows = []
+    for ticker in sorted(active):
+        status = data_status(cfg, ticker)
+        rows.append((ticker, int(status.get("rows", 0) or 0)))
 
-print("---RESULTS---")
-for ticker, count in results:
-    print(f"{ticker}: {count}")
-print("---LOW DATA---")
-for ticker, count in low_data_assets:
-    print(f"{ticker}: {count}")
-print("---END---")
+    print("---RESULTS---")
+    for ticker, count in rows:
+        print(f"{ticker}: {count}")
+
+    print("---LOW DATA---")
+    for ticker, count in rows:
+        if count < min_rows:
+            print(f"{ticker}: {count}")
+    print("---END---")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

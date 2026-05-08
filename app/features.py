@@ -12,6 +12,29 @@ from .data import get_asset_profile
 from .preparation import prepare_training_matrix
 
 
+_DEFAULT_LEVEL_FEATURES = {
+    "frac_mem",
+    "sma_10",
+    "sma_50",
+    "ema_20",
+    "ema_100",
+    "bb_mid",
+    "bb_std",
+}
+
+
+def _stationarity_exclusions(cfg: dict[str, Any], ticker: str, columns: list[str]) -> list[str]:
+    prep = cfg.get("features", {}).get("preparation", {}) or {}
+    stationarity = prep.get("stationarity", {}) or {}
+    blocked: set[str] = set()
+    if bool(stationarity.get("drop_raw_price", True)):
+        blocked.add(normalize_ticker(ticker))
+    if bool(stationarity.get("drop_level_features", True)):
+        configured = stationarity.get("level_feature_names")
+        blocked.update(str(item) for item in (configured or sorted(_DEFAULT_LEVEL_FEATURES)))
+    return [col for col in columns if col in blocked]
+
+
 def _rsi(series: pd.Series, window: int) -> pd.Series:
     delta = series.diff()
     gain = delta.clip(lower=0).rolling(window).mean()
@@ -66,19 +89,38 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
     dataset["ret_1"] = px.pct_change(1)
     dataset["ret_5"] = px.pct_change(5)
     dataset["ret_20"] = px.pct_change(20)
-    dataset["vol_20"] = dataset["ret_1"].rolling(int(tech.get("vol_window", 20))).std()
+    vol_windows = [int(w) for w in tech.get("vol_windows", [tech.get("vol_window", 20)]) if int(w) > 1]
+    for w in sorted(set(vol_windows or [20])):
+        dataset[f"vol_{w}"] = dataset["ret_1"].rolling(w).std()
     dataset["rsi"] = _rsi(px, int(tech.get("rsi_window", 14)))
-    dataset["sma_10"] = px.rolling(int(tech.get("sma_short", 10))).mean()
-    dataset["sma_50"] = px.rolling(int(tech.get("sma_long", 50))).mean()
-    dataset["ema_20"] = px.ewm(span=int(tech.get("ema_short", 20)), adjust=False).mean()
-    dataset["ema_100"] = px.ewm(span=int(tech.get("ema_long", 100)), adjust=False).mean()
+    sma_short_w = int(tech.get("sma_short", 10))
+    sma_long_w = int(tech.get("sma_long", 50))
+    ema_short_w = int(tech.get("ema_short", 20))
+    ema_long_w = int(tech.get("ema_long", 100))
+    dataset["sma_10"] = px.rolling(sma_short_w).mean()
+    dataset["sma_50"] = px.rolling(sma_long_w).mean()
+    dataset["ema_20"] = px.ewm(span=ema_short_w, adjust=False).mean()
+    dataset["ema_100"] = px.ewm(span=ema_long_w, adjust=False).mean()
     dataset["sma_ratio"] = dataset["sma_10"] / dataset["sma_50"] - 1
     dataset["ema_ratio"] = dataset["ema_20"] / dataset["ema_100"] - 1
+    dataset["price_to_sma_10"] = px / dataset["sma_10"] - 1
+    dataset["price_to_sma_50"] = px / dataset["sma_50"] - 1
+    dataset["price_to_ema_20"] = px / dataset["ema_20"] - 1
+    dataset["price_to_ema_100"] = px / dataset["ema_100"] - 1
     dataset["roc_10"] = px.pct_change(int(tech.get("roc_window", 10)))
     dataset["bb_mid"] = px.rolling(20).mean()
     dataset["bb_std"] = px.rolling(20).std()
     dataset["bb_width"] = (4 * dataset["bb_std"]) / dataset["bb_mid"]
     dataset["bb_pos"] = (px - (dataset["bb_mid"] - 2 * dataset["bb_std"])) / (4 * dataset["bb_std"])
+    roll_max_20 = px.rolling(20).max()
+    roll_min_20 = px.rolling(20).min()
+    dataset["drawdown_20"] = px / roll_max_20 - 1
+    dataset["range_pos_20"] = (px - roll_min_20) / (roll_max_20 - roll_min_20)
+    if "vol_5" in dataset.columns and "vol_20" in dataset.columns:
+        dataset["vol_ratio_5_20"] = dataset["vol_5"] / dataset["vol_20"] - 1
+    if "vol_20" in dataset.columns:
+        ret_mean_20 = dataset["ret_1"].rolling(20).mean()
+        dataset["ret_z_20"] = (dataset["ret_1"] - ret_mean_20) / dataset["vol_20"].replace(0, np.nan)
     
     # Advanced / Complex Features
     dataset["hurst"] = _hurst_exponent(px, 100)
@@ -137,7 +179,9 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
 
     # We want to keep all targets but not as features
     target_cols = ["target_return_d1", "target_return_d5", "target_return_d20"]
-    raw_X = dataset.drop(columns=target_cols).replace([np.inf, -np.inf], np.nan).dropna()
+    excluded_cols = _stationarity_exclusions(cfg, ticker, list(dataset.columns))
+    drop_cols = [col for col in target_cols + excluded_cols if col in dataset.columns]
+    raw_X = dataset.drop(columns=drop_cols).replace([np.inf, -np.inf], np.nan).dropna()
     
     # We return the raw X and a dataframe of all targets
     all_y = dataset.loc[raw_X.index, target_cols]
@@ -150,6 +194,10 @@ def build_dataset(cfg: dict[str, Any], prices: pd.DataFrame, ticker: str) -> tup
         "rows": int(len(raw_X)),
         "generated_features": list(raw_X.columns),
         "generated_feature_count": len(raw_X.columns),
+        "excluded_training_features": excluded_cols,
+        "feature_safety": {
+            "stationarity": "raw_price_and_level_features_excluded",
+        },
         "features": list(raw_X.columns),
         "selected_features": list(raw_X.columns),
         "context": context_meta,

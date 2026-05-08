@@ -1,2 +1,2 @@
 @echo off
-python scripts\rebalance_portfolio.py %*
+python trade.py portfolio --rebalance %*

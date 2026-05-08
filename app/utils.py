@@ -34,11 +34,6 @@ def read_json(path: Path) -> dict:
         return json.load(fh)
 
 
-def latest_file(folder: Path, pattern: str) -> Path | None:
-    files = sorted(folder.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
-    return files[0] if files else None
-
-
 def parse_tickers(raw: str | Iterable[str]) -> list[str]:
     if isinstance(raw, str):
         text = raw

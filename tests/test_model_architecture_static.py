@@ -22,12 +22,12 @@ def test_ridge_is_declared_as_arbiter_in_config():
     assert "mlp" not in cfg["model"]["engines"]
 
 
-def test_autotune_is_available_but_not_default_daily():
+def test_autotune_is_available_but_not_default_validate():
     from app.cli import build_parser
     cfg = load_config(None)
     assert cfg["model"]["autotune"]["enabled_by_default"] is False
     parser = build_parser()
     train = parser.parse_args(["train", "PETR4", "--autotune"])
     assert train.autotune is True
-    daily = parser.parse_args(["daily", "PETR4"])
-    assert not hasattr(daily, "autotune")
+    validate = parser.parse_args(["validate", "PETR4"])
+    assert not hasattr(validate, "autotune")

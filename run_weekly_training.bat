@@ -9,7 +9,7 @@ echo.
 set /p confirm="Do you want to proceed? (y/n): "
 if /i "%confirm%" neq "y" exit /b
 
-python scripts\diagnose_assets.py --assets ALL --train --autotune
+python scripts\diagnose_assets.py --assets ALL --autotune
 echo.
 echo ============================================================
 echo HEAVY TRAINING COMPLETE. AI models are now fully optimized.

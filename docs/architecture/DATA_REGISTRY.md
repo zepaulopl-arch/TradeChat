@@ -2,7 +2,7 @@
 
 `data.yaml` separates cadastral information from operational parameters.
 
-`config.yaml` keeps runtime behavior: model, features, policy, daily/report options.
+`config.yaml` keeps runtime behavior: model, features, policy, validation and UI options.
 
 `data.yaml` keeps asset metadata:
 
@@ -10,11 +10,11 @@
 - group and subgroup;
 - financial vs non-financial classification;
 - CNPJ field for CVM matching;
-- context tickers used by Yahoo/yfinance now;
-- linked B3 indices for future context expansion;
+- context tickers used by Yahoo/yfinance;
+- linked B3 indices for context expansion;
 - a reference sample with more than 50 Brazilian equities.
 
-The system does not add new CLI commands. `data`, `train`, `predict`, `daily` keep the same suextratreesace.
+The public CLI is `data`, `train`, `predict`, `validate`, `report` and `portfolio`.
 
 ## Conservative rule
 
@@ -22,4 +22,4 @@ Do not hardcode uncertain CNPJs. Assets with a trusted starter CNPJ use `cnpj_st
 
 ## Context rule
 
-The model downloads only `context_tickers` for the asset. `linked_indices` documents relevant B3 indices and can be used later when a reliable provider is added.
+The model downloads only the current ticker and its configured context tickers. Old ticker aliases are not resolved.

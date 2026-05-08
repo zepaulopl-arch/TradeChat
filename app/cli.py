@@ -1,84 +1,28 @@
 from __future__ import annotations
 
 import argparse
-import pandas as pd
-from pathlib import Path
-from typing import Any
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from .config import load_config, models_dir, reports_dir
-from .data import load_prices, data_status, resolve_asset, get_asset_profile
-from .features import build_dataset
-from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, print_signal_brief, write_txt_report
-from .utils import normalize_ticker, parse_tickers, safe_ticker, write_json, read_json
-from .sentiment import update_sentiment_cache
-from .fundamentals import yahoo_snapshot, add_fundamental_features
-from .models import train_models, predict_multi_horizon
-from .preparation import prepare_training_matrix
-from .policy import classify_signal
-from .cvm_conn import CVMConnector
-from .execution import virtual_buy, load_portfolio, update_portfolio_prices
-
-
-def _canonical_ticker(cfg: dict[str, Any], ticker: str) -> str:
-    return resolve_asset(cfg, ticker)["canonical"]
-
-
-def _build_current_dataset(cfg: dict[str, Any], ticker: str, update: bool = False):
-    ticker = _canonical_ticker(cfg, ticker)
-    prices = load_prices(cfg, ticker, update=update)
-    return build_dataset(cfg, prices, ticker)
-
-
-def _fundamentals_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
-    fcfg = cfg.get("features", {}).get("fundamentals", {}) or {}
-    if not bool(fcfg.get("enabled", True)):
-        return {"status": "disabled", "source": "features.yaml"}
-    try:
-        profile = get_asset_profile(cfg, ticker)
-        cnpj = profile.get("cnpj")
-        
-        # Direct check for CVM data without requiring a full DataFrame
-        conn = CVMConnector()
-        has_cvm = False
-        if cnpj and conn.db is not None and not conn.db.empty:
-            import re
-            clean_cnpj = re.sub(r"\D", "", str(cnpj)).strip()
-            db_cnpjs = conn.db['CNPJ_CLEAN'].astype(str).str.strip()
-            has_cvm = not conn.db[db_cnpjs == clean_cnpj].empty
-            
-        snap = yahoo_snapshot(ticker)
-        return {
-            "status": "available" if (has_cvm or snap.get("pl")) else "metadata_only",
-            "source": "cvm" if has_cvm else "yfinance",
-        }
-    except Exception as exc:
-        return {"status": "unavailable", "source": str(exc)[:48]}
-
-
-def _sentiment_data_status(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
-    scfg = cfg.get("features", {}).get("sentiment", {}) or {}
-    if not bool(scfg.get("enabled", False)):
-        return {"status": "disabled", "cache": "off"}
-    try:
-        meta = update_sentiment_cache(ticker, cfg)
-        return {
-            "status": "updated",
-            "cache": "ok",
-            "new_items": int(meta.get("new_items", 0) or 0),
-            "cache_rows": int(meta.get("cache_rows", 0) or 0),
-            "is_fresh": meta.get("status") == "fresh"
-        }
-    except Exception as exc:
-        return {"status": "unavailable", "cache": str(exc)[:48]}
-
-
-def _resolve_tickers(cfg: dict[str, Any], raw_tickers: list[str]) -> list[str]:
-    if "ALL" in [t.upper() for t in raw_tickers]:
-        from .config import load_data_registry
-        reg = load_data_registry(cfg)
-        assets = reg.get("assets", {})
-        return [t for t, meta in assets.items() if isinstance(meta, dict) and meta.get("registry_status") == "active"]
-    return parse_tickers(raw_tickers)
+from .batch_service import safe_worker_count, train_one_asset
+from .config import load_config, models_dir
+from .data import data_status, load_prices
+from .pipeline_service import (
+    fundamentals_data_status as _fundamentals_data_status,
+    latest_signal_path as _latest_signal_path,
+    load_latest_signal as _latest_signal_for,
+    make_signal as _make_signal,
+    resolve_tickers as _resolve_tickers,
+    sentiment_data_status as _sentiment_data_status,
+)
+from .portfolio_monitor_service import render_live_portfolio
+from .portfolio_service import load_portfolio_state, position_side
+from .presentation import banner, divider, money_br, paint, render_facts, render_table, screen_width, tone_delta
+from .ranking_service import render_ranking
+from .rebalance_service import rebalance_portfolio, render_rebalance_summary
+from .report import C, print_data_summary, print_multi_horizon_train_summary, print_signal, write_txt_report
+from .simulator_service import run_pybroker_replay
+from .ui import model5 as ui5
+from .utils import safe_ticker, read_json
 
 
 def cmd_data(args: argparse.Namespace) -> None:
@@ -103,89 +47,106 @@ def cmd_data(args: argparse.Namespace) -> None:
         print_data_summary(st)
 
 
+def _print_train_result(result: dict[str, object], *, width: int) -> None:
+    ticker = str(result.get("ticker", "n/a"))
+    manifests = list(result.get("manifests", []) or [])
+    print()
+    for line in banner("TRAINING", ticker, "multi-horizon", width=width):
+        print(line)
+    for line in render_facts(
+        [
+            ("Rows", result.get("rows", 0)),
+            ("Autotune", bool(result.get("autotune", False))),
+            ("Update", bool(result.get("update", False))),
+        ],
+        width=width,
+        max_columns=3,
+    ):
+        print(line)
+    print_multi_horizon_train_summary(manifests)
+    print(paint(f"Training complete for {ticker}.", C.DIM))
+    print(divider(width))
+
+
 def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    targets = ["target_return_d1", "target_return_d5", "target_return_d20"]
-    
-    for ticker in _resolve_tickers(cfg, args.tickers):
-        try:
-            ticker = _canonical_ticker(cfg, ticker)
-            raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=args.update)
-            
-            print(f"\nTraining multi-horizon models for {ticker}...")
-            all_manifests = []
-            for t_col in targets:
-                horizon = t_col.split("_")[-1]
-                y_series = all_y[t_col].dropna()
-                X_prepared, y_prepared, prep_meta = prepare_training_matrix(raw_X.loc[y_series.index], y_series, cfg)
-                
-                h_meta = meta.copy()
-                h_meta["preparation"] = prep_meta
-                h_meta["horizon"] = horizon
-                
-                manifest = train_models(cfg, ticker, X_prepared, y_prepared, h_meta, 
-                                       autotune=bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False)),
-                                       horizon=horizon)
-                all_manifests.append(manifest)
-            
-            print_multi_horizon_train_summary(all_manifests)
-            print(f"All horizons trained and consolidated for {ticker}.")
-        except Exception as exc:
-            print(f"\nERROR: Failed to train {ticker}: {exc}")
+    tickers = _resolve_tickers(cfg, args.tickers)
+    width = screen_width()
+    autotune_enabled = bool(args.autotune or cfg.get("model", {}).get("autotune", {}).get("enabled_by_default", False))
+    requested_workers = args.workers if args.workers > 0 else int(cfg.get("batch", {}).get("train_workers", 1) or 1)
+    workers = safe_worker_count(len(tickers), requested=requested_workers, default=1)
 
+    if len(tickers) > 1:
+        print()
+        for line in banner("BATCH TRAINING", f"assets={len(tickers)}", f"workers={workers}", width=width):
+            print(line)
+        for line in render_facts(
+            [
+                ("Assets", len(tickers)),
+                ("Workers", workers),
+                ("Autotune", autotune_enabled),
+                ("Update", bool(args.update)),
+            ],
+            width=width,
+            max_columns=4,
+        ):
+            print(line)
 
-def _make_signal(cfg: dict[str, Any], ticker: str, update: bool = False) -> dict[str, Any]:
-    ticker = _canonical_ticker(cfg, ticker)
-    raw_X, all_y, meta = _build_current_dataset(cfg, ticker, update=update)
-    
-    # We predict for all horizons
-    results = predict_multi_horizon(cfg, ticker, raw_X)
-    
-    # Operational signal is based on d1 (next day)
-    pred_d1 = results.get("d1", {})
-    if "error" in pred_d1:
-        # Fallback to empty prediction if d1 is missing
-        pred_d1 = {"prediction_return": 0.0, "confidence": 0.0, "error": pred_d1["error"]}
-        
-    policy = classify_signal(cfg, results, meta)
-    
-    # Use the predicted return of the horizon that triggered the signal for the target price
-    trigger_h = policy.get("horizon", "d1")
-    pred_trigger = results.get(trigger_h, results.get("d1", {}))
-    
-    latest_price = float(meta["latest_price"])
-    target_price = latest_price * (1 + float(pred_trigger.get("prediction_return", 0.0)))
-    
-    fundamentals = meta.get("fundamentals", {})
-    signal = {
-        "ticker": normalize_ticker(ticker),
-        "latest_date": meta.get("latest_date"),
-        "latest_price": latest_price,
-        "target_price": float(target_price),
-        "prediction": pred_d1, # Primary prediction
-        "horizons": results,   # All predictions (d1, d5, d20)
-        "policy": policy,
-        "fundamentals": fundamentals,
-        "sentiment_value": meta.get("sentiment_value", 0.0),
-        "features_used": meta.get("features", []),
-        "train_run_id": pred_d1.get("train_manifest", {}).get("run_id"),
-    }
-    out_dir = models_dir(cfg) / safe_ticker(ticker)
-    write_json(out_dir / "latest_signal.json", signal)
-    return signal
+    if workers == 1:
+        for ticker in tickers:
+            try:
+                result = train_one_asset(
+                    cfg,
+                    ticker,
+                    update=args.update,
+                    autotune=autotune_enabled,
+                    inner_threads=None,
+                )
+                _print_train_result(result, width=width)
+            except Exception as exc:
+                print(paint(f"ERROR: Failed to train {ticker}: {exc}", C.RED))
+        return
+
+    futures = {}
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        for ticker in tickers:
+            futures[
+                executor.submit(
+                    train_one_asset,
+                    cfg,
+                    ticker,
+                    update=args.update,
+                    autotune=autotune_enabled,
+                    inner_threads=1,
+                )
+            ] = ticker
+        for future in as_completed(futures):
+            ticker = futures[future]
+            try:
+                result = future.result()
+                _print_train_result(result, width=width)
+            except Exception as exc:
+                print(paint(f"ERROR: Failed to train {ticker}: {exc}", C.RED))
 
 
 def cmd_predict(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    for ticker in _resolve_tickers(cfg, args.tickers):
-        signal = _make_signal(cfg, ticker, update=args.update)
-        print_signal(signal)
+    if args.tickers:
+        for ticker in _resolve_tickers(cfg, args.tickers):
+            signal = _make_signal(cfg, ticker, update=args.update)
+            if not args.rank:
+                print_signal(signal)
+    elif not args.rank:
+        raise SystemExit("predict requires at least one ticker unless --rank is used")
+    if args.rank:
+        for line in render_ranking(cfg, limit=args.rank_limit):
+            print(line)
 
 
 def cmd_report(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     for ticker in _resolve_tickers(cfg, args.tickers):
-        path = models_dir(cfg) / safe_ticker(ticker) / "latest_signal.json"
+        path = _latest_signal_path(cfg, ticker)
         if not path.exists() or args.refresh:
             signal = _make_signal(cfg, ticker, update=args.update)
         else:
@@ -194,71 +155,216 @@ def cmd_report(args: argparse.Namespace) -> None:
         print(f"report written: {report_path}")
 
 
-def cmd_daily(args: argparse.Namespace) -> None:
-    cfg = load_config(args.config)
-    rows = []
-    prices_map = {}
-    for ticker in _resolve_tickers(cfg, args.tickers):
-        try:
-            signal = _make_signal(cfg, ticker, update=True)
-            if cfg.get("daily", {}).get("generate_report", False):
-                write_txt_report(cfg, signal)
-            
-            ticker_norm = signal["ticker"]
-            prices_map[ticker_norm] = float(signal["latest_price"])
-            
-            # Print the compact tactical block
-            print_signal_brief(signal)
-            
-        except Exception as exc:
-            print(f"{C.RED}ERRO {normalize_ticker(ticker)}: {exc}{C.RESET}")
-    
-    # Portfolio monitoring
-    events = update_portfolio_prices(cfg, prices_map)
-    if events:
-        print("\nPORTFOLIO EVENTS")
-        for e in events:
-            print(f"-> {e}")
-        print("-" * 80)
-
-
-def cmd_buy(args: argparse.Namespace) -> None:
-    cfg = load_config(args.config)
-    ticker = normalize_ticker(args.ticker)
-    # Generate a fresh signal to have latest prices and policy
-    signal = _make_signal(cfg, ticker, update=True)
-    try:
-        pos = virtual_buy(cfg, ticker, signal)
-        print(f"\n{ticker} added to virtual portfolio!")
-        print(f"Entry: R$ {pos['entry_price']:.2f} | Shares: {pos['shares']} | Stop: R$ {pos['stop_loss']:.2f}")
-    except Exception as exc:
-        print(f"\nERROR: Could not execute virtual buy: {exc}")
-
-
 def cmd_portfolio(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
-    p = load_portfolio(cfg)
-    acc = p["account"]
-    
-    print("\nVIRTUAL PORTFOLIO")
-    print("=" * 60)
-    print(f"CASH: R$ {acc['cash']:,.2f} | INITIAL: R$ {acc['initial_capital']:,.2f}")
-    print("-" * 60)
-    
-    positions = p["positions"]
-    if not positions:
-        print("No active positions.")
+    if bool(getattr(args, "live", False)):
+        for line in render_live_portfolio(cfg):
+            print(line)
+        return
+    if bool(getattr(args, "rebalance", False)):
+        summary = rebalance_portfolio(cfg)
+        for line in render_rebalance_summary(summary):
+            print(line)
+        return
+
+    portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
+    account = portfolio["account"]
+    positions = portfolio["positions"]
+    width = screen_width()
+
+    total_exposure = 0.0
+    gross_exposure = 0.0
+    rows: list[list[str]] = []
+    for ticker, pos in positions.items():
+        shares = int(pos.get("shares", 0) or 0)
+        entry_price = float(pos.get("entry_price", 0.0) or 0.0)
+        signal = _latest_signal_for(cfg, ticker) or {}
+        policy = signal.get("policy", {}) or {}
+        side = str(pos.get("side") or position_side(shares)).upper()
+        target_value = pos.get("target_final", policy.get("target_price"))
+        stop_value = pos.get("stop_loss", policy.get("stop_loss_price"))
+        exposure = shares * entry_price
+        total_exposure += exposure
+        gross_exposure += abs(exposure)
+        rows.append(
+            [
+                paint(ticker, C.BOLD),
+                paint(side, C.RED if side == "SHORT" else C.GREEN),
+                str(shares),
+                f"{entry_price:.2f}",
+                f"{float(target_value):.2f}" if target_value is not None else "n/a",
+                f"{float(stop_value):.2f}" if stop_value is not None else "n/a",
+            ]
+        )
+
+    equity = float(account.get("cash", 0.0) or 0.0) + total_exposure
+    initial_capital = float(account.get("initial_capital", 0.0) or 0.0)
+    perf_pct = (equity / initial_capital - 1) * 100 if initial_capital else 0.0
+
+    print()
+    for line in banner("VIRTUAL PORTFOLIO", width=width):
+        print(line)
+    for line in render_facts(
+        [
+            ("Cash", money_br(float(account.get("cash", 0.0) or 0.0))),
+            ("Net Exp", money_br(total_exposure), tone_delta(total_exposure)),
+            ("Gross Exp", money_br(gross_exposure)),
+            ("Equity", money_br(equity), tone_delta(perf_pct)),
+            ("Perf", f"{perf_pct:+.2f}%", tone_delta(perf_pct)),
+            ("Positions", len(positions)),
+        ],
+        width=width,
+        max_columns=3,
+    ):
+        print(line)
+
+    if not rows:
+        print(paint("No active positions.", C.DIM))
     else:
-        print(f"{'TICKER':<10} {'SHARES':<8} {'ENTRY':<10} {'TARGET':<10} {'STOP':<10}")
-        for t, pos in positions.items():
-            print(f"{t:<10} {pos['shares']:<8} {pos['entry_price']:<10.2f} {pos['target_final']:<10.2f} {pos['stop_loss']:<10.2f}")
-    print("=" * 60)
+        for line in render_table(
+            ["TICKER", "SIDE", "SHARES", "ENTRY", "TARGET", "STOP"],
+            rows,
+            width=width,
+            aligns=["left", "left", "right", "right", "right", "right"],
+            min_widths=[8, 5, 6, 8, 8, 8],
+        ):
+            print(line)
+    print(divider(width))
+
+
+def cmd_validate(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    tickers = _resolve_tickers(cfg, args.tickers)
+    sim_cfg = cfg.get("simulation", {}) or {}
+    mode = str(args.mode or sim_cfg.get("mode", "replay") or "replay").lower()
+    summary = run_pybroker_replay(
+        cfg,
+        tickers,
+        mode=mode,
+        start_date=args.start,
+        end_date=args.end,
+        rebalance_days=args.rebalance_days if args.rebalance_days > 0 else int(sim_cfg.get("rebalance_days", 5) or 5),
+        warmup_bars=args.warmup_bars if args.warmup_bars > 0 else int(sim_cfg.get("warmup_bars", 150) or 150),
+        initial_cash=args.cash,
+        max_positions=args.max_positions,
+        allow_short=bool(args.allow_short or sim_cfg.get("allow_short", False)),
+        walkforward_autotune=bool(args.walkforward_autotune),
+        inner_threads=1,
+    )
+    metrics = summary.get("metrics", {}) or {}
+    width = ui5.screen_width()
+    total_return = float(metrics.get("total_return_pct", 0.0) or 0.0)
+    max_drawdown = float(metrics.get("max_drawdown_pct", 0.0) or 0.0)
+    trades = int(float(metrics.get("trade_count", 0) or 0))
+    decision = "Sem trades na janela"
+    decision_status = "warn"
+    if trades > 0 and total_return >= 0:
+        decision = "Manter em observacao"
+        decision_status = "ok"
+    elif trades > 0:
+        decision = "Revisar filtros"
+        decision_status = "error"
+    mode_label = "walk-forward shadow" if summary.get("mode") == "pybroker_walkforward_shadow" else "replay operacional"
+    conclusion = (
+        "Sem entradas no periodo; aumentar janela ou reduzir filtros para investigar."
+        if trades == 0
+        else f"Retorno {total_return:+.2f}% com {trades} trades."
+    )
+
+    print()
+    screen_title = str(getattr(args, "screen_title", "VALIDATE"))
+    for line in ui5.render_header(f"{screen_title} - PYBROKER - {mode.upper()}", width=width):
+        print(line)
+    for line in ui5.render_section("RESUMO", width=width):
+        print(line)
+    for line in ui5.render_key_values(
+        {
+            "Experimento": "Simulacao PyBroker",
+            "Amostra": f"{summary.get('start_date')} ate {summary.get('end_date')} | {len(summary.get('tickers', []) or [])} ativos",
+            "Modo": mode_label,
+            "Conclusao preliminar": conclusion,
+        },
+        width=width,
+    ):
+        print(line)
+    callout_status = "warn" if mode == "replay" else "info"
+    callout_text = (
+        "Replay usa modelos operacionais salvos; serve para sanidade de execucao e comparacao rapida."
+        if mode == "replay"
+        else "Walk-forward treina em artefatos sombra por data de rebalanceamento; e mais lento, mas reduz vazamento temporal."
+    )
+    for line in ui5.render_callout(callout_text, status=callout_status, width=width):
+        print(line)
+
+    for line in ui5.render_section("RESULTADO", width=width):
+        print(line)
+    for line in ui5.render_table(
+        ["Configuracao", "Retorno", "Trades", "Drawdown", "Decisao"],
+        [
+            [
+                mode_label,
+                f"{total_return:+.2f}%",
+                str(trades),
+                f"{max_drawdown:+.2f}%",
+                ui5.render_badge(decision, decision_status),
+            ]
+        ],
+        width=width,
+        aligns=["left", "right", "right", "right", "left"],
+        min_widths=[18, 8, 6, 9, 14],
+    ):
+        print(line)
+
+    if args.verbose:
+        for line in ui5.render_section("ARTEFATOS", width=width):
+            print(line)
+        for line in ui5.render_table(
+            ["Arquivo", "Caminho"],
+            [
+                ["Resumo", str((summary.get("artifacts", {}) or {}).get("summary_txt", "n/a"))],
+                ["Sinais", str((summary.get("artifacts", {}) or {}).get("signals_json", "n/a"))],
+                ["Trades", str((summary.get("artifacts", {}) or {}).get("trades_csv", "n/a"))],
+                ["Stops", str((summary.get("artifacts", {}) or {}).get("stops_csv", "n/a"))],
+            ],
+            width=width,
+            aligns=["left", "left"],
+            min_widths=[8, 30],
+        ):
+            print(line)
+
+    closing = [
+        "Revisar o resumo da simulacao antes de promover qualquer ajuste operacional.",
+        "Comparar replay e walk-forward na mesma janela para medir o efeito de vazamento temporal.",
+        "Abrir os artefatos apenas quando precisar auditar trades, ordens ou sinais por data.",
+    ]
+    for line in ui5.render_section("FECHAMENTO OPERACIONAL", width=width):
+        print(line)
+    for line in ui5.render_operational_closing(closing, width=width):
+        print(line)
+
+
+def _add_validate_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("tickers", nargs="+")
+    parser.add_argument("--mode", choices=["replay", "walkforward"], default=None, help="validation mode; default comes from config")
+    parser.add_argument("--start", default=None, help="start date YYYY-MM-DD")
+    parser.add_argument("--end", default=None, help="end date YYYY-MM-DD")
+    parser.add_argument("--rebalance-days", type=int, default=0, help="bars between signal rebalances; 0 uses config default")
+    parser.add_argument("--warmup-bars", type=int, default=0, help="minimum bars before the first rebalance; 0 uses config default")
+    parser.add_argument("--cash", type=float, default=None, help="initial cash for the validation")
+    parser.add_argument("--max-positions", type=int, default=None, help="max long and short slots")
+    parser.add_argument("--allow-short", action="store_true", help="allow short entries on sell signals")
+    parser.add_argument("--walkforward-autotune", action="store_true", help="autotune shadow models during walk-forward validation")
+    parser.add_argument("--verbose", action="store_true", help="show technical artifact paths")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tradechat", description="Simple, practical CLI for B3 signal generation.")
     parser.add_argument("--config", default=None, help="optional config.yaml path")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(
+        dest="command",
+        required=True,
+        metavar="{data,train,predict,validate,report,portfolio}",
+    )
 
     data = sub.add_parser("data", help="update and validate local data cache")
     data.add_argument("tickers", nargs="+", help="comma/space separated tickers")
@@ -268,11 +374,14 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("tickers", nargs="+")
     train.add_argument("--update", action="store_true", help="refresh price cache before training")
     train.add_argument("--autotune", action="store_true", help="tune XGB, CatBoost and ExtraTrees with BayesSearchCV before Ridge arbitration")
+    train.add_argument("--workers", type=int, default=0, help="parallel workers for multi-asset training; 0 uses config default")
     train.set_defaults(func=cmd_train)
 
     pred = sub.add_parser("predict", help="generate signal using saved model")
-    pred.add_argument("tickers", nargs="+")
+    pred.add_argument("tickers", nargs="*")
     pred.add_argument("--update", action="store_true", help="refresh price cache before prediction")
+    pred.add_argument("--rank", action="store_true", help="show ranked table after generating signals")
+    pred.add_argument("--rank-limit", type=int, default=40, help="max rows shown when using --rank")
     pred.set_defaults(func=cmd_predict)
 
     rep = sub.add_parser("report", help="write detailed TXT audit report")
@@ -281,16 +390,15 @@ def build_parser() -> argparse.ArgumentParser:
     rep.add_argument("--update", action="store_true", help="refresh price cache when regenerating")
     rep.set_defaults(func=cmd_report)
 
-    daily = sub.add_parser("daily", help="run data -> predict, without training")
-    daily.add_argument("tickers", nargs="+")
-    daily.set_defaults(func=cmd_daily)
-
-    buy = sub.add_parser("buy", help="simulated buy order")
-    buy.add_argument("ticker")
-    buy.set_defaults(func=cmd_buy)
-
     port = sub.add_parser("portfolio", help="show virtual portfolio")
+    port_mode = port.add_mutually_exclusive_group()
+    port_mode.add_argument("--live", action="store_true", help="monitor portfolio with live prices and target/stop exits")
+    port_mode.add_argument("--rebalance", action="store_true", help="rebalance portfolio from latest actionable signals")
     port.set_defaults(func=cmd_portfolio)
+
+    val = sub.add_parser("validate", help="validate signals with PyBroker replay or walk-forward")
+    _add_validate_args(val)
+    val.set_defaults(func=cmd_validate, screen_title="VALIDATE")
     
     return parser
 
@@ -299,3 +407,4 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     args.func(args)
+

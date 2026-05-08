@@ -1,2 +1,2 @@
 @echo off
-python scripts\generate_ranking.py %*
+python trade.py predict --rank %*

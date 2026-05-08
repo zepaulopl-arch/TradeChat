@@ -1,46 +1,117 @@
-# TradeChat Tactical Operational Manual
+# TradeChat Operational Manual
 
-Este manual descreve o ecossistema de scripts (BATs) do TradeChat e o protocolo recomendado para operação e simulação diária.
+Este manual descreve o pipeline real do projeto, os comandos principais e quando usar cada um.
 
-## 1. O Ecossistema de Comandos (BATs)
+## 1. Comandos base da CLI
 
-Cada arquivo `.bat` é um atalho para uma função específica do sistema:
+Todos os comandos abaixo rodam via `trade.py`.
 
-| Comando | Função | Quando Usar |
-| :--- | :--- | :--- |
-| `run_diagnostics.bat` | **O Operário**: Atualiza preços e gera sinais de IA (BUY/SELL). | Diário (Antes do pregão). |
-| `run_ranking.bat` | **O Analista**: Mostra o ranking das melhores oportunidades. | Diário (Após o Diagnostics). |
-| `run_rebalance.bat` | **O Gerente**: Executa compras/vendas e ajusta o portfólio. | Diário (Após o Ranking). |
-| `run_portfolio.bat` | **O Vigia**: Monitora P/L ao vivo e executa saídas (Target/Stop). | Durante o pregão (Monitoramento). |
-| `run_tactical_cycle.bat` | **O Piloto Automático**: Roda os 3 primeiros em sequência. | Diário (Para economizar tempo). |
-| `run_weekly_training.bat` | **O Mecânico**: Re-treina a IA do zero com Autotune. | Semanal (Fim de semana). |
+| Comando | O que faz | Quando usar |
+| --- | --- | --- |
+| `python trade.py data PETR4.SA` | Atualiza cache de precos e valida contexto, fundamentals e sentimento. | Antes de treinar ou quando quiser sincronizar dados. |
+| `python trade.py train PETR4.SA` | Treina os tres horizontes (`d1`, `d5`, `d20`) e grava manifests/modelos. | Quando ainda nao ha modelo recente ou apos mudanca relevante de mercado. |
+| `python trade.py predict PETR4.SA` | Gera o sinal operacional usando os modelos salvos. | Depois de treinar ou para consulta tatico-operacional. |
+| `python trade.py predict --rank` | Mostra ranking consolidado dos ultimos sinais. | Triagem rapida de oportunidades. |
+| `python trade.py predict ALL --rank` | Atualiza sinais e mostra ranking consolidado. | Triagem completa apos dados/modelos prontos. |
+| `python trade.py report PETR4.SA` | Gera o relatorio `.txt` de auditoria do ultimo sinal. | Quando quiser registro, revisao ou rastreabilidade. |
+| `python trade.py portfolio` | Mostra o estado da carteira virtual. | Consulta de exposicao e risco. |
+| `python trade.py portfolio --live` | Monitora carteira com preco intraday e saida por target/stop. | Durante o pregao, com cuidado porque pode alterar estado. |
+| `python trade.py portfolio --rebalance` | Recalcula a carteira virtual com os sinais atuais. | Paper trading e alocacao tatica. |
+| `python trade.py validate PETR4.SA VALE3.SA` | Roda validacao PyBroker em modo replay dos modelos salvos. | Sanidade operacional, comparacao de regras e execucao. |
+| `python trade.py validate PETR4.SA VALE3.SA --mode walkforward` | Roda validacao PyBroker treinando modelos sombra por data. | Validacao historica mais rigorosa, com menos vazamento temporal. |
 
----
+## 2. Pipeline recomendado
 
-## 2. Protocolo de Operação Diária (Simulação)
+### Diario, antes do mercado
 
-Para manter o sistema atualizado e simular o crescimento do seu capital de R$ 10.000,00, siga este fluxo:
+1. Atualize dados dos ativos que voce acompanha.
+   `python trade.py data PETR4.SA VALE3.SA ITUB4.SA`
+2. Gere sinais usando os modelos ja existentes.
+   `python trade.py predict PETR4.SA VALE3.SA ITUB4.SA`
+3. Se quiser registrar auditoria do que foi decidido:
+   `python trade.py report PETR4.SA VALE3.SA ITUB4.SA`
 
-1.  **Sincronização (Manhã)**:
-    - Execute `run_diagnostics.bat`. Isso garante que as predições considerem os preços de fechamento mais recentes.
-2.  **Tomada de Decisão (Execução)**:
-    - Execute `run_rebalance.bat`. O sistema vai olhar o seu saldo, fechar o que ficou "Neutro", inverter o que mudou de sinal e abrir novas posições.
-3.  **Controle de Voo (Durante o dia)**:
-    - Execute `run_portfolio.bat`. Ele vai buscar os preços **ao vivo**. Se uma ação bater no seu Alvo ou no seu Stop, o sistema "venderá" virtualmente e atualizará seu saldo.
+### Diario, quando nao quer retreinar
 
----
+1. Atualize dados.
+   `python trade.py data PETR4.SA VALE3.SA ITUB4.SA`
+2. Gere sinais e ranking.
+   `python trade.py predict PETR4.SA VALE3.SA ITUB4.SA --rank`
+3. Consulte a carteira.
+   `python trade.py portfolio`
+4. Durante o pregao, se quiser monitorar target/stop:
+   `python trade.py portfolio --live`
 
-## 3. Inteligência de Rebalanceamento
+### Semanal ou apos mudanca de regime
 
-O sistema é **Incremental**. Ele não esquece o que você fez ontem:
-- **KEEP**: Se o sinal continua o mesmo, ele mantém a posição.
-- **REVERSE**: Se o sinal inverteu (era Compra e virou Venda), ele vira a mão automaticamente.
-- **ADJUST**: Se o sinal é o mesmo mas a confiança mudou, ele ajusta a quantidade de ações.
-- **CLOSE**: Se o sinal sumiu (ficou Neutro), ele encerra a posição para proteger o capital.
+1. Atualize os dados.
+   `python trade.py data ALL`
+2. Retreine os ativos mais importantes.
+   `python trade.py train PETR4.SA VALE3.SA ITUB4.SA`
+3. Se quiser acelerar em lote por ativo:
+   `python trade.py train PETR4.SA VALE3.SA ITUB4.SA --workers 3`
+4. Para uma rodada pesada em lote com autotune:
+   `run_weekly_training.bat`
 
-## 4. Manutenção de IA
+### Fluxo de diagnostico em lote
 
-O mercado muda seus padrões. Por isso, use o `run_weekly_training.bat` uma vez por semana. Ele demora mais (pode levar horas), mas garante que o "cérebro" do TradeChat esteja calibrado com as volatilidades mais recentes.
+`run_diagnostics.bat`
 
----
-*Status: Cockpit Operacional e Documentado.*
+Esse atalho roda `scripts/diagnose_assets.py`, que atualiza dados, treina, prediz e grava artefatos de diagnostico para os ativos selecionados. Ele fica como ferramenta tecnica de manutencao, nao como rotina diaria.
+
+Para usar paralelismo seguro por ativo:
+
+`python scripts/diagnose_assets.py --assets PETR4.SA,VALE3.SA,ITUB4.SA --workers 3`
+
+Para rodar todos os ativos cadastrados:
+
+`python scripts/diagnose_assets.py --assets ALL --autotune --workers 3`
+
+Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`; ativos com pouca historia aparecem como `SKIP` no diagnostico.
+
+## 3. Atalhos opcionais
+
+| Script | Papel |
+| --- | --- |
+| `run_ranking.bat` | Atalho para `python trade.py predict --rank`. |
+| `run_rebalance.bat` | Atalho para `python trade.py portfolio --rebalance`. |
+| `run_portfolio.bat` | Atalho para `python trade.py portfolio --live`. |
+
+## 4. Ordem operacional sugerida
+
+### Rotina enxuta
+
+1. `python trade.py data PETR4.SA VALE3.SA ITUB4.SA`
+2. `python trade.py predict PETR4.SA VALE3.SA ITUB4.SA --rank`
+3. `python trade.py portfolio`
+
+### Rotina completa
+
+1. `python trade.py data PETR4.SA VALE3.SA ITUB4.SA`
+2. `python trade.py train PETR4.SA VALE3.SA ITUB4.SA`
+3. `python trade.py predict PETR4.SA VALE3.SA ITUB4.SA`
+4. `python trade.py report PETR4.SA VALE3.SA ITUB4.SA`
+5. `python trade.py predict PETR4.SA VALE3.SA ITUB4.SA --rank`
+6. `python trade.py portfolio --rebalance`
+7. `python trade.py portfolio --live`
+8. `python trade.py validate PETR4.SA VALE3.SA --start 2026-01-01 --end 2026-05-01`
+9. `python trade.py validate PETR4.SA VALE3.SA --mode walkforward --start 2026-01-01 --end 2026-05-01`
+
+## 5. Regras praticas
+
+- `data` primeiro, quando houver duvida sobre atualizacao do cache.
+- `train` so quando houver motivo; ele e a etapa mais pesada.
+- Paralelismo vale por ativo, nao por horizonte interno. Use `--workers` com moderacao.
+- `predict` e `report` devem reutilizar modelos ja treinados.
+- `predict --rank` substitui o ranking separado na rotina principal.
+- `portfolio --rebalance` substitui o rebalance separado na rotina principal.
+- `portfolio --live` substitui o monitor separado de carteira.
+- A carteira virtual usa SQLite como estado unico em `data/tradechat_state.db`.
+- `run_weekly_training.bat` deve ser usado com calma, porque faz rodada completa com autotune.
+- `validate --mode replay` usa modelos ja treinados; e rapido e bom para sanidade operacional.
+- `validate --mode walkforward` treina modelos sombra dentro de `artifacts/simulations` e e a opcao mais correta para validacao historica.
+- Use `validate --verbose` apenas quando quiser ver caminhos tecnicos dos artefatos.
+
+## 6. Tutorial da fase 1
+
+O tutorial de testes e uso esta em `docs/PHASE1_TESTING_AND_USAGE.md`.
