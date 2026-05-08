@@ -761,6 +761,7 @@ def train_models(
         },
         "engine_dispersion": dispersion,
         "confidence": confidence,
+        "quality": confidence,
         "dataset_meta": dataset_meta,
     }
     write_json(out_dir / "manifest.json", manifest)
@@ -835,6 +836,7 @@ def predict_with_model(cfg: dict[str, Any], ticker: str, X: pd.DataFrame, horizo
             "arbiter": "ridge",
             "dispersion": dispersion,
             "confidence": confidence,
+            "quality": confidence,
             "train_manifest": manifest,
         }
 

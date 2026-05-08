@@ -39,9 +39,9 @@ def signal_score(signal: dict[str, Any]) -> float:
     horizon = trigger_horizon(signal)
     horizon_days = HORIZON_DAYS.get(horizon, 1)
     triggered = trigger_result(signal)
-    confidence_pct = float(policy.get("confidence_pct", 0.0) or 0.0)
+    quality_pct = float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0)
     triggered_ret_pct = abs(float(triggered.get("prediction_return", 0.0) or 0.0) * 100.0)
-    return confidence_pct * (triggered_ret_pct / math.sqrt(horizon_days)) if horizon_days > 0 else 0.0
+    return quality_pct * (triggered_ret_pct / math.sqrt(horizon_days)) if horizon_days > 0 else 0.0
 
 
 def signal_side(label_or_signal: str | dict[str, Any]) -> str | None:

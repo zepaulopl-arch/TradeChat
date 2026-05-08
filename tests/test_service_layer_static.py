@@ -31,6 +31,7 @@ def test_scoring_module_owns_signal_score_formula():
     assert "SIGNAL_PRIORITY_MAP" in text
     assert "def signal_score" in text
     assert "math.sqrt" in text
+    assert "quality_pct" in text
 
 
 def test_methodology_service_owns_methodology_checks():

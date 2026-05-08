@@ -228,7 +228,7 @@ def diagnose_one_asset(
                     "mae_arbiter": ridge_metrics.get("mae_return", ""),
                     "engine_dispersion": manifest.get("engine_dispersion", 0.0),
                     "train_prediction_pct": _fmt_pct(manifest.get("latest_prediction_return", 0.0)),
-                    "train_confidence_pct": float(manifest.get("confidence", 0.0) or 0.0) * 100.0,
+                    "train_quality_pct": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0) * 100.0,
                 }
             )
 
@@ -242,7 +242,7 @@ def diagnose_one_asset(
             "signal": policy.get("label", ""),
             "posture": policy.get("posture", ""),
             "prediction_pct": float(policy.get("score_pct", 0.0) or 0.0),
-            "confidence_pct": float(policy.get("confidence_pct", 0.0) or 0.0),
+            "quality_pct": float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0),
             "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0)) * 100.0,
             "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0)) * 100.0,
             "reasons": "; ".join(policy.get("reasons", []) or []),

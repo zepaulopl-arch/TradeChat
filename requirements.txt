@@ -1,15 +1,4 @@
-pandas
-numpy
-pyyaml
-scikit-learn
-yfinance
-xgboost
-catboost
-pyarrow
-requests
-feedparser
-nltk
-deep-translator
-
-scikit-optimize
-lib-pybroker
+-r requirements-core.txt
+-r requirements-ml.txt
+-r requirements-sentiment.txt
+-r requirements-dev.txt

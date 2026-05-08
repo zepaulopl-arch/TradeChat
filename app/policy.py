@@ -43,6 +43,7 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
         "posture": "wait",
         "score_pct": 0.0,
         "confidence_pct": 0.0,
+        "quality_pct": 0.0,
         "horizon": "d1",
         "reasons": [],
     }
@@ -56,10 +57,10 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
 
         ret_pct = float(pred.get("prediction_return", 0.0) * 100)
         conf_pct = float(pred.get("confidence", 0.0) * 100)
-        h_reasons = [f"{h_name}_ret={ret_pct:+.2f}%", f"{h_name}_conf={conf_pct:.0f}%"]
+        h_reasons = [f"{h_name}_ret={ret_pct:+.2f}%", f"{h_name}_quality={conf_pct:.0f}%"]
 
         if conf_pct < floor_pct:
-            skipped_by_confidence.append(f"{h_name} confidence below floor ({conf_pct:.0f}% < {floor_pct:.0f}%)")
+            skipped_by_confidence.append(f"{h_name} quality below floor ({conf_pct:.0f}% < {floor_pct:.0f}%)")
             continue
 
         h_label = "NEUTRAL"
@@ -85,10 +86,10 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
 
         if h_label == "STRONG BUY" and conf_pct < high_conf_pct:
             h_label, h_posture = "BUY", f"buy_{posture_type}_selective"
-            h_reasons.append(f"strong signal downgraded: confidence {conf_pct:.0f}% < {high_conf_pct:.0f}%")
+            h_reasons.append(f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%")
         elif h_label == "STRONG SELL" and conf_pct < high_conf_pct:
             h_label, h_posture = "SELL", f"sell_{posture_type}_selective"
-            h_reasons.append(f"strong signal downgraded: confidence {conf_pct:.0f}% < {high_conf_pct:.0f}%")
+            h_reasons.append(f"strong signal downgraded: quality {conf_pct:.0f}% < {high_conf_pct:.0f}%")
 
         if h_label != "NEUTRAL":
             candidates.append({
@@ -96,6 +97,7 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
                 "posture": h_posture,
                 "score_pct": ret_pct,
                 "confidence_pct": conf_pct,
+                "quality_pct": conf_pct,
                 "horizon": h_name,
                 "reasons": h_reasons,
             })
@@ -110,10 +112,11 @@ def classify_signal(cfg: dict[str, Any], results: dict[str, Any], dataset_meta: 
         conf_d1 = float(d1.get("confidence", 0.0) * 100)
         best_signal["score_pct"] = ret_d1
         best_signal["confidence_pct"] = conf_d1
+        best_signal["quality_pct"] = conf_d1
         best_signal["reasons"] = [
             f"D1={ret_d1:+.2f}%",
-            f"conf={conf_d1:.0f}%",
-            f"all horizons below threshold or confidence floor ({floor_pct:.0f}%)",
+            f"quality={conf_d1:.0f}%",
+            f"all horizons below threshold or quality floor ({floor_pct:.0f}%)",
         ]
         best_signal["reasons"].extend(skipped_by_confidence[:3])
 

@@ -17,7 +17,7 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
             horizons = data.get("horizons", {}) or {}
             policy = data.get("policy", {"label": "NEUTRAL", "horizon": "d1"}) or {}
             trigger_pred = trigger_result(data)
-            conf_pct = float(policy.get("confidence_pct", 0.0) or 0.0)
+            quality_pct = float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0)
             triggered_ret = float(trigger_pred.get("prediction_return", 0.0) or 0.0) * 100.0
             signals.append(
                 {
@@ -28,7 +28,7 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
                     "d1_ret": float(horizons.get("d1", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
                     "d5_ret": float(horizons.get("d5", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
                     "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0) or 0.0) * 100.0,
-                    "confidence_pct": conf_pct,
+                    "quality_pct": quality_pct,
                     "score": signal_score(data),
                     "priority": signal_priority(data),
                     "rr": float(policy.get("risk_reward_ratio", 0.0) or 0.0),
@@ -69,14 +69,14 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
     )
 
     if compact:
-        headers = ["TICKER", "SIGNAL", "H", "RETURN", "CONF", "SCORE"]
+        headers = ["TICKER", "SIGNAL", "H", "RETURN", "QUAL", "SCORE"]
         rows = [
             [
                 paint(row["ticker"], C.BOLD),
                 paint(row["signal"], tone_signal(row["signal"])),
                 paint(row["horizon"], C.CYAN),
                 f"{row['trigger_ret']:+.2f}%",
-                f"{row['confidence_pct']:.0f}%",
+                f"{row['quality_pct']:.0f}%",
                 f"{row['score']:.1f}",
             ]
             for row in rows_data
@@ -84,7 +84,7 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
         aligns = ["left", "left", "left", "right", "right", "right"]
         min_widths = [8, 8, 3, 8, 6, 7]
     else:
-        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "CONF", "R/R", "SCORE"]
+        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "R/R", "SCORE"]
         rows = [
             [
                 paint(row["ticker"], C.BOLD),
@@ -93,7 +93,7 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
                 f"{row['d1_ret']:+.2f}%",
                 f"{row['d5_ret']:+.2f}%",
                 f"{row['d20_ret']:+.2f}%",
-                f"{row['confidence_pct']:.0f}%",
+                f"{row['quality_pct']:.0f}%",
                 f"{row['rr']:.1f}",
                 f"{row['score']:.1f}",
             ]
@@ -103,6 +103,6 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
         min_widths = [8, 8, 3, 7, 7, 8, 6, 5, 7]
 
     lines.extend(render_table(headers, rows, width=width, aligns=aligns, min_widths=min_widths))
-    lines.append(f"{paint('Score', C.DIM)} = confidence x |trigger return| / sqrt(days)")
+    lines.append(f"{paint('Score', C.DIM)} = signal quality x |trigger return| / sqrt(days)")
     lines.append(divider(width))
     return lines

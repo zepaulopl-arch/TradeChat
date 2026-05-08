@@ -41,11 +41,11 @@ def _family_relevance_share(manifest: dict[str, Any]) -> dict[str, float]:
 def _decision_from_manifest(manifest: dict[str, Any]) -> str:
     metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
     mae = float(metrics.get("mae_return", 0.0) or 0.0)
-    confidence = float(manifest.get("confidence", 0.0) or 0.0)
+    quality = float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0)
     selected = int(len(manifest.get("features", []) or []))
     if selected == 0:
         return "invalid"
-    if mae <= 0.015 and confidence >= 0.45:
+    if mae <= 0.015 and quality >= 0.45:
         return "keep"
     if mae <= 0.030:
         return "watch"
@@ -74,7 +74,7 @@ def collect_refine_summary(cfg: dict[str, Any], tickers: list[str]) -> dict[str,
                     "run_id": str(manifest.get("run_id", "")),
                     "mae_return": float(metrics.get("mae_return", 0.0) or 0.0),
                     "latest_prediction_return": float(manifest.get("latest_prediction_return", 0.0) or 0.0),
-                    "confidence": float(manifest.get("confidence", 0.0) or 0.0),
+                    "quality": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0),
                     "selected_feature_count": len(features),
                     "family_counts": family_counts,
                     "family_relevance_share_pct": family_share,
@@ -159,7 +159,7 @@ def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> di
         "profile",
         "mae_return",
         "latest_prediction_return",
-        "confidence",
+        "quality",
         "selected_feature_count",
         "technical_count",
         "context_count",
@@ -180,7 +180,7 @@ def _write_removal_artifacts(cfg: dict[str, Any], summary: dict[str, Any]) -> di
                     "profile": row.get("profile", ""),
                     "mae_return": row.get("mae_return", 0.0),
                     "latest_prediction_return": row.get("latest_prediction_return", 0.0),
-                    "confidence": row.get("confidence", 0.0),
+                    "quality": row.get("quality", 0.0),
                     "selected_feature_count": row.get("selected_feature_count", 0),
                     "technical_count": counts.get("technical", 0),
                     "context_count": counts.get("context", 0),
@@ -256,7 +256,7 @@ def run_feature_removal(
                         "run_id": str(manifest.get("run_id", "")),
                         "mae_return": float(metrics.get("mae_return", 0.0) or 0.0),
                         "latest_prediction_return": float(manifest.get("latest_prediction_return", 0.0) or 0.0),
-                        "confidence": float(manifest.get("confidence", 0.0) or 0.0),
+                        "quality": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0),
                         "selected_feature_count": len(features),
                         "family_counts": feature_family_profile(features),
                         "artifact_dir": str(models_dir(profile_cfg).parent),
@@ -294,7 +294,7 @@ def render_refine_summary(summary: dict[str, Any]) -> list[str]:
                 str(row.get("horizon", "n/a")).upper(),
                 f"{float(row.get('mae_return', 0.0) or 0.0) * 100:.2f}%",
                 f"{float(row.get('latest_prediction_return', 0.0) or 0.0) * 100:+.2f}%",
-                f"{float(row.get('confidence', 0.0) or 0.0) * 100:.0f}%",
+                f"{float(row.get('quality', row.get('confidence', 0.0)) or 0.0) * 100:.0f}%",
                 f"T{counts.get('technical', 0)}/C{counts.get('context', 0)}/F{counts.get('fundamentals', 0)}/S{counts.get('sentiment', 0)}",
                 f"T{shares.get('technical', 0.0):.0f}/C{shares.get('context', 0.0):.0f}/F{shares.get('fundamentals', 0.0):.0f}/S{shares.get('sentiment', 0.0):.0f}",
                 str(row.get("decision", "watch")),
@@ -345,7 +345,7 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
                 str(row.get("profile", "n/a")),
                 f"{mae * 100:.2f}%",
                 f"{delta * 100:+.2f}%",
-                f"{float(row.get('confidence', 0.0) or 0.0) * 100:.0f}%",
+                f"{float(row.get('quality', row.get('confidence', 0.0)) or 0.0) * 100:.0f}%",
                 f"T{counts.get('technical', 0)}/C{counts.get('context', 0)}/F{counts.get('fundamentals', 0)}/S{counts.get('sentiment', 0)}",
                 verdict,
             ]

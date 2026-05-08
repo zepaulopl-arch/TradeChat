@@ -183,7 +183,7 @@ def _signal_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] | tuple[s
     facts: list[tuple[str, str, str] | tuple[str, str]] = [
         ("Price", _money(price)),
         ("Signal", f"{label} ({policy.get('posture', 'n/a')})", tone_signal(label)),
-        ("Conf", f"{policy.get('confidence_pct', 0.0):.0f}%"),
+        ("Quality", f"{policy.get('quality_pct', policy.get('confidence_pct', 0.0)):.0f}%"),
         ("Horizon", trigger_h),
     ]
     if is_neutral:
@@ -219,14 +219,14 @@ def _horizon_rows(signal: dict[str, Any]) -> list[list[str]]:
             rows.append([horizon.upper(), "n/a", "-", "-"])
             continue
         ret = float(h_data.get("prediction_return", 0.0) or 0.0)
-        conf = float(h_data.get("confidence", 0.0) or 0.0) * 100.0
+        quality = float(h_data.get("quality", h_data.get("confidence", 0.0)) or 0.0) * 100.0
         target_price = price * (1 + ret)
         rows.append(
             [
                 horizon.upper(),
                 paint(f"{ret * 100:+.2f}%", tone_delta(ret)),
                 _money(target_price),
-                f"{conf:.0f}%",
+                f"{quality:.0f}%",
             ]
         )
     return rows
@@ -285,7 +285,7 @@ def print_signal(signal: dict[str, Any]) -> None:
     _print_lines(render_facts(_signal_facts(signal), width=width, max_columns=2))
     _print_lines(
         render_table(
-            ["H", "RETURN", "TARGET", "CONF"],
+            ["H", "RETURN", "TARGET", "QUAL"],
             _horizon_rows(signal),
             width=width,
             aligns=["left", "right", "right", "right"],
@@ -326,7 +326,7 @@ def render_txt_report(signal: dict[str, Any]) -> str:
                 ("Last Price", _money(price)),
                 ("Signal", f"{policy.get('label', 'N/A')} ({policy.get('posture', 'n/a')})"),
                 ("Trigger", str(policy.get("horizon", "d1")).upper()),
-                ("Confidence", f"{float(policy.get('confidence_pct', 0.0) or 0.0):.0f}%"),
+                ("Signal Quality", f"{float(policy.get('quality_pct', policy.get('confidence_pct', 0.0)) or 0.0):.0f}%"),
                 ("Size", policy.get("position_size", 0)),
                 ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
                 ("Target T1", _money(float(policy.get("target_partial", 0.0) or 0.0))),
@@ -357,7 +357,7 @@ def render_txt_report(signal: dict[str, Any]) -> str:
     lines.extend(render_wrapped("Guarded Outputs", _engine_values_summary(trigger_result.get("by_engine", {}) or {}), width=width, use_color=False))
     lines.extend(
         render_table(
-            ["H", "RETURN", "TARGET", "CONF"],
+            ["H", "RETURN", "TARGET", "QUAL"],
             [[cell for cell in row] for row in _horizon_rows(signal)],
             width=width,
             aligns=["left", "right", "right", "right"],

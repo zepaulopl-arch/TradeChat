@@ -122,3 +122,11 @@ Ativos com `registry_status: inactive` em `config/data.yaml` ficam fora de `ALL`
 ## 6. Tutorial da fase 1
 
 O tutorial de testes e uso esta em `docs/PHASE1_TESTING_AND_USAGE.md`.
+
+## 7. Instalacao por camadas
+
+- `requirements-core.txt`: dados, YAML, cache e utilitarios do pipeline base.
+- `requirements-ml.txt`: modelos tabulares, autotune e validacao PyBroker.
+- `requirements-sentiment.txt`: RSS, VADER/NLTK e traducao.
+- `requirements-dev.txt`: ferramentas de teste.
+- `requirements.txt`: instalacao completa, agregando todas as camadas acima.

@@ -53,7 +53,7 @@ The CSV is the main analysis file. It includes:
 - data status: rows, date range, context available/unavailable;
 - fundamentals and sentiment status;
 - feature counts, top features and family mix;
-- MAE, prediction and confidence;
+- MAE, prediction and signal quality;
 - raw/guarded engine outputs;
 - discarded or neutralized engines;
 - signal and policy reasons.

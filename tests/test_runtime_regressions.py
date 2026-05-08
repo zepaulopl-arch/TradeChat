@@ -259,6 +259,7 @@ def test_policy_blocks_low_risk_reward_signal():
     assert policy["label"] == "NEUTRAL"
     assert policy["blocked_signal"] == "BUY"
     assert policy["actionable"] is False
+    assert policy["quality_pct"] == pytest.approx(policy["confidence_pct"])
     assert "R/R" in policy["reasons"][-1]
 
 
@@ -282,6 +283,7 @@ def test_policy_keeps_sell_informational_when_short_disabled():
 
     assert policy["label"] in {"SELL", "STRONG SELL"}
     assert policy["actionable"] is False
+    assert policy["quality_pct"] == pytest.approx(policy["confidence_pct"])
     assert policy["position_size"] == 0
     assert is_actionable_signal(signal) is False
 
