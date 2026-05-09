@@ -498,6 +498,15 @@ def _fmt_pct(value: Any) -> str:
         return "n/a"
 
 
+def _fmt_context_missing_detail(item: dict[str, Any]) -> list[str]:
+    return [
+        str(item.get("ticker", "n/a")),
+        f"{_fmt_count(item.get('valid_count'))}",
+        f"{_fmt_count(item.get('missing_count'))} ({_fmt_pct(item.get('missing_pct', 0.0))})",
+        "YES" if item.get("all_missing") else "NO",
+    ]
+
+
 def _fmt_count(value: Any) -> str:
     try:
         return str(int(value))
@@ -524,16 +533,22 @@ def print_data_audit(status: dict[str, Any]) -> None:
 
     age = audit.get("age_days")
     age_text = "n/a" if age is None else f"{age} days"
-    last_date = audit.get("last_date") or status.get("end") or "n/a"
-    gap_days = audit.get("largest_gap_days", 0)
-    gap_span = ""
-    if audit.get("largest_gap_start") and audit.get("largest_gap_end"):
-        gap_span = f" ({audit.get('largest_gap_start')} -> {audit.get('largest_gap_end')})"
+    last_valid = audit.get("effective_last_date") or audit.get("last_date") or status.get("end") or "n/a"
+    raw_start = audit.get("raw_first_date") or audit.get("first_date") or status.get("start") or "n/a"
+    raw_end = audit.get("raw_last_date") or status.get("end") or "n/a"
+    effective_start = audit.get("effective_first_date") or "n/a"
+    effective_end = audit.get("effective_last_date") or "n/a"
+    gap_days = audit.get("effective_largest_gap_days", audit.get("largest_gap_days", 0))
+    gap_start = audit.get("effective_largest_gap_start") or audit.get("largest_gap_start")
+    gap_end = audit.get("effective_largest_gap_end") or audit.get("largest_gap_end")
+    gap_span = f" ({gap_start} -> {gap_end})" if gap_start and gap_end else ""
 
     facts = [
         ("Status", _audit_status_label(audit.get("status", "ok"))),
-        ("Rows", audit.get("rows", status.get("rows", 0))),
-        ("Range", f"{audit.get('first_date') or status.get('start') or 'n/a'} -> {last_date}"),
+        ("Raw Rows", audit.get("raw_rows", audit.get("rows", status.get("rows", 0)))),
+        ("Raw Range", f"{raw_start} -> {raw_end}"),
+        ("Effective Rows", audit.get("effective_rows", 0)),
+        ("Asset Range", f"{effective_start} -> {effective_end}"),
         ("Age", age_text),
         ("Context", f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)}"),
         ("Coverage", _fmt_pct(audit.get("context_coverage_pct", 0.0))),
@@ -545,19 +560,76 @@ def print_data_audit(status: dict[str, Any]) -> None:
     ]
 
     rows = [
-        ["Minimum rows", f"{audit.get('rows', 0)} / {audit.get('min_rows', 0)}", "PASS" if audit.get("has_min_rows", True) else "WARN"],
-        ["Price column", "present" if audit.get("price_column_present") else "missing", "PASS" if audit.get("price_column_present") else "FAIL"],
-        ["Missing close", f"{_fmt_count(audit.get('close_missing_count'))} ({_fmt_pct(audit.get('close_missing_pct', 0.0))})", "PASS" if not audit.get("close_missing_count") else "WARN"],
-        ["Rows with any missing", f"{_fmt_count(audit.get('rows_with_any_missing'))} ({_fmt_pct(audit.get('rows_with_any_missing_pct', 0.0))})", "PASS" if not audit.get("rows_with_any_missing") else "WARN"],
-        ["Duplicate dates", _fmt_count(audit.get("duplicate_date_count")), "PASS" if not audit.get("duplicate_date_count") else "WARN"],
-        ["Largest date gap", f"{gap_days} days{gap_span}", "PASS" if int(gap_days or 0) <= 5 else "WARN"],
-        ["Freshness", f"last={last_date} | age={age_text}", "PASS" if not audit.get("is_stale") else "WARN"],
-        ["Context coverage", f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)} ({_fmt_pct(audit.get('context_coverage_pct', 0.0))})", "PASS" if not audit.get("missing_context_count") else "WARN"],
+        [
+            "Minimum effective rows",
+            f"{audit.get('effective_rows', 0)} / {audit.get('min_rows', 0)}",
+            "PASS" if audit.get("has_min_rows", True) else "WARN",
+        ],
+        [
+            "Price column",
+            audit.get("price_column") or ("present" if audit.get("price_column_present") else "missing"),
+            "PASS" if audit.get("price_column_present") else "FAIL",
+        ],
+        [
+            "Valid price rows",
+            _fmt_count(audit.get("price_valid_count")),
+            "PASS" if audit.get("price_valid_count") else "FAIL",
+        ],
+        [
+            "Pre-asset padding",
+            _fmt_count(audit.get("pre_asset_padding_count")),
+            "INFO" if audit.get("pre_asset_padding_count") else "PASS",
+        ],
+        [
+            "Internal missing close",
+            f"{_fmt_count(audit.get('internal_missing_close_count'))} ({_fmt_pct(audit.get('internal_missing_close_pct', 0.0))})",
+            "PASS" if not audit.get("internal_missing_close_count") else "WARN",
+        ],
+        [
+            "Post-asset missing",
+            _fmt_count(audit.get("post_asset_missing_count")),
+            "PASS" if not audit.get("post_asset_missing_count") else "WARN",
+        ],
+        [
+            "Rows with missing inside",
+            f"{_fmt_count(audit.get('effective_rows_with_any_missing'))} ({_fmt_pct(audit.get('effective_rows_with_any_missing_pct', 0.0))})",
+            "PASS" if not audit.get("effective_rows_with_any_missing") else "WARN",
+        ],
+        [
+            "Context missing inside",
+            f"{_fmt_count(audit.get('context_missing_inside_count'))} ({_fmt_pct(audit.get('context_missing_inside_pct', 0.0))})",
+            "PASS" if not audit.get("context_missing_inside_count") else "WARN",
+        ],
+        [
+            "Context complete rows",
+            f"{_fmt_count(audit.get('context_complete_rows_count'))} ({_fmt_pct(audit.get('context_complete_rows_pct', 0.0))})",
+            "PASS" if audit.get("context_complete_rows_count") else "WARN",
+        ],
+        [
+            "Duplicate dates",
+            _fmt_count(audit.get("duplicate_date_count")),
+            "PASS" if not audit.get("duplicate_date_count") else "WARN",
+        ],
+        [
+            "Largest effective gap",
+            f"{gap_days} days{gap_span}",
+            "PASS" if int(gap_days or 0) <= 7 else "WARN",
+        ],
+        [
+            "Freshness",
+            f"last={last_valid} | age={age_text}",
+            "PASS" if not audit.get("is_stale") else "WARN",
+        ],
+        [
+            "Context coverage",
+            f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)} ({_fmt_pct(audit.get('context_coverage_pct', 0.0))})",
+            "PASS" if not audit.get("missing_context_count") else "WARN",
+        ],
     ]
 
     rendered_rows = []
     for check, value, state in rows:
-        tone = C.GREEN if state == "PASS" else C.RED if state == "FAIL" else C.YELLOW
+        tone = C.GREEN if state == "PASS" else C.RED if state == "FAIL" else C.BLUE if state == "INFO" else C.YELLOW
         rendered_rows.append([check, value, paint(state, tone)])
 
     print()
@@ -569,6 +641,21 @@ def print_data_audit(status: dict[str, Any]) -> None:
     missing_context = audit.get("missing_context_tickers", []) or []
     if missing_context:
         _print_lines(render_wrapped("Missing context", _compact_items(missing_context, limit=8), width=width))
+
+    context_missing_by_ticker = [
+        item for item in (audit.get("context_missing_by_ticker", []) or [])
+        if int(item.get("missing_count", 0) or 0) > 0
+    ]
+    if context_missing_by_ticker:
+        print()
+        _print_lines(
+            render_table(
+                ["Context", "Valid", "Missing", "All Missing"],
+                [_fmt_context_missing_detail(item) for item in context_missing_by_ticker[:8]],
+                width=width,
+                aligns=["left", "right", "right", "left"],
+            )
+        )
 
     all_missing = audit.get("all_missing_columns", []) or []
     if all_missing:
