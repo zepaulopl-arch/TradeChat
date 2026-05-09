@@ -274,7 +274,9 @@ def _signal_context_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] |
     ]
 
 
-def _render_signal_meta(signal: dict[str, Any], *, width: int, use_color: bool = True) -> list[str]:
+def _render_signal_meta(
+    signal: dict[str, Any], *, width: int, use_color: bool = True, verbose: bool = False
+) -> list[str]:
     trigger_result = _signal_horizon_result(signal)
     lines: list[str] = []
     lines.extend(
@@ -301,15 +303,16 @@ def _render_signal_meta(signal: dict[str, Any], *, width: int, use_color: bool =
             use_color=use_color,
         )
     )
-    lines.extend(
-        render_wrapped(
-            "Run Id", signal.get("train_run_id", "n/a"), width=width, use_color=use_color
+    if verbose:
+        lines.extend(
+            render_wrapped(
+                "Run Id", signal.get("train_run_id", "n/a"), width=width, use_color=use_color
+            )
         )
-    )
     return lines
 
 
-def print_signal(signal: dict[str, Any]) -> None:
+def print_signal(signal: dict[str, Any], *, verbose: bool = False) -> None:
     width = screen_width()
     ticker = signal["ticker"]
     print()
@@ -327,7 +330,7 @@ def print_signal(signal: dict[str, Any]) -> None:
         )
     )
     _print_lines(render_facts(_signal_context_facts(signal), width=width, max_columns=2))
-    _print_lines(_render_signal_meta(signal, width=width))
+    _print_lines(_render_signal_meta(signal, width=width, verbose=verbose))
     print(divider(width))
 
 

@@ -142,7 +142,16 @@ def build_refine_decision_matrix(
         ticker = str(row.get("ticker", ""))
         horizon = str(row.get("horizon", ""))
         profile = str(row.get("profile", "n/a"))
-        base = grouped.get((ticker, horizon, "full"), row)
+        base = grouped.get((ticker, horizon, "full"))
+        if base is None:
+            base = {
+                "mae_return": row.get("baseline_mae_return", row.get("mae_return")),
+                "quality": row.get("baseline_quality", row.get("quality")),
+                "family_counts": row.get("baseline_family_counts", row.get("family_counts", {})),
+                "selected_feature_count": row.get(
+                    "baseline_selected_feature_count", row.get("selected_feature_count", 0)
+                ),
+            }
         removed_family = PROFILE_TO_REMOVED_FAMILY.get(profile, "none")
         mae_delta = _float(row, "mae_return") - _float(base, "mae_return")
         quality_delta = _float(row, "quality") - _float(base, "quality")

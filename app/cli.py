@@ -55,6 +55,7 @@ def _add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
     generate = sub.add_parser("generate", help="generate operational signals")
     _add_ticker_list_args(generate)
     generate.add_argument("--update", action="store_true")
+    generate.add_argument("--verbose", action="store_true")
 
     rank = sub.add_parser("rank", help="rank latest or freshly generated signals")
     _add_ticker_list_args(rank, nargs="*")

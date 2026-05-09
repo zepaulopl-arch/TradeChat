@@ -17,11 +17,21 @@ from .presentation import (
     tone_signal,
 )
 from .scoring import signal_priority, signal_score, trigger_horizon, trigger_result
+from .utils import normalize_ticker
 
 
-def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict[str, Any]]:
+def collect_ranked_signals(
+    cfg: dict[str, Any],
+    *,
+    limit: int = 40,
+    tickers: list[str] | tuple[str, ...] | set[str] | None = None,
+) -> list[dict[str, Any]]:
+    allowed = {normalize_ticker(ticker) for ticker in (tickers or [])}
     signals: list[dict[str, Any]] = []
     for data in iter_latest_signals(cfg):
+        ticker = normalize_ticker(str(data.get("ticker", "")))
+        if allowed and ticker not in allowed:
+            continue
         try:
             horizons = data.get("horizons", {}) or {}
             policy = data.get("policy", {"label": "NEUTRAL", "horizon": "d1"}) or {}
@@ -30,7 +40,7 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
             triggered_ret = float(trigger_pred.get("prediction_return", 0.0) or 0.0) * 100.0
             signals.append(
                 {
-                    "ticker": data.get("ticker", "N/A"),
+                    "ticker": ticker or data.get("ticker", "N/A"),
                     "signal": str(policy.get("label", "NEUTRAL")),
                     "horizon": trigger_horizon(data).upper(),
                     "trigger_ret": triggered_ret,
@@ -53,9 +63,16 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
     return signals[:limit] if limit > 0 else signals
 
 
-def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
-    rows_data = collect_ranked_signals(cfg, limit=limit)
+def render_ranking(
+    cfg: dict[str, Any],
+    *,
+    limit: int = 40,
+    tickers: list[str] | tuple[str, ...] | set[str] | None = None,
+) -> list[str]:
+    rows_data = collect_ranked_signals(cfg, limit=limit, tickers=tickers)
     if not rows_data:
+        if tickers:
+            return ["No signals found for requested tickers. Run signal generate first."]
         return ["No signals found. Run signal generate first."]
 
     df = pd.DataFrame(rows_data)
@@ -78,6 +95,7 @@ def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
             [
                 ("Signals", len(df)),
                 ("Shown", len(rows_data)),
+                ("Scope", "explicit" if tickers else "all latest"),
                 ("Buy / Sell", f"{buy_count} / {sell_count}"),
                 ("Sort", "priority -> score"),
             ],

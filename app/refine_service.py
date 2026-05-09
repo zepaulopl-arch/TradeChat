@@ -146,6 +146,21 @@ def _removal_cfg(cfg: dict[str, Any], profile: str, run_id: str) -> dict[str, An
     return shadow
 
 
+def _baseline_manifest_summary(cfg: dict[str, Any], ticker: str, horizon: str) -> dict[str, Any]:
+    path = _latest_manifest_path(cfg, ticker, horizon)
+    if not path.exists():
+        return {}
+    manifest = read_json(path)
+    metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
+    features = [str(item) for item in manifest.get("features", []) or []]
+    return {
+        "baseline_mae_return": float(metrics.get("mae_return", 0.0) or 0.0),
+        "baseline_quality": float(manifest.get("quality", manifest.get("confidence", 0.0)) or 0.0),
+        "baseline_selected_feature_count": len(features),
+        "baseline_family_counts": feature_family_profile(features),
+    }
+
+
 def refine_dir(cfg: dict[str, Any], run_id: str) -> Path:
     path = artifact_dir(cfg) / "refine" / str(run_id)
     path.mkdir(parents=True, exist_ok=True)
@@ -356,8 +371,10 @@ def run_feature_removal(
                     continue
                 metrics = (manifest.get("metrics", {}) or {}).get("ridge_arbiter", {}) or {}
                 features = [str(item) for item in manifest.get("features", []) or []]
+                baseline = _baseline_manifest_summary(cfg, ticker, horizon)
                 rows.append(
                     {
+                        **baseline,
                         "ticker": ticker,
                         "profile": profile,
                         "horizon": horizon,
@@ -565,7 +582,12 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     table_rows = []
     for row in rows:
         baseline = by_key.get((row["ticker"], row["horizon"], "full"))
-        base_mae = float((baseline or row).get("mae_return", 0.0) or 0.0)
+        if baseline is not None:
+            base_mae = float(baseline.get("mae_return", 0.0) or 0.0)
+            base_counts = baseline.get("family_counts", {}) or {}
+        else:
+            base_mae = float(row.get("baseline_mae_return", row.get("mae_return", 0.0)) or 0.0)
+            base_counts = row.get("baseline_family_counts", row.get("family_counts", {})) or {}
         mae = float(row.get("mae_return", 0.0) or 0.0)
         delta = mae - base_mae
         counts = row.get("family_counts", {}) or {}
@@ -579,20 +601,44 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
                 str(row.get("ticker", "n/a")),
                 str(row.get("horizon", "n/a")).upper(),
                 str(row.get("profile", "n/a")),
-                f"{mae * 100:.2f}%",
-                f"{delta * 100:+.2f}%",
+                f"{base_mae * 100:.3f}%",
+                f"{mae * 100:.3f}%",
+                f"{delta * 100:+.3f}%",
                 f"{float(row.get('quality', row.get('confidence', 0.0)) or 0.0) * 100:.0f}%",
+                _family_counts_text(base_counts),
                 _family_counts_text(counts),
                 verdict,
             ]
         )
     lines.extend(
         render_table(
-            ["Ticker", "Hz", "Profile", "MAE", "Delta", "Qual", "Count", "Verdict"],
+            [
+                "Ticker",
+                "Hz",
+                "Profile",
+                "Full MAE",
+                "Profile MAE",
+                "Delta",
+                "Qual",
+                "Full Count",
+                "Profile Count",
+                "Verdict",
+            ],
             table_rows,
             width=width,
-            aligns=["left", "left", "left", "right", "right", "right", "left", "left"],
-            min_widths=[10, 3, 14, 7, 7, 5, 13, 7],
+            aligns=[
+                "left",
+                "left",
+                "left",
+                "right",
+                "right",
+                "right",
+                "right",
+                "left",
+                "left",
+                "left",
+            ],
+            min_widths=[10, 3, 14, 9, 11, 8, 5, 13, 13, 7],
         )
     )
     if errors:
