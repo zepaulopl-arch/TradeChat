@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import reports_dir
+from .policy import signal_policy_diagnostic
 from .presentation import (
     C,
     banner,
@@ -253,6 +254,73 @@ def _horizon_rows(signal: dict[str, Any]) -> list[list[str]]:
     return rows
 
 
+
+
+def _fmt_diag_pct(value: Any, *, signed: bool = False) -> str:
+    if value is None:
+        return "n/a"
+    try:
+        raw = float(value)
+    except Exception:
+        return "n/a"
+    return f"{raw:+.2f}%" if signed else f"{raw:.0f}%"
+
+
+def _yn(value: Any) -> str:
+    return "yes" if bool(value) else "no"
+
+
+def _policy_diagnostic_rows(cfg: dict[str, Any] | None, signal: dict[str, Any]) -> list[list[str]]:
+    diag = signal_policy_diagnostic(cfg or {}, signal)
+    rows: list[list[str]] = []
+    for item in diag.get("rows", []) or []:
+        rows.append(
+            [
+                str(item.get("horizon", "n/a")).upper(),
+                _fmt_diag_pct(item.get("return_pct"), signed=True),
+                _fmt_diag_pct(item.get("quality_pct")),
+                _fmt_diag_pct(item.get("min_buy_pct"), signed=True),
+                _fmt_diag_pct(item.get("max_sell_pct"), signed=True),
+                _fmt_diag_pct(item.get("min_quality_pct")),
+                _yn(item.get("return_ok")),
+                _yn(item.get("quality_ok")),
+                str(item.get("candidate_label", "n/a")),
+                str(item.get("blocker", "n/a")),
+            ]
+        )
+    return rows
+
+
+def _render_policy_diagnostic(
+    cfg: dict[str, Any] | None, signal: dict[str, Any], *, width: int
+) -> list[str]:
+    diag = signal_policy_diagnostic(cfg or {}, signal)
+    lines: list[str] = []
+    lines.append(divider(width))
+    lines.append("POLICY DIAGNOSTIC")
+    lines.extend(
+        render_facts(
+            [
+                ("Final", f"{diag.get('final_label', 'NEUTRAL')} ({diag.get('final_posture', 'n/a')})"),
+                ("Selected", str(diag.get("selected_horizon", "d1")).upper()),
+                ("Main blocker", str(diag.get("main_blocker", "n/a"))),
+            ],
+            width=width,
+            max_columns=1,
+        )
+    )
+    lines.extend(
+        render_table(
+            ["H", "RET", "QUAL", "BUY >=", "SELL <=", "Q >=", "RET OK", "Q OK", "CAND", "BLOCKER"],
+            _policy_diagnostic_rows(cfg, signal),
+            width=width,
+            aligns=["left", "right", "right", "right", "right", "right", "left", "left", "left", "left"],
+            min_widths=[3, 7, 6, 8, 8, 6, 6, 5, 8, 18],
+        )
+    )
+    return lines
+
+
 def _signal_context_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] | tuple[str, str]]:
     fundamentals = signal.get("fundamentals", {}) or {}
     sent = float(signal.get("sentiment_value", 0.0) or 0.0)
@@ -312,7 +380,13 @@ def _render_signal_meta(
     return lines
 
 
-def print_signal(signal: dict[str, Any], *, verbose: bool = False) -> None:
+def print_signal(
+    signal: dict[str, Any],
+    *,
+    verbose: bool = False,
+    diagnostic: bool = False,
+    cfg: dict[str, Any] | None = None,
+) -> None:
     width = screen_width()
     ticker = signal["ticker"]
     print()
@@ -331,6 +405,8 @@ def print_signal(signal: dict[str, Any], *, verbose: bool = False) -> None:
     )
     _print_lines(render_facts(_signal_context_facts(signal), width=width, max_columns=2))
     _print_lines(_render_signal_meta(signal, width=width, verbose=verbose))
+    if diagnostic:
+        _print_lines(_render_policy_diagnostic(cfg, signal, width=width))
     print(divider(width))
 
 

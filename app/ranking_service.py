@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from .policy import signal_policy_summary
 from .portfolio_service import iter_latest_signals
 from .presentation import (
     C,
@@ -54,6 +55,7 @@ def collect_ranked_signals(
                     "score": signal_score(data),
                     "priority": signal_priority(data),
                     "rr": float(policy.get("risk_reward_ratio", 0.0) or 0.0),
+                    "blocker": signal_policy_summary(cfg, data),
                 }
             )
         except Exception:
@@ -68,6 +70,7 @@ def render_ranking(
     *,
     limit: int = 40,
     tickers: list[str] | tuple[str, ...] | set[str] | None = None,
+    diagnostic: bool = False,
 ) -> list[str]:
     rows_data = collect_ranked_signals(cfg, limit=limit, tickers=tickers)
     if not rows_data:
@@ -77,7 +80,7 @@ def render_ranking(
 
     df = pd.DataFrame(rows_data)
     width = screen_width()
-    compact = width < 104
+    compact = width < 104 and not diagnostic
     buy_count = int(df["signal"].astype(str).str.contains("BUY").sum())
     sell_count = int(df["signal"].astype(str).str.contains("SELL").sum())
     lines: list[str] = []
@@ -119,6 +122,23 @@ def render_ranking(
         ]
         aligns = ["left", "left", "left", "right", "right", "right"]
         min_widths = [8, 8, 3, 8, 6, 7]
+    elif diagnostic:
+        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "BLOCKER"]
+        rows = [
+            [
+                paint(row["ticker"], C.BOLD),
+                paint(row["signal"], tone_signal(row["signal"])),
+                paint(row["horizon"], C.CYAN),
+                f"{row['d1_ret']:+.2f}%",
+                f"{row['d5_ret']:+.2f}%",
+                f"{row['d20_ret']:+.2f}%",
+                f"{row['quality_pct']:.0f}%",
+                str(row.get("blocker", "n/a")),
+            ]
+            for row in rows_data
+        ]
+        aligns = ["left", "left", "left", "right", "right", "right", "right", "left"]
+        min_widths = [8, 8, 3, 7, 7, 8, 6, 18]
     else:
         headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "R/R", "SCORE"]
         rows = [
@@ -140,5 +160,7 @@ def render_ranking(
 
     lines.extend(render_table(headers, rows, width=width, aligns=aligns, min_widths=min_widths))
     lines.append(f"{paint('Score', C.DIM)} = signal quality x |trigger return| / sqrt(days)")
+    if diagnostic:
+        lines.append("Diagnostic = main policy blocker or selected actionable signal.")
     lines.append(divider(width))
     return lines

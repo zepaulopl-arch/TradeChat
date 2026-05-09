@@ -240,3 +240,156 @@ def classify_signal(
     best_signal["actionable"] = bool(actionable)
     best_signal["risk_reward_ratio"] = rr
     return best_signal
+
+
+def signal_policy_diagnostic(cfg: dict[str, Any], signal: dict[str, Any]) -> dict[str, Any]:
+    """Explain why the current signal policy selected or blocked each horizon.
+
+    This is intentionally diagnostic-only: it mirrors the threshold logic used by
+    classify_signal but does not change the policy output.
+    """
+    pcfg = cfg.get("policy", {}) or {}
+    floor_pct = _confidence_floor_pct(pcfg)
+    high_conf_pct = _as_pct(pcfg.get("high_confidence_pct"), 0.70)
+    mae_threshold_multiplier = float(pcfg.get("mae_threshold_multiplier", 0.25))
+    buy_base = float(pcfg.get("buy_return_pct", 0.45))
+    strong_buy_base = float(pcfg.get("strong_buy_return_pct", 1.5))
+    sell_base = float(pcfg.get("sell_return_pct", -0.45))
+    strong_sell_base = float(pcfg.get("strong_sell_return_pct", -1.5))
+    horizons_config = [
+        ("d1", 1.0, "day"),
+        ("d5", 2.2, "swing"),
+        ("d20", 4.5, "position"),
+    ]
+    rows: list[dict[str, Any]] = []
+    horizons = signal.get("horizons", {}) or {}
+    policy = signal.get("policy", {}) or {}
+    selected_horizon = str(policy.get("horizon", "d1")).lower()
+    final_label = str(policy.get("label", "NEUTRAL")).upper()
+
+    for h_name, multiplier, posture_type in horizons_config:
+        pred = horizons.get(h_name, {}) or {}
+        if "error" in pred or not pred:
+            rows.append(
+                {
+                    "horizon": h_name,
+                    "return_pct": None,
+                    "quality_pct": None,
+                    "min_buy_pct": None,
+                    "max_sell_pct": None,
+                    "mae_floor_pct": None,
+                    "min_quality_pct": floor_pct,
+                    "quality_ok": False,
+                    "return_ok": False,
+                    "candidate_label": "n/a",
+                    "decision": "blocked",
+                    "blocker": "missing prediction",
+                    "selected": False,
+                }
+            )
+            continue
+
+        ret_pct = float(pred.get("prediction_return", 0.0) or 0.0) * 100.0
+        quality_pct = float(pred.get("quality", pred.get("confidence", 0.0)) or 0.0) * 100.0
+        min_buy = buy_base * multiplier
+        min_strong_buy = strong_buy_base * (multiplier * 0.8)
+        max_sell = sell_base * multiplier
+        max_strong_sell = strong_sell_base * (multiplier * 0.8)
+        mae_floor = _ridge_mae_pct(pred) * mae_threshold_multiplier
+        if mae_floor > 0:
+            min_buy = max(min_buy, mae_floor)
+            max_sell = min(max_sell, -mae_floor)
+
+        quality_ok = quality_pct >= floor_pct
+        buy_ok = ret_pct >= min_buy
+        sell_ok = ret_pct <= max_sell
+        return_ok = buy_ok or sell_ok
+        candidate_label = "NEUTRAL"
+        if quality_ok:
+            if ret_pct >= min_strong_buy:
+                candidate_label = "STRONG BUY"
+            elif buy_ok:
+                candidate_label = "BUY"
+            elif ret_pct <= max_strong_sell:
+                candidate_label = "STRONG SELL"
+            elif sell_ok:
+                candidate_label = "SELL"
+
+            if candidate_label == "STRONG BUY" and quality_pct < high_conf_pct:
+                candidate_label = "BUY"
+            elif candidate_label == "STRONG SELL" and quality_pct < high_conf_pct:
+                candidate_label = "SELL"
+
+        if not quality_ok:
+            blocker = f"quality {quality_pct:.0f}% below floor {floor_pct:.0f}%"
+            decision = "blocked"
+        elif not return_ok:
+            blocker = f"return inside neutral band ({max_sell:+.2f}% to {min_buy:+.2f}%)"
+            decision = "blocked"
+        elif candidate_label == "NEUTRAL":
+            blocker = "no actionable label after thresholds"
+            decision = "blocked"
+        else:
+            blocker = "passes threshold"
+            decision = "candidate"
+
+        selected = h_name == selected_horizon and final_label != "NEUTRAL"
+        if selected:
+            decision = "selected"
+            blocker = "selected by priority/quality"
+
+        rows.append(
+            {
+                "horizon": h_name,
+                "return_pct": ret_pct,
+                "quality_pct": quality_pct,
+                "min_buy_pct": min_buy,
+                "max_sell_pct": max_sell,
+                "mae_floor_pct": mae_floor,
+                "min_quality_pct": floor_pct,
+                "quality_ok": quality_ok,
+                "return_ok": return_ok,
+                "candidate_label": candidate_label,
+                "decision": decision,
+                "blocker": blocker,
+                "selected": selected,
+                "posture_type": posture_type,
+            }
+        )
+
+    final_blocker = _policy_main_blocker(policy, rows)
+    return {
+        "ticker": signal.get("ticker", "N/A"),
+        "final_label": final_label,
+        "final_posture": policy.get("posture", "n/a"),
+        "selected_horizon": selected_horizon,
+        "main_blocker": final_blocker,
+        "rows": rows,
+        "reasons": list(policy.get("reasons", []) or []),
+    }
+
+
+def _policy_main_blocker(policy: dict[str, Any], rows: list[dict[str, Any]]) -> str:
+    label = str(policy.get("label", "NEUTRAL")).upper()
+    reasons = [str(item) for item in (policy.get("reasons", []) or [])]
+    rr_reasons = [reason for reason in reasons if "R/R" in reason or "blocked" in reason]
+    if rr_reasons:
+        return rr_reasons[0]
+    if label != "NEUTRAL":
+        return "actionable"
+    if not rows:
+        return "no horizon data"
+    if all(not bool(row.get("quality_ok")) for row in rows):
+        return "quality floor"
+    if all(not bool(row.get("return_ok")) for row in rows if row.get("quality_ok")):
+        return "return threshold"
+    blockers = [str(row.get("blocker", "")) for row in rows if row.get("blocker")]
+    return blockers[0] if blockers else "policy filters"
+
+
+def signal_policy_summary(cfg: dict[str, Any], signal: dict[str, Any]) -> str:
+    diag = signal_policy_diagnostic(cfg, signal)
+    label = str(diag.get("final_label", "NEUTRAL"))
+    if label != "NEUTRAL":
+        return f"{label} via {str(diag.get('selected_horizon', 'd1')).upper()}"
+    return str(diag.get("main_blocker", "neutral"))

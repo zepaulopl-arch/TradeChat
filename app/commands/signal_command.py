@@ -15,7 +15,12 @@ def _generate(cfg: dict, args: argparse.Namespace, *, print_output: bool = True)
     for ticker in tickers:
         signal = make_signal(cfg, ticker, update=bool(getattr(args, "update", False)))
         if print_output:
-            print_signal(signal, verbose=bool(getattr(args, "verbose", False)))
+            print_signal(
+                signal,
+                verbose=bool(getattr(args, "verbose", False)),
+                diagnostic=bool(getattr(args, "diagnostic", False)),
+                cfg=cfg,
+            )
 
 
 def _rank(cfg: dict, args: argparse.Namespace) -> None:
@@ -27,6 +32,7 @@ def _rank(cfg: dict, args: argparse.Namespace) -> None:
         cfg,
         limit=int(getattr(args, "rank_limit", 40) or 40),
         tickers=tickers or None,
+        diagnostic=bool(getattr(args, "diagnostic", False)),
     ):
         print(line)
 
