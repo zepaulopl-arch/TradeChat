@@ -13,11 +13,11 @@ def test_validate_cli_accepts_policy_profile():
             "--mode",
             "replay",
             "--policy-profile",
-            "balanced",
+            "active",
         ]
     )
 
-    assert args.policy_profile == "balanced"
+    assert args.policy_profile == "active"
 
 
 def test_validate_command_applies_policy_profile(monkeypatch):

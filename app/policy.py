@@ -12,6 +12,13 @@ BUILTIN_POLICY_PROFILES: dict[str, dict[str, Any]] = {
         "mae_threshold_multiplier": 0.12,
         "risk_management": {"min_rr_threshold": 0.50},
     },
+    "active": {
+        "buy_return_pct": 0.10,
+        "sell_return_pct": -0.10,
+        "min_confidence_pct": 0.38,
+        "mae_threshold_multiplier": 0.10,
+        "risk_management": {"min_rr_threshold": 0.25},
+    },
     "relaxed": {
         "buy_return_pct": 0.08,
         "sell_return_pct": -0.08,

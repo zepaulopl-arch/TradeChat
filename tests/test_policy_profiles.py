@@ -1,5 +1,10 @@
 from app.cli import build_parser
-from app.policy import apply_policy_profile, classify_signal, signal_policy_diagnostic
+from app.policy import (
+    available_policy_profiles,
+    apply_policy_profile,
+    classify_signal,
+    signal_policy_diagnostic,
+)
 
 
 def _cfg():
@@ -56,6 +61,12 @@ def test_cli_accepts_policy_profile_flags():
         ).policy_profile
         == "balanced"
     )
+    assert (
+        parser.parse_args(
+            ["signal", "rank", "PETR4.SA", "--policy-profile", "active"]
+        ).policy_profile
+        == "active"
+    )
 
 
 def test_policy_profile_relaxes_thresholds_without_mutating_base_config():
@@ -89,3 +100,50 @@ def test_diagnostic_reports_active_policy_profile():
 
     assert diag["profile"] == "relaxed"
     assert diag["final_label"] == "BUY"
+
+
+def _active_results():
+    return {
+        "d1": {"prediction_return": 0.0004, "confidence": 0.37},
+        "d5": {"prediction_return": 0.0011, "confidence": 0.36},
+        "d20": {"prediction_return": 0.0106, "confidence": 0.71},
+    }
+
+
+def test_active_profile_exists_between_balanced_and_relaxed():
+    cfg = _cfg()
+    assert "active" in available_policy_profiles(cfg)
+
+    balanced = apply_policy_profile(cfg, "balanced")
+    active = apply_policy_profile(cfg, "active")
+    relaxed = apply_policy_profile(cfg, "relaxed")
+
+    assert (
+        balanced["policy"]["risk_management"]["min_rr_threshold"]
+        > active["policy"]["risk_management"]["min_rr_threshold"]
+    )
+    assert (
+        active["policy"]["risk_management"]["min_rr_threshold"]
+        > relaxed["policy"]["risk_management"]["min_rr_threshold"]
+    )
+    assert balanced["policy"]["min_confidence_pct"] > active["policy"]["min_confidence_pct"]
+    assert active["policy"]["min_confidence_pct"] > relaxed["policy"]["min_confidence_pct"]
+
+
+def test_active_profile_can_pass_when_balanced_rr_blocks():
+    cfg = _cfg()
+    meta = {
+        "latest_price": 100.0,
+        "latest_risk_pct": 2.0,
+        "fundamentals": {},
+        "sentiment_value": 0.0,
+    }
+
+    balanced = classify_signal(apply_policy_profile(cfg, "balanced"), _active_results(), meta)
+    active = classify_signal(apply_policy_profile(cfg, "active"), _active_results(), meta)
+
+    assert balanced["label"] == "NEUTRAL"
+    assert "R/R" in " ".join(balanced.get("reasons", []))
+    assert active["label"] == "BUY"
+    assert active["horizon"] == "d20"
+    assert active["profile"] == "active"

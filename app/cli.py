@@ -34,7 +34,7 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--policy-profile",
         default=None,
-        help="policy profile for calibration: strict, balanced or relaxed",
+        help="policy profile for calibration: strict, balanced, active or relaxed",
     )
 
 
@@ -67,7 +67,7 @@ def _add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
     generate.add_argument(
         "--policy-profile",
         default=None,
-        help="policy profile for calibration: strict, balanced or relaxed",
+        help="policy profile for calibration: strict, balanced, active or relaxed",
     )
 
     rank = sub.add_parser("rank", help="rank latest or freshly generated signals")
@@ -78,7 +78,7 @@ def _add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
     rank.add_argument(
         "--policy-profile",
         default=None,
-        help="policy profile for calibration: strict, balanced or relaxed",
+        help="policy profile for calibration: strict, balanced, active or relaxed",
     )
 
     report = sub.add_parser("report", help="write signal audit reports")
