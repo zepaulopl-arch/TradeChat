@@ -489,3 +489,98 @@ def write_txt_report(cfg: dict[str, Any], signal: dict[str, Any]) -> Path:
 
 def _fmt_bool(value: Any) -> str:
     return "ok" if bool(value) else "n/a"
+
+
+def _fmt_pct(value: Any) -> str:
+    try:
+        return f"{float(value):.1f}%"
+    except Exception:
+        return "n/a"
+
+
+def _fmt_count(value: Any) -> str:
+    try:
+        return str(int(value))
+    except Exception:
+        return "n/a"
+
+
+def _audit_status_label(status: str) -> str:
+    status = str(status or "ok").lower()
+    if status == "error":
+        return paint("FAIL", C.RED)
+    if status == "warning":
+        return paint("WARN", C.YELLOW)
+    return paint("PASS", C.GREEN)
+
+
+def print_data_audit(status: dict[str, Any]) -> None:
+    """Render a real data-quality audit for cached market data."""
+    width = screen_width()
+    ticker = status.get("ticker", "N/A")
+    audit = status.get("audit", {}) or {}
+    fundamentals = status.get("fundamentals", {}) or {}
+    sentiment = status.get("sentiment", {}) or {}
+
+    age = audit.get("age_days")
+    age_text = "n/a" if age is None else f"{age} days"
+    last_date = audit.get("last_date") or status.get("end") or "n/a"
+    gap_days = audit.get("largest_gap_days", 0)
+    gap_span = ""
+    if audit.get("largest_gap_start") and audit.get("largest_gap_end"):
+        gap_span = f" ({audit.get('largest_gap_start')} -> {audit.get('largest_gap_end')})"
+
+    facts = [
+        ("Status", _audit_status_label(audit.get("status", "ok"))),
+        ("Rows", audit.get("rows", status.get("rows", 0))),
+        ("Range", f"{audit.get('first_date') or status.get('start') or 'n/a'} -> {last_date}"),
+        ("Age", age_text),
+        ("Context", f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)}"),
+        ("Coverage", _fmt_pct(audit.get("context_coverage_pct", 0.0))),
+        ("Fundamentals", f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}"),
+        (
+            "Sentiment",
+            f"{sentiment.get('status', 'n/a')} | rows={sentiment.get('cache_rows', 0)}",
+        ),
+    ]
+
+    rows = [
+        ["Minimum rows", f"{audit.get('rows', 0)} / {audit.get('min_rows', 0)}", "PASS" if audit.get("has_min_rows", True) else "WARN"],
+        ["Price column", "present" if audit.get("price_column_present") else "missing", "PASS" if audit.get("price_column_present") else "FAIL"],
+        ["Missing close", f"{_fmt_count(audit.get('close_missing_count'))} ({_fmt_pct(audit.get('close_missing_pct', 0.0))})", "PASS" if not audit.get("close_missing_count") else "WARN"],
+        ["Rows with any missing", f"{_fmt_count(audit.get('rows_with_any_missing'))} ({_fmt_pct(audit.get('rows_with_any_missing_pct', 0.0))})", "PASS" if not audit.get("rows_with_any_missing") else "WARN"],
+        ["Duplicate dates", _fmt_count(audit.get("duplicate_date_count")), "PASS" if not audit.get("duplicate_date_count") else "WARN"],
+        ["Largest date gap", f"{gap_days} days{gap_span}", "PASS" if int(gap_days or 0) <= 5 else "WARN"],
+        ["Freshness", f"last={last_date} | age={age_text}", "PASS" if not audit.get("is_stale") else "WARN"],
+        ["Context coverage", f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)} ({_fmt_pct(audit.get('context_coverage_pct', 0.0))})", "PASS" if not audit.get("missing_context_count") else "WARN"],
+    ]
+
+    rendered_rows = []
+    for check, value, state in rows:
+        tone = C.GREEN if state == "PASS" else C.RED if state == "FAIL" else C.YELLOW
+        rendered_rows.append([check, value, paint(state, tone)])
+
+    print()
+    _print_lines(banner("TRADECHAT DATA AUDIT", ticker, width=width))
+    _print_lines(render_facts(facts, width=width, max_columns=2))
+    print()
+    _print_lines(render_table(["Check", "Value", "Status"], rendered_rows, width=width))
+
+    missing_context = audit.get("missing_context_tickers", []) or []
+    if missing_context:
+        _print_lines(render_wrapped("Missing context", _compact_items(missing_context, limit=8), width=width))
+
+    all_missing = audit.get("all_missing_columns", []) or []
+    if all_missing:
+        _print_lines(render_wrapped("All-missing columns", _compact_items(all_missing, limit=8), width=width))
+
+    issues = audit.get("issues", []) or []
+    if issues:
+        print()
+        issue_rows = [
+            [str(item.get("severity", "n/a")).upper(), item.get("check", "n/a"), item.get("message", "")]
+            for item in issues
+        ]
+        _print_lines(render_table(["Severity", "Check", "Message"], issue_rows, width=width))
+
+    print(divider(width))

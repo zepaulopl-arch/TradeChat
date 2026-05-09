@@ -4,8 +4,9 @@ import argparse
 
 from ..config import load_config, models_dir
 from ..data import data_status, load_prices
+from ..data_audit import audit_cached_prices
 from ..pipeline_service import fundamentals_data_status, sentiment_data_status
-from ..report import print_data_summary
+from ..report import print_data_audit, print_data_summary
 from ..utils import safe_ticker
 from ._shared import resolve_cli_tickers
 
@@ -35,8 +36,13 @@ def run(args: argparse.Namespace) -> None:
         if action == "load":
             load_prices(cfg, ticker, update=True)
             print_data_summary(_status_payload(cfg, ticker, status="updated"))
-        elif action in {"status", "audit"}:
+        elif action == "status":
             status = "cached" if data_status(cfg, ticker).get("cache_exists") else "not_found"
             print_data_summary(_status_payload(cfg, ticker, status=status))
+        elif action == "audit":
+            status = "cached" if data_status(cfg, ticker).get("cache_exists") else "not_found"
+            payload = _status_payload(cfg, ticker, status=status)
+            payload["audit"] = audit_cached_prices(cfg, ticker)
+            print_data_audit(payload)
         else:
             raise SystemExit(f"unknown data action: {action}")
