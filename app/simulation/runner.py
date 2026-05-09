@@ -572,6 +572,10 @@ def _write_simulation_artifacts(
         f"fee_amount={float(costs.get('fee_amount', 0.0) or 0.0):.4f} "
         f"slippage_pct={float(costs.get('slippage_pct', 0.0) or 0.0):.4f}"
     )
+    profit_factor_display = metrics.get("profit_factor_display")
+    if profit_factor_display is None:
+        profit_factor_display = f"{float(metrics.get('profit_factor', 0.0) or 0.0):.2f}"
+
     lines = [
         f"RUN ID: {summary['run_id']}",
         f"MODE: {summary['mode']}",
@@ -585,7 +589,7 @@ def _write_simulation_artifacts(
         f"WIN RATE: {float(metrics.get('win_rate', 0.0) or 0.0):.1f}%",
         f"HIT RATE: {hit_rate:.1f}%",
         f"AVG TRADE RETURN: {avg_trade_return:+.2f}%",
-        f"PROFIT FACTOR: {float(metrics.get('profit_factor', 0.0) or 0.0):.2f}",
+        f"PROFIT FACTOR: {profit_factor_display}",
         f"TURNOVER: {float(metrics.get('turnover_pct', 0.0) or 0.0):.2f}%",
         f"AVG EXPOSURE: {float(metrics.get('active_exposure_pct', 0.0) or 0.0):.2f}%",
         f"COST: {total_cost:+.2f} ({cost_pct:.2f}%)",
@@ -733,6 +737,8 @@ def run_pybroker_replay(
         trades=result.trades,
         orders=result.orders,
         initial_cash=baseline_cash,
+        start_date=start_ts,
+        end_date=end_ts,
     )
     baseline_comparison = compare_model_to_baselines(metrics, baselines)
     validation_decision = make_validation_decision(metrics, baseline_comparison, cfg)

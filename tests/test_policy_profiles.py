@@ -33,14 +33,29 @@ def _results():
 
 
 def _meta():
-    return {"latest_price": 45.67, "latest_risk_pct": 2.0, "fundamentals": {}, "sentiment_value": 0.0}
+    return {
+        "latest_price": 45.67,
+        "latest_risk_pct": 2.0,
+        "fundamentals": {},
+        "sentiment_value": 0.0,
+    }
 
 
 def test_cli_accepts_policy_profile_flags():
     parser = build_parser()
 
-    assert parser.parse_args(["signal", "generate", "PETR4.SA", "--policy-profile", "relaxed"]).policy_profile == "relaxed"
-    assert parser.parse_args(["signal", "rank", "PETR4.SA", "--policy-profile", "balanced"]).policy_profile == "balanced"
+    assert (
+        parser.parse_args(
+            ["signal", "generate", "PETR4.SA", "--policy-profile", "relaxed"]
+        ).policy_profile
+        == "relaxed"
+    )
+    assert (
+        parser.parse_args(
+            ["signal", "rank", "PETR4.SA", "--policy-profile", "balanced"]
+        ).policy_profile
+        == "balanced"
+    )
 
 
 def test_policy_profile_relaxes_thresholds_without_mutating_base_config():

@@ -5,6 +5,24 @@ from typing import Any
 from .ui import model5 as ui5
 
 
+def _metric_display(metrics: dict, key: str, default: str = "n/a") -> str:
+    value = metrics.get(key)
+    if value is None:
+        return default
+    return str(value)
+
+
+def _fmt_pct_or_na(value: object, *, signed: bool = False) -> str:
+    if value is None:
+        return "n/a"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    prefix = "+" if signed else ""
+    return f"{number:{prefix}.1f}%" if signed else f"{number:.1f}%"
+
+
 def render_validation_summary(
     summary: dict[str, Any],
     *,
@@ -24,12 +42,22 @@ def render_validation_summary(
     avg_trade_return = float(
         metrics.get("avg_trade_return_pct", metrics.get("avg_return_pct", 0.0)) or 0.0
     )
-    profit_factor = float(metrics.get("profit_factor", 0.0) or 0.0)
+    profit_factor_display = str(
+        metrics.get("profit_factor_display")
+        or f"{float(metrics.get('profit_factor', 0.0) or 0.0):.2f}"
+    )
     turnover = float(metrics.get("turnover_pct", 0.0) or 0.0)
+    exposure_available = bool(metrics.get("active_exposure_available", True))
     exposure = float(
         metrics.get("active_exposure_pct", metrics.get("avg_exposure_pct", 0.0)) or 0.0
     )
+    exposure_display = f"{exposure:.1f}%" if exposure_available else "n/a"
     total_cost = float(metrics.get("total_cost", 0.0) or 0.0)
+    gross_profit = float(metrics.get("gross_profit", 0.0) or 0.0)
+    gross_loss = float(metrics.get("gross_loss", 0.0) or 0.0)
+    net_profit = float(metrics.get("net_profit", metrics.get("total_pnl", 0.0)) or 0.0)
+    before_costs = float(metrics.get("return_before_costs_pct", total_return) or 0.0)
+    after_costs = float(metrics.get("return_after_costs_pct", total_return) or 0.0)
     decision = "Sem trades na janela"
     decision_status = "warn"
     if trades > 0 and total_return >= 0:
@@ -145,9 +173,9 @@ def render_validation_summary(
                 [
                     f"{hit_rate:.1f}%",
                     f"{avg_trade_return:+.2f}%",
-                    f"{profit_factor:.2f}",
+                    profit_factor_display,
                     f"{turnover:.1f}%",
-                    f"{exposure:.1f}%",
+                    exposure_display,
                     f"{total_cost:+.2f}",
                 ]
             ],
@@ -156,6 +184,27 @@ def render_validation_summary(
             min_widths=[7, 9, 8, 9, 9, 8],
         )
     )
+    if trades > 0:
+        lines.extend(ui5.render_section("P&L AUDIT", width=width))
+        lines.extend(
+            ui5.render_table(
+                ["Gross +", "Gross -", "Net", "Before Cost", "After Cost"],
+                [
+                    [
+                        f"{gross_profit:+.2f}",
+                        f"{-gross_loss:+.2f}",
+                        f"{net_profit:+.2f}",
+                        f"{before_costs:+.2f}%",
+                        f"{after_costs:+.2f}%",
+                    ]
+                ],
+                width=width,
+                aligns=["right", "right", "right", "right", "right"],
+                min_widths=[9, 9, 9, 11, 10],
+            )
+        )
+        for warning in metrics.get("metric_warnings", []) or []:
+            lines.extend(ui5.render_callout(str(warning), status="warn", width=width))
 
     if baselines:
         rows = []
@@ -189,7 +238,10 @@ def render_validation_summary(
                     f"{float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}%",
                     f"{float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}%",
                     f"{float(row.get('hit_rate_delta_pct', 0.0) or 0.0):+.1f}%",
-                    f"{float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}",
+                    str(
+                        row.get("profit_factor_delta_display")
+                        or f"{float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}"
+                    ),
                     "sim" if bool(row.get("beat_return", False)) else "nao",
                 ]
             )

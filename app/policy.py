@@ -3,8 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-
-
 BUILTIN_POLICY_PROFILES: dict[str, dict[str, Any]] = {
     "strict": {},
     "balanced": {
@@ -78,6 +76,7 @@ def apply_policy_profile(cfg: dict[str, Any], profile: str | None) -> dict[str, 
 
 def active_policy_profile(cfg: dict[str, Any]) -> str:
     return str((cfg.get("policy", {}) or {}).get("_active_profile", "strict"))
+
 
 def _confidence_floor_pct(pcfg: dict[str, Any]) -> float:
     raw = float(pcfg.get("min_confidence_pct", 0.55))

@@ -254,8 +254,6 @@ def _horizon_rows(signal: dict[str, Any]) -> list[list[str]]:
     return rows
 
 
-
-
 def _fmt_diag_pct(value: Any, *, signed: bool = False) -> str:
     if value is None:
         return "n/a"
@@ -302,7 +300,10 @@ def _render_policy_diagnostic(
         render_facts(
             [
                 ("Profile", str(diag.get("profile", "strict"))),
-                ("Final", f"{diag.get('final_label', 'NEUTRAL')} ({diag.get('final_posture', 'n/a')})"),
+                (
+                    "Final",
+                    f"{diag.get('final_label', 'NEUTRAL')} ({diag.get('final_posture', 'n/a')})",
+                ),
                 ("Selected", str(diag.get("selected_horizon", "d1")).upper()),
                 ("Main blocker", str(diag.get("main_blocker", "n/a"))),
             ],
@@ -315,7 +316,18 @@ def _render_policy_diagnostic(
             ["H", "RET", "QUAL", "BUY >=", "SELL <=", "Q >=", "RET OK", "Q OK", "CAND", "BLOCKER"],
             _policy_diagnostic_rows(cfg, signal),
             width=width,
-            aligns=["left", "right", "right", "right", "right", "right", "left", "left", "left", "left"],
+            aligns=[
+                "left",
+                "right",
+                "right",
+                "right",
+                "right",
+                "right",
+                "left",
+                "left",
+                "left",
+                "left",
+            ],
             min_widths=[3, 7, 6, 8, 8, 6, 6, 5, 8, 18],
         )
     )

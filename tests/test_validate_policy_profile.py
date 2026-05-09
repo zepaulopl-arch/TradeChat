@@ -6,14 +6,16 @@ from app.validation_view import render_validation_summary
 
 def test_validate_cli_accepts_policy_profile():
     parser = build_parser()
-    args = parser.parse_args([
-        "validate",
-        "PETR4.SA",
-        "--mode",
-        "replay",
-        "--policy-profile",
-        "balanced",
-    ])
+    args = parser.parse_args(
+        [
+            "validate",
+            "PETR4.SA",
+            "--mode",
+            "replay",
+            "--policy-profile",
+            "balanced",
+        ]
+    )
 
     assert args.policy_profile == "balanced"
 
@@ -57,14 +59,16 @@ def test_validate_command_applies_policy_profile(monkeypatch):
     monkeypatch.setattr(validate_command, "render_validation_summary", lambda *a, **k: [])
 
     parser = build_parser()
-    args = parser.parse_args([
-        "validate",
-        "PETR4.SA",
-        "--mode",
-        "replay",
-        "--policy-profile",
-        "relaxed",
-    ])
+    args = parser.parse_args(
+        [
+            "validate",
+            "PETR4.SA",
+            "--mode",
+            "replay",
+            "--policy-profile",
+            "relaxed",
+        ]
+    )
     validate_command.run(args)
 
     assert captured["profile_in_resolve"] == "relaxed"
