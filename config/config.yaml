@@ -125,6 +125,22 @@ policy:
   min_roe_for_strong_buy: 0.08
   min_sentiment_for_strong_buy: 0.1
   max_sentiment_for_strong_sell: -0.1
+  profiles:
+    strict: {}
+    balanced:
+      buy_return_pct: 0.15
+      sell_return_pct: -0.15
+      min_confidence_pct: 0.40
+      mae_threshold_multiplier: 0.12
+      risk_management:
+        min_rr_threshold: 0.50
+    relaxed:
+      buy_return_pct: 0.08
+      sell_return_pct: -0.08
+      min_confidence_pct: 0.35
+      mae_threshold_multiplier: 0.08
+      risk_management:
+        min_rr_threshold: 0.0
 ui:
   color: true
   show_charts: false

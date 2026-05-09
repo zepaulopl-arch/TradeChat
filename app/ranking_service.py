@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from .policy import signal_policy_summary
+from .policy import active_policy_profile, signal_policy_summary
 from .portfolio_service import iter_latest_signals
 from .presentation import (
     C,
@@ -99,6 +99,7 @@ def render_ranking(
                 ("Signals", len(df)),
                 ("Shown", len(rows_data)),
                 ("Scope", "explicit" if tickers else "all latest"),
+                ("Policy", active_policy_profile(cfg)),
                 ("Buy / Sell", f"{buy_count} / {sell_count}"),
                 ("Sort", "priority -> score"),
             ],

@@ -1,7 +1,83 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
+
+
+BUILTIN_POLICY_PROFILES: dict[str, dict[str, Any]] = {
+    "strict": {},
+    "balanced": {
+        "buy_return_pct": 0.15,
+        "sell_return_pct": -0.15,
+        "min_confidence_pct": 0.40,
+        "mae_threshold_multiplier": 0.12,
+        "risk_management": {"min_rr_threshold": 0.50},
+    },
+    "relaxed": {
+        "buy_return_pct": 0.08,
+        "sell_return_pct": -0.08,
+        "min_confidence_pct": 0.35,
+        "mae_threshold_multiplier": 0.08,
+        "risk_management": {"min_rr_threshold": 0.0},
+    },
+}
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    result = deepcopy(base)
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = deepcopy(value)
+    return result
+
+
+def available_policy_profiles(cfg: dict[str, Any]) -> list[str]:
+    """Return available policy profiles, including config-defined overrides."""
+    pcfg = cfg.get("policy", {}) or {}
+    configured = pcfg.get("profiles", {}) or {}
+    names = set(BUILTIN_POLICY_PROFILES) | set(configured)
+    return sorted(names)
+
+
+def policy_profile_overrides(cfg: dict[str, Any], profile: str | None) -> dict[str, Any]:
+    """Resolve overrides for a policy profile without mutating the config."""
+    name = str(profile or "strict").strip().lower()
+    if not name:
+        name = "strict"
+    pcfg = cfg.get("policy", {}) or {}
+    configured = pcfg.get("profiles", {}) or {}
+    if name not in BUILTIN_POLICY_PROFILES and name not in configured:
+        available = ", ".join(available_policy_profiles(cfg))
+        raise ValueError(f"unknown policy profile: {profile}. Available: {available}")
+    overrides = _deep_merge(BUILTIN_POLICY_PROFILES.get(name, {}), configured.get(name, {}) or {})
+    return overrides
+
+
+def apply_policy_profile(cfg: dict[str, Any], profile: str | None) -> dict[str, Any]:
+    """Return a copied config with the selected policy profile applied.
+
+    The default/strict profile preserves the configured policy. Other profiles are
+    intended for diagnostics/calibration and should be validated before becoming
+    operational defaults.
+    """
+    name = str(profile or "strict").strip().lower() or "strict"
+    new_cfg = deepcopy(cfg)
+    pcfg = deepcopy(new_cfg.get("policy", {}) or {})
+    profiles = pcfg.pop("profiles", None)
+    overrides = policy_profile_overrides(cfg, name)
+    pcfg = _deep_merge(pcfg, overrides)
+    if profiles is not None:
+        pcfg["profiles"] = profiles
+    pcfg["_active_profile"] = name
+    new_cfg["policy"] = pcfg
+    return new_cfg
+
+
+def active_policy_profile(cfg: dict[str, Any]) -> str:
+    return str((cfg.get("policy", {}) or {}).get("_active_profile", "strict"))
 
 def _confidence_floor_pct(pcfg: dict[str, Any]) -> float:
     raw = float(pcfg.get("min_confidence_pct", 0.55))
@@ -48,6 +124,7 @@ def classify_signal(
         "quality_pct": 0.0,
         "horizon": "d1",
         "reasons": [],
+        "profile": active_policy_profile(cfg),
     }
 
     candidates = []
@@ -109,6 +186,7 @@ def classify_signal(
                     "quality_pct": conf_pct,
                     "horizon": h_name,
                     "reasons": h_reasons,
+                    "profile": active_policy_profile(cfg),
                 }
             )
 
@@ -360,6 +438,7 @@ def signal_policy_diagnostic(cfg: dict[str, Any], signal: dict[str, Any]) -> dic
     final_blocker = _policy_main_blocker(policy, rows)
     return {
         "ticker": signal.get("ticker", "N/A"),
+        "profile": active_policy_profile(cfg),
         "final_label": final_label,
         "final_posture": policy.get("posture", "n/a"),
         "selected_horizon": selected_horizon,

@@ -57,12 +57,14 @@ def _add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
     generate.add_argument("--update", action="store_true")
     generate.add_argument("--verbose", action="store_true")
     generate.add_argument("--diagnostic", action="store_true", help="show policy threshold diagnostics")
+    generate.add_argument("--policy-profile", default=None, help="policy profile for calibration: strict, balanced or relaxed")
 
     rank = sub.add_parser("rank", help="rank latest or freshly generated signals")
     _add_ticker_list_args(rank, nargs="*")
     rank.add_argument("--update", action="store_true")
     rank.add_argument("--rank-limit", type=int, default=40)
     rank.add_argument("--diagnostic", action="store_true", help="show policy blocker summary")
+    rank.add_argument("--policy-profile", default=None, help="policy profile for calibration: strict, balanced or relaxed")
 
     report = sub.add_parser("report", help="write signal audit reports")
     _add_ticker_list_args(report)

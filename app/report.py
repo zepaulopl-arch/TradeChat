@@ -301,6 +301,7 @@ def _render_policy_diagnostic(
     lines.extend(
         render_facts(
             [
+                ("Profile", str(diag.get("profile", "strict"))),
                 ("Final", f"{diag.get('final_label', 'NEUTRAL')} ({diag.get('final_posture', 'n/a')})"),
                 ("Selected", str(diag.get("selected_horizon", "d1")).upper()),
                 ("Main blocker", str(diag.get("main_blocker", "n/a"))),
