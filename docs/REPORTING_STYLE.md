@@ -1,6 +1,8 @@
 # Reporting Style
 
-TradeChat CLI reports now follow a shared terminal presentation layer in `app/presentation.py`.
+TradeChat CLI reports follow a shared terminal presentation layer. New screens should prefer
+`app/ui/model5.py`; existing report renderers still reuse `app/presentation.py` while the UI layer
+is consolidated.
 
 ## Visual rules
 

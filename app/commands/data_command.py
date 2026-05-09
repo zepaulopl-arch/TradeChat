@@ -9,20 +9,6 @@ from ..report import print_data_summary
 from ..utils import safe_ticker
 from ._shared import resolve_cli_tickers
 
-DATA_ACTIONS = {"load", "status", "audit"}
-
-
-def _normalize_data_args(args: argparse.Namespace) -> argparse.Namespace:
-    first = getattr(args, "data_action_or_ticker", None)
-    rest = list(getattr(args, "tickers", []) or [])
-    if first in DATA_ACTIONS:
-        args.data_action = first
-        args.tickers = rest
-    else:
-        args.data_action = "load"
-        args.tickers = ([first] if first else []) + rest
-    return args
-
 
 def _status_payload(cfg: dict, ticker: str, *, status: str) -> dict:
     st = data_status(cfg, ticker)
@@ -41,7 +27,6 @@ def _status_payload(cfg: dict, ticker: str, *, status: str) -> dict:
 
 
 def run(args: argparse.Namespace) -> None:
-    args = _normalize_data_args(args)
     cfg = load_config(args.config)
     tickers = resolve_cli_tickers(cfg, args)
     action = str(getattr(args, "data_action", "load"))

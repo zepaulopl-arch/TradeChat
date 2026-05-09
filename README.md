@@ -29,9 +29,8 @@ python trade.py validate --list validacao --mode walkforward
 python trade.py refine --list validacao --removal --walkforward
 python trade.py portfolio status
 python trade.py portfolio rebalance
+python trade.py portfolio plan
 ```
-
-`predict` and `report` are deprecated aliases. Use `signal generate`, `signal rank` and `signal report`.
 
 ## Validation
 

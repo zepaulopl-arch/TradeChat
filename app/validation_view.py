@@ -48,6 +48,10 @@ def render_validation_summary(
         if trades == 0
         else f"Retorno {total_return:+.2f}% com {trades} trades."
     )
+    sample_text = (
+        f"{summary.get('start_date')} ate {summary.get('end_date')} | "
+        f"{len(summary.get('tickers', []) or [])} ativos"
+    )
 
     lines: list[str] = [""]
     lines.extend(ui5.render_header(f"{screen_title} - PYBROKER - {mode.upper()}", width=width))
@@ -56,7 +60,7 @@ def render_validation_summary(
         ui5.render_key_values(
             {
                 "Experimento": "Simulacao PyBroker",
-                "Amostra": f"{summary.get('start_date')} ate {summary.get('end_date')} | {len(summary.get('tickers', []) or [])} ativos",
+                "Amostra": sample_text,
                 "Modo": mode_label,
                 "Conclusao preliminar": conclusion,
             },
@@ -64,11 +68,13 @@ def render_validation_summary(
         )
     )
     callout_status = "warn" if mode == "replay" else "info"
-    callout_text = (
-        "Replay usa modelos operacionais salvos; serve para sanidade de execucao e comparacao rapida."
-        if mode == "replay"
-        else "Walk-forward treina em artefatos sombra por data de rebalanceamento; e mais lento, mas reduz vazamento temporal."
-    )
+    if mode == "replay":
+        callout_text = "Replay usa modelos salvos; serve para sanidade operacional rapida."
+    else:
+        callout_text = (
+            "Walk-forward treina em artefatos sombra por rebalanceamento; "
+            "e mais lento, mas reduz vazamento temporal."
+        )
     lines.extend(ui5.render_callout(callout_text, status=callout_status, width=width))
 
     if validation_decision:
@@ -191,7 +197,9 @@ def render_validation_summary(
             ui5.render_key_values(
                 {
                     "Decisao": baseline_comparison.get("decision", "n/a"),
-                    "Beat rate": f"{float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%",
+                    "Beat rate": (
+                        f"{float(baseline_comparison.get('beat_rate_pct', 0.0) or 0.0):.1f}%"
+                    ),
                 },
                 width=width,
             )

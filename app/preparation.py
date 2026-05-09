@@ -227,8 +227,8 @@ def prepare_training_matrix(
         meta["selected_feature_count"] = len(X1.columns)
         return X1, y0, meta
 
-    # Target clipping protects engines, especially divergent base engines, from very old/extreme daily
-    # returns dominating a long history. It is configurable and audited.
+    # Target clipping protects engines, especially divergent base engines, from very old or
+    # extreme daily returns dominating a long history. It is configurable and audited.
     target_cfg = prep.get("target", {}) or {}
     y1 = y0.astype(float)
     if bool(target_cfg.get("clip", True)):

@@ -58,7 +58,6 @@ def validate_config(config: dict[str, Any]) -> list[ConfigIssue]:
     _require_positive(config, "trading.capital", issues)
     _require_positive(config, "data.min_rows", issues)
     _require_non_negative(config, "batch.train_workers", issues)
-    _require_non_negative(config, "batch.diagnose_workers", issues)
     _require_non_negative(config, "simulation.costs.fee_amount", issues)
     _require_non_negative(config, "simulation.costs.slippage_pct", issues)
     _require_non_negative(config, "model.prediction_guards.max_engine_return_abs", issues)

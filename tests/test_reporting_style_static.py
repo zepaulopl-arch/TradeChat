@@ -17,7 +17,6 @@ def test_presentation_module_provides_shared_layout_helpers():
 
 def test_operational_reports_use_shared_presentation_layer():
     for rel_path in [
-        "scripts/diagnose_assets.py",
         "app/report.py",
         "app/ranking_service.py",
         "app/rebalance_service.py",

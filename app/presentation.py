@@ -8,7 +8,7 @@ from typing import Any
 
 
 class C:
-    """Muted ANSI palette shared by CLI reports and scripts."""
+    """Muted ANSI palette shared by CLI reports."""
 
     HEADER = "\033[90m"
     BLUE = "\033[38;5;67m"

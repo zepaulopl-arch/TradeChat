@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app import batch_service, cli
 from app import features as feature_builder
 from app import models as model_module
 from app import portfolio_monitor_service as monitor
+from app.commands import portfolio_command
 from app.evaluation_service import (
     compare_model_to_baselines,
     enrich_model_metrics_from_execution,
@@ -27,7 +27,7 @@ from app.refine_service import (
     run_feature_removal_walkforward,
 )
 from app.scoring import is_actionable_signal
-from app.simulator_service import (
+from app.simulation.runner import (
     _build_strategy_config,
     _execution_fn_factory,
     _normalize_signal_plan,
@@ -448,7 +448,7 @@ def test_cmd_portfolio_handles_positions_without_execution_targets(monkeypatch, 
         live = False
         rebalance = False
 
-    cli.cmd_portfolio(Args())
+    portfolio_command.run(Args())
     out = capsys.readouterr().out
 
     assert "PETR4.SA" in out
@@ -1342,32 +1342,3 @@ def test_validation_view_renders_model_vs_baselines(monkeypatch):
     assert "VALIDATION DECISION" in output
     assert "passes_baselines" in output
     assert "zero_return_no_trade" in output
-
-
-def test_diagnose_marks_low_history_as_skipped(monkeypatch):
-    monkeypatch.setattr(
-        batch_service,
-        "resolve_asset",
-        lambda cfg, ticker: {
-            "canonical": "EMBJ3.SA",
-            "changed": False,
-            "profile": {"registry_status": "active", "name": "EMBRAER"},
-        },
-    )
-    monkeypatch.setattr(
-        batch_service,
-        "data_status",
-        lambda cfg, ticker: {
-            "rows": 42,
-            "start": "2026-01-01",
-            "end": "2026-03-01",
-            "context_tickers": [],
-            "requested_context_tickers": [],
-            "unavailable_context_tickers": [],
-            "asset_profile": {},
-        },
-    )
-    row = batch_service.diagnose_one_asset({"data": {"min_rows": 150}}, "EMBJ3.SA", no_data=True)
-    assert row["status"] == "skipped"
-    assert row["failed_stage"] == "data_rows"
-    assert "insufficient rows: 42 < 150" in row["error"]

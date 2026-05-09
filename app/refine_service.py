@@ -13,7 +13,7 @@ from .features import build_dataset
 from .models import train_models
 from .presentation import banner, divider, render_table, screen_width
 from .refine_decision import build_refine_decision_matrix
-from .simulator_service import run_pybroker_replay
+from .simulation.runner import run_pybroker_replay
 from .utils import normalize_ticker, read_json, safe_ticker, write_json
 
 HORIZONS = ["d1", "d5", "d20"]
@@ -493,6 +493,24 @@ def run_feature_removal_walkforward(
     return summary
 
 
+def _family_counts_text(counts: dict[str, Any]) -> str:
+    return (
+        f"T{counts.get('technical', 0)}"
+        f"/C{counts.get('context', 0)}"
+        f"/F{counts.get('fundamentals', 0)}"
+        f"/S{counts.get('sentiment', 0)}"
+    )
+
+
+def _family_shares_text(shares: dict[str, Any]) -> str:
+    return (
+        f"T{shares.get('technical', 0.0):.0f}"
+        f"/C{shares.get('context', 0.0):.0f}"
+        f"/F{shares.get('fundamentals', 0.0):.0f}"
+        f"/S{shares.get('sentiment', 0.0):.0f}"
+    )
+
+
 def render_refine_summary(summary: dict[str, Any]) -> list[str]:
     width = screen_width()
     lines: list[str] = []
@@ -515,8 +533,8 @@ def render_refine_summary(summary: dict[str, Any]) -> list[str]:
                 f"{float(row.get('mae_return', 0.0) or 0.0) * 100:.2f}%",
                 f"{float(row.get('latest_prediction_return', 0.0) or 0.0) * 100:+.2f}%",
                 f"{float(row.get('quality', row.get('confidence', 0.0)) or 0.0) * 100:.0f}%",
-                f"T{counts.get('technical', 0)}/C{counts.get('context', 0)}/F{counts.get('fundamentals', 0)}/S{counts.get('sentiment', 0)}",
-                f"T{shares.get('technical', 0.0):.0f}/C{shares.get('context', 0.0):.0f}/F{shares.get('fundamentals', 0.0):.0f}/S{shares.get('sentiment', 0.0):.0f}",
+                _family_counts_text(counts),
+                _family_shares_text(shares),
                 str(row.get("decision", "watch")),
             ]
         )
@@ -532,7 +550,7 @@ def render_refine_summary(summary: dict[str, Any]) -> list[str]:
     if missing:
         lines.append("")
         lines.append(
-            f"Missing manifests: {len(missing)}. Train the missing horizons before treating refine as complete."
+            f"Missing manifests: {len(missing)}. Train missing horizons before refine is complete."
         )
     lines.extend(divider(width).splitlines())
     return lines
@@ -543,9 +561,7 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     rows = list(summary.get("rows", []) or [])
     errors = list(summary.get("errors", []) or [])
-    lines.extend(
-        banner("REFINE", "controlled removal", str(summary.get("run_id", "")), width=width)
-    )
+    lines.extend(banner("REFINE", "controlled removal", width=width))
     if not rows:
         lines.append("No removal result was produced.")
         if errors:
@@ -574,7 +590,7 @@ def render_removal_summary(summary: dict[str, Any]) -> list[str]:
                 f"{mae * 100:.2f}%",
                 f"{delta * 100:+.2f}%",
                 f"{float(row.get('quality', row.get('confidence', 0.0)) or 0.0) * 100:.0f}%",
-                f"T{counts.get('technical', 0)}/C{counts.get('context', 0)}/F{counts.get('fundamentals', 0)}/S{counts.get('sentiment', 0)}",
+                _family_counts_text(counts),
                 verdict,
             ]
         )
@@ -606,11 +622,7 @@ def render_removal_walkforward_summary(summary: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     rows = list(summary.get("rows", []) or [])
     errors = list(summary.get("errors", []) or [])
-    lines.extend(
-        banner(
-            "REFINE", "controlled removal walk-forward", str(summary.get("run_id", "")), width=width
-        )
-    )
+    lines.extend(banner("REFINE", "controlled removal walk-forward", width=width))
     if not rows:
         lines.append("No walk-forward removal result was produced.")
         if errors:

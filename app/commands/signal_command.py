@@ -7,29 +7,7 @@ from ..pipeline_service import latest_signal_path, make_signal
 from ..ranking_service import render_ranking
 from ..report import print_signal, write_txt_report
 from ..utils import read_json
-from ._shared import print_deprecated, resolve_cli_tickers
-
-SIGNAL_ACTIONS = {"generate", "rank", "report"}
-
-
-def _normalize_signal_args(args: argparse.Namespace) -> argparse.Namespace:
-    first = getattr(args, "signal_action_or_ticker", None)
-    rest = list(getattr(args, "tickers", []) or [])
-    if getattr(args, "deprecated_alias", None) == "predict":
-        print_deprecated("use 'signal generate' instead of 'predict'.")
-        args.signal_action = "rank" if bool(getattr(args, "rank", False)) else "generate"
-        return args
-    if getattr(args, "deprecated_alias", None) == "report":
-        print_deprecated("use 'signal report' instead of 'report'.")
-        args.signal_action = "report"
-        return args
-    if first in SIGNAL_ACTIONS:
-        args.signal_action = first
-        args.tickers = rest
-    else:
-        args.signal_action = "generate"
-        args.tickers = ([first] if first else []) + rest
-    return args
+from ._shared import resolve_cli_tickers
 
 
 def _generate(cfg: dict, args: argparse.Namespace, *, print_output: bool = True) -> None:
@@ -56,12 +34,11 @@ def _report(cfg: dict, args: argparse.Namespace) -> None:
             signal = make_signal(cfg, ticker, update=bool(getattr(args, "update", False)))
         else:
             signal = read_json(path)
-        report_path = write_txt_report(cfg, signal)
-        print(f"report written: {report_path}")
+        write_txt_report(cfg, signal)
+        print("report written")
 
 
 def run(args: argparse.Namespace) -> None:
-    args = _normalize_signal_args(args)
     cfg = load_config(args.config)
     action = str(getattr(args, "signal_action", "generate"))
     if action == "generate":

@@ -2,128 +2,82 @@ from __future__ import annotations
 
 import argparse
 
-from . import cli_handlers as handlers
+from .commands import (
+    data_command,
+    portfolio_command,
+    refine_command,
+    signal_command,
+    train_command,
+    validate_command,
+)
+
+ROOT_COMMANDS = ("data", "train", "signal", "validate", "refine", "portfolio")
 
 
-def cmd_data(args: argparse.Namespace) -> None:
-    return handlers.cmd_data(args)
-
-
-def cmd_train(args: argparse.Namespace) -> None:
-    return handlers.cmd_train(args)
-
-
-def cmd_predict(args: argparse.Namespace) -> None:
-    return handlers.cmd_predict(args)
-
-
-def cmd_report(args: argparse.Namespace) -> None:
-    return handlers.cmd_report(args)
-
-
-def cmd_signal(args: argparse.Namespace) -> None:
-    return handlers.cmd_signal(args)
-
-
-def cmd_portfolio(args: argparse.Namespace) -> None:
-    return handlers.cmd_portfolio(args)
-
-
-def cmd_validate(args: argparse.Namespace) -> None:
-    return handlers.cmd_validate(args)
-
-
-def cmd_refine(args: argparse.Namespace) -> None:
-    return handlers.cmd_refine(args)
+def _add_ticker_list_args(parser: argparse.ArgumentParser, *, nargs: str = "*") -> None:
+    parser.add_argument("tickers", nargs=nargs)
+    parser.add_argument("--list", dest="asset_list", default=None, help="asset list from registry")
 
 
 def _add_validate_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("tickers", nargs="*")
-    parser.add_argument(
-        "--list", dest="asset_list", default=None, help="asset list from registry, e.g. validacao"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["replay", "walkforward"],
-        default=None,
-        help="validation mode; default comes from config",
-    )
+    _add_ticker_list_args(parser)
+    parser.add_argument("--mode", choices=["replay", "walkforward"], required=True)
     parser.add_argument("--start", default=None, help="start date YYYY-MM-DD")
     parser.add_argument("--end", default=None, help="end date YYYY-MM-DD")
-    parser.add_argument(
-        "--rebalance-days",
-        type=int,
-        default=0,
-        help="bars between signal rebalances; 0 uses config default",
-    )
-    parser.add_argument(
-        "--warmup-bars",
-        type=int,
-        default=0,
-        help="minimum bars before the first rebalance; 0 uses config default",
-    )
-    parser.add_argument("--cash", type=float, default=None, help="initial cash for the validation")
-    parser.add_argument("--max-positions", type=int, default=None, help="max long and short slots")
-    parser.add_argument(
-        "--allow-short", action="store_true", help="allow short entries on sell signals"
-    )
-    parser.add_argument(
-        "--walkforward-autotune",
-        action="store_true",
-        help="autotune shadow models during walk-forward validation",
-    )
-    parser.add_argument("--verbose", action="store_true", help="show technical artifact paths")
+    parser.add_argument("--rebalance-days", type=int, default=0)
+    parser.add_argument("--warmup-bars", type=int, default=0)
+    parser.add_argument("--cash", type=float, default=None)
+    parser.add_argument("--max-positions", type=int, default=None)
+    parser.add_argument("--allow-short", action="store_true")
+    parser.add_argument("--walkforward-autotune", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
 
 
 def _add_refine_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("tickers", nargs="*")
-    parser.add_argument(
-        "--list", dest="asset_list", default=None, help="asset list from registry, e.g. validacao"
-    )
-    parser.add_argument(
-        "--removal", action="store_true", help="train shadow feature-family removals"
-    )
-    parser.add_argument(
-        "--walkforward",
-        action="store_true",
-        help="run removal profiles with walk-forward validation",
-    )
-    parser.add_argument(
-        "--horizons", default="d1,d5,d20", help="comma-separated horizons for removal: d1,d5,d20"
-    )
-    parser.add_argument(
-        "--profiles", default=None, help="comma-separated removal profiles; default runs all"
-    )
-    parser.add_argument("--update", action="store_true", help="refresh price cache before removal")
-    parser.add_argument(
-        "--autotune", action="store_true", help="run autotune inside shadow removal artifacts"
-    )
-    parser.add_argument("--start", default=None, help="walk-forward start date YYYY-MM-DD")
-    parser.add_argument("--end", default=None, help="walk-forward end date YYYY-MM-DD")
-    parser.add_argument(
-        "--rebalance-days",
-        type=int,
-        default=0,
-        help="bars between walk-forward rebalances; 0 uses config default",
-    )
-    parser.add_argument(
-        "--warmup-bars",
-        type=int,
-        default=0,
-        help="minimum walk-forward bars before first rebalance; 0 uses config default",
-    )
-    parser.add_argument(
-        "--cash", type=float, default=None, help="initial cash for walk-forward removal"
-    )
-    parser.add_argument(
-        "--max-positions",
-        type=int,
-        default=None,
-        help="max long and short slots for walk-forward removal",
-    )
-    parser.add_argument(
-        "--allow-short", action="store_true", help="allow short entries during walk-forward removal"
-    )
+    _add_ticker_list_args(parser)
+    parser.add_argument("--removal", action="store_true")
+    parser.add_argument("--walkforward", action="store_true")
+    parser.add_argument("--horizons", default="d1,d5,d20")
+    parser.add_argument("--profiles", default=None)
+    parser.add_argument("--update", action="store_true")
+    parser.add_argument("--autotune", action="store_true")
+    parser.add_argument("--start", default=None)
+    parser.add_argument("--end", default=None)
+    parser.add_argument("--rebalance-days", type=int, default=0)
+    parser.add_argument("--warmup-bars", type=int, default=0)
+    parser.add_argument("--cash", type=float, default=None)
+    parser.add_argument("--max-positions", type=int, default=None)
+    parser.add_argument("--allow-short", action="store_true")
+
+
+def _add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
+    sub = parser.add_subparsers(dest="signal_action", required=True)
+    generate = sub.add_parser("generate", help="generate operational signals")
+    _add_ticker_list_args(generate)
+    generate.add_argument("--update", action="store_true")
+
+    rank = sub.add_parser("rank", help="rank latest or freshly generated signals")
+    _add_ticker_list_args(rank, nargs="*")
+    rank.add_argument("--update", action="store_true")
+    rank.add_argument("--rank-limit", type=int, default=40)
+
+    report = sub.add_parser("report", help="write signal audit reports")
+    _add_ticker_list_args(report)
+    report.add_argument("--refresh", action="store_true")
+    report.add_argument("--update", action="store_true")
+
+
+def _add_data_subcommands(parser: argparse.ArgumentParser) -> None:
+    sub = parser.add_subparsers(dest="data_action", required=True)
+    for action in ("load", "status", "audit"):
+        item = sub.add_parser(action)
+        _add_ticker_list_args(item)
+
+
+def _add_portfolio_subcommands(parser: argparse.ArgumentParser) -> None:
+    sub = parser.add_subparsers(dest="portfolio_action", required=True)
+    for action in ("status", "plan", "rebalance", "simulate", "live"):
+        sub.add_parser(action)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -145,93 +99,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--config", default=None, help="optional config.yaml path")
     sub = parser.add_subparsers(
-        dest="command",
-        required=True,
-        metavar="{data,train,signal,validate,refine,portfolio}",
+        dest="command", required=True, metavar="{" + ",".join(ROOT_COMMANDS) + "}"
     )
 
     data = sub.add_parser("data", help="Load, inspect and audit market data")
-    data.add_argument("data_action_or_ticker", nargs="?", help="load/status/audit or ticker")
-    data.add_argument("tickers", nargs="*", help="comma/space separated tickers")
-    data.add_argument(
-        "--list", dest="asset_list", default=None, help="asset list from registry, e.g. validacao"
-    )
-    data.set_defaults(func=cmd_data)
+    _add_data_subcommands(data)
+    data.set_defaults(func=data_command.run)
 
     train = sub.add_parser("train", help="Train operational models")
-    train.add_argument("tickers", nargs="*")
-    train.add_argument(
-        "--list", dest="asset_list", default=None, help="asset list from registry, e.g. validacao"
-    )
-    train.add_argument("--update", action="store_true", help="refresh price cache before training")
-    train.add_argument(
-        "--autotune",
-        action="store_true",
-        help="tune XGB, CatBoost and ExtraTrees with BayesSearchCV before Ridge arbitration",
-    )
-    train.add_argument(
-        "--workers",
-        type=int,
-        default=0,
-        help="parallel workers for multi-asset training; 0 uses config default",
-    )
-    train.set_defaults(func=cmd_train)
+    _add_ticker_list_args(train)
+    train.add_argument("--update", action="store_true")
+    train.add_argument("--autotune", action="store_true")
+    train.add_argument("--workers", type=int, default=0)
+    train.set_defaults(func=train_command.run)
 
     signal = sub.add_parser("signal", help="Generate signals, rankings and audit files")
-    signal.add_argument("signal_action_or_ticker", nargs="?", help="generate/rank/report or ticker")
-    signal.add_argument("tickers", nargs="*", help="comma/space separated tickers")
-    signal.add_argument(
-        "--list", dest="asset_list", default=None, help="asset list from registry, e.g. validacao"
-    )
-    signal.add_argument(
-        "--update", action="store_true", help="refresh price cache before signal generation"
-    )
-    signal.add_argument("--refresh", action="store_true", help="regenerate signal before report")
-    signal.add_argument("--rank-limit", type=int, default=40, help="max rows shown by signal rank")
-    signal.set_defaults(func=cmd_signal)
+    _add_signal_subcommands(signal)
+    signal.set_defaults(func=signal_command.run)
 
-    val = sub.add_parser("validate", help="Run replay/walk-forward validation and baselines")
-    _add_validate_args(val)
-    val.set_defaults(func=cmd_validate, screen_title="VALIDATE")
+    validate = sub.add_parser("validate", help="Run replay/walk-forward validation and baselines")
+    _add_validate_args(validate)
+    validate.set_defaults(func=validate_command.run, screen_title="VALIDATE")
 
     refine = sub.add_parser("refine", help="Run controlled removal and contribution analysis")
     _add_refine_args(refine)
-    refine.set_defaults(func=cmd_refine)
+    refine.set_defaults(func=refine_command.run)
 
-    port = sub.add_parser("portfolio", help="Inspect and manage portfolio actions")
-    port.add_argument(
-        "portfolio_action", nargs="?", choices=["status", "rebalance", "live"], default="status"
-    )
-    port_mode = port.add_mutually_exclusive_group()
-    port_mode.add_argument("--live", action="store_true", help=argparse.SUPPRESS)
-    port_mode.add_argument("--rebalance", action="store_true", help=argparse.SUPPRESS)
-    port.set_defaults(func=cmd_portfolio)
-
-    pred = sub.add_parser("predict", help=argparse.SUPPRESS)
-    pred.add_argument("tickers", nargs="*")
-    pred.add_argument("--list", dest="asset_list", default=None, help=argparse.SUPPRESS)
-    pred.add_argument("--update", action="store_true", help=argparse.SUPPRESS)
-    pred.add_argument("--rank", action="store_true", help=argparse.SUPPRESS)
-    pred.add_argument("--rank-limit", type=int, default=40, help=argparse.SUPPRESS)
-    pred.set_defaults(func=cmd_predict, deprecated_alias="predict")
-
-    rep = sub.add_parser("report", help=argparse.SUPPRESS)
-    rep.add_argument("tickers", nargs="*")
-    rep.add_argument("--list", dest="asset_list", default=None, help=argparse.SUPPRESS)
-    rep.add_argument("--refresh", action="store_true", help=argparse.SUPPRESS)
-    rep.add_argument("--update", action="store_true", help=argparse.SUPPRESS)
-    rep.set_defaults(func=cmd_report, deprecated_alias="report")
-
-    sub._choices_actions = [
-        action
-        for action in sub._choices_actions
-        if getattr(action, "dest", None) not in {"predict", "report"}
-    ]
-
+    portfolio = sub.add_parser("portfolio", help="Inspect and manage portfolio actions")
+    _add_portfolio_subcommands(portfolio)
+    portfolio.set_defaults(func=portfolio_command.run)
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    args = build_parser().parse_args(argv)
     args.func(args)

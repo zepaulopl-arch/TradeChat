@@ -14,15 +14,13 @@ def test_pipeline_service_extracts_cli_runtime_helpers():
         assert token in text
 
 
-def test_cli_is_parser_shell_and_handlers_own_command_logic():
+def test_cli_is_parser_shell_and_commands_own_command_logic():
     cli_text = (ROOT / "app" / "cli.py").read_text(encoding="utf-8")
-    handlers_text = (ROOT / "app" / "cli_handlers.py").read_text(encoding="utf-8")
-    assert "from . import cli_handlers as handlers" in cli_text
-    assert "def cmd_validate" in handlers_text
-    assert "def cmd_portfolio" in handlers_text
+    assert "from .commands import" in cli_text
+    assert "cli_handlers" not in cli_text
+    assert not (ROOT / "app" / "cli_handlers.py").exists()
     assert "run_pybroker_replay" not in cli_text
-    assert "from .commands import" in handlers_text
-    assert len(cli_text.splitlines()) < 260
+    assert len(cli_text.splitlines()) < 150
 
 
 def test_portfolio_service_centralizes_state_and_signal_access():
@@ -58,9 +56,9 @@ def test_methodology_service_owns_methodology_checks():
         assert token in text
 
 
-def test_batch_and_simulator_services_exist():
+def test_batch_and_simulation_services_exist():
     batch_text = (ROOT / "app" / "batch_service.py").read_text(encoding="utf-8")
-    sim_text = (ROOT / "app" / "simulator_service.py").read_text(encoding="utf-8")
+    sim_text = (ROOT / "app" / "simulation" / "runner.py").read_text(encoding="utf-8")
     evaluation_text = (ROOT / "app" / "evaluation_service.py").read_text(encoding="utf-8")
     refine_text = (ROOT / "app" / "refine_service.py").read_text(encoding="utf-8")
     ranking_text = (ROOT / "app" / "ranking_service.py").read_text(encoding="utf-8")
@@ -68,8 +66,9 @@ def test_batch_and_simulator_services_exist():
     monitor_text = (ROOT / "app" / "portfolio_monitor_service.py").read_text(encoding="utf-8")
     commands_dir = ROOT / "app" / "commands"
     simulation_dir = ROOT / "app" / "simulation"
-    for token in ["def safe_worker_count", "def train_one_asset", "def diagnose_one_asset"]:
+    for token in ["def safe_worker_count", "def train_one_asset"]:
         assert token in batch_text
+    assert "diagnose_one_asset" not in batch_text
     for token in [
         "def run_pybroker_replay",
         "def simulation_dir",

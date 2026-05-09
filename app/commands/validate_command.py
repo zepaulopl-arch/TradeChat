@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from ..config import load_config
-from ..simulator_service import run_pybroker_replay
+from ..simulation.runner import run_pybroker_replay
 from ..validation_view import render_validation_summary
 from ._shared import resolve_cli_tickers
 

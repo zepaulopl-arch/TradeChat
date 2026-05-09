@@ -137,7 +137,9 @@ def evaluate_baselines(
             ),
         },
         "mean_return_long_flat": {
-            "description": "Long only when the expanding mean return known before the bar is positive.",
+            "description": (
+                "Long only when the expanding mean return known before the bar is positive."
+            ),
             "metrics": _metrics_from_returns(
                 _equal_weight_returns(close_matrix, mean_weights),
                 initial_cash=initial_cash,
@@ -155,7 +157,9 @@ def evaluate_baselines(
             ),
         },
         "random_long_flat": {
-            "description": "Deterministic random long/flat baseline using only prior random states.",
+            "description": (
+                "Deterministic random long/flat baseline using only prior random states."
+            ),
             "metrics": _metrics_from_returns(
                 _equal_weight_returns(close_matrix, random_weights),
                 initial_cash=initial_cash,

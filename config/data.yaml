@@ -1224,7 +1224,7 @@ assets:
     provider_status: delisted_b3
     inactive_reason: delisted_after_restructuring
     inactive_date: '2026-03-27'
-    note: excluded from operational universe; no longer suitable for ALL/data/train/diagnose
+    note: excluded from operational universe; no longer suitable for operational data/train/validate flows
 context:
   description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to Yahoo tickers when available.
   global:

@@ -7,25 +7,20 @@ def test_parser_has_main_commands():
     for command in ["data", "train", "signal", "validate", "refine", "portfolio"]:
         assert command in help_text
     assert "predict" not in help_text
-    assert "report" not in help_text
+    assert "trade.py report" not in help_text
     assert "daily" not in help_text
-    assert "simulate" not in help_text
     assert "buy" not in help_text
 
 
-def test_data_is_single_command_without_cvm_flag():
+def test_data_has_explicit_subcommands_without_cvm_flag():
     parser = build_parser()
     data_parser = next(
         action for action in parser._actions if getattr(action, "dest", None) == "command"
     ).choices["data"]
     help_text = data_parser.format_help()
-    assert "tickers" in help_text
     assert "--cvm" not in help_text
-    assert (
-        "update" not in data_parser._subparsers._group_actions[0].choices
-        if getattr(data_parser, "_subparsers", None)
-        else True
-    )
+    choices = data_parser._subparsers._group_actions[0].choices
+    assert set(choices) == {"load", "status", "audit"}
 
 
 def test_removed_operational_aliases_are_not_public_commands():
@@ -35,21 +30,18 @@ def test_removed_operational_aliases_are_not_public_commands():
     ).choices
     assert "daily" not in choices
     assert "buy" not in choices
-    assert "simulate" not in choices
+    assert "predict" not in choices
+    assert "report" not in choices
 
 
-def test_predict_rank_and_portfolio_rebalance_are_first_class_modes():
+def test_signal_validate_refine_and_portfolio_modes_parse():
     parser = build_parser()
-    pred = parser.parse_args(["predict", "PETR4", "--rank"])
-    assert pred.rank is True
     signal = parser.parse_args(["signal", "rank", "PETR4"])
-    assert signal.signal_action_or_ticker == "rank"
-    port = parser.parse_args(["portfolio", "--rebalance"])
-    assert port.rebalance is True
+    assert signal.signal_action == "rank"
     port_action = parser.parse_args(["portfolio", "rebalance"])
     assert port_action.portfolio_action == "rebalance"
-    live = parser.parse_args(["portfolio", "--live"])
-    assert live.live is True
+    live = parser.parse_args(["portfolio", "live"])
+    assert live.portfolio_action == "live"
     val = parser.parse_args(["validate", "PETR4", "--mode", "walkforward"])
     assert val.mode == "walkforward"
     refine = parser.parse_args(["refine", "PETR4"])
@@ -75,11 +67,12 @@ def test_predict_rank_and_portfolio_rebalance_are_first_class_modes():
     assert removal_wf.start == "2026-01-01"
 
 
-def test_portfolio_live_and_rebalance_are_mutually_exclusive():
+def test_removed_portfolio_flags_do_not_parse():
     parser = build_parser()
-    try:
-        parser.parse_args(["portfolio", "--live", "--rebalance"])
-    except SystemExit as exc:
-        assert exc.code != 0
-    else:
-        raise AssertionError("portfolio --live and --rebalance must be mutually exclusive")
+    for flag in ("--live", "--rebalance"):
+        try:
+            parser.parse_args(["portfolio", flag])
+        except SystemExit as exc:
+            assert exc.code != 0
+        else:
+            raise AssertionError(f"portfolio {flag} must not parse")

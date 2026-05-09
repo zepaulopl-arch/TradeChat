@@ -45,7 +45,3 @@ def resolve_cli_tickers(
             raise SystemExit("at least one ticker or --list is required")
         return []
     return resolve_tickers(cfg, parse_tickers(raw))
-
-
-def print_deprecated(message: str) -> None:
-    print(f"Deprecated command: {message}")

@@ -1,3 +1,5 @@
+import pytest
+
 from app.config import load_config
 from app.models import _make_base_engines
 
@@ -30,5 +32,7 @@ def test_autotune_is_available_but_not_default_validate():
     parser = build_parser()
     train = parser.parse_args(["train", "PETR4", "--autotune"])
     assert train.autotune is True
-    validate = parser.parse_args(["validate", "PETR4"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["validate", "PETR4"])
+    validate = parser.parse_args(["validate", "PETR4", "--mode", "walkforward"])
     assert not hasattr(validate, "autotune")

@@ -7,22 +7,24 @@ from typing import Any
 
 import pandas as pd
 
-from .config import artifact_dir
-from .data import load_prices
-from .evaluation_decision import make_validation_decision
-from .evaluation_service import (
+from ..config import artifact_dir
+from ..data import load_prices
+from ..evaluation_decision import make_validation_decision
+from ..evaluation_service import (
     compare_model_to_baselines,
     enrich_model_metrics_from_execution,
     evaluate_baselines,
 )
-from .features import build_dataset
-from .models import predict_multi_horizon, train_models
-from .pipeline_service import canonical_ticker
-from .policy import classify_signal
-from .scoring import is_actionable_signal, signal_score
-from .simulation.execution_costs import execution_cost_config
-from .simulation.metrics_bridge import metrics_frame_to_dict
-from .simulation.pybroker_adapter import (
+from ..features import build_dataset
+from ..models import predict_multi_horizon, train_models
+from ..pipeline_service import canonical_ticker
+from ..policy import classify_signal
+from ..scoring import is_actionable_signal, signal_score
+from ..trade_plan_service import build_trade_plan, trade_plan_from_signal
+from ..utils import safe_ticker, write_json
+from .execution_costs import execution_cost_config
+from .metrics_bridge import metrics_frame_to_dict
+from .pybroker_adapter import (
     FeeMode,
     PositionMode,
     RandomSlippageModel,
@@ -32,9 +34,7 @@ from .simulation.pybroker_adapter import (
     quiet_pybroker,
     require_pybroker,
 )
-from .simulation.replay import normalize_validation_mode
-from .trade_plan_service import build_trade_plan, trade_plan_from_signal
-from .utils import safe_ticker, write_json
+from .replay import normalize_validation_mode
 
 
 def simulation_dir(cfg: dict[str, Any]) -> Path:
@@ -555,6 +555,23 @@ def _write_simulation_artifacts(
         if summary.get("mode") == "pybroker_walkforward_shadow"
         else "NOTE: This simulation replays saved operational models."
     )
+    hit_rate = float(metrics.get("hit_rate_pct", metrics.get("win_rate", 0.0)) or 0.0)
+    avg_trade_return = float(
+        metrics.get("avg_trade_return_pct", metrics.get("avg_return_pct", 0.0)) or 0.0
+    )
+    total_cost = float(metrics.get("total_cost", 0.0) or 0.0)
+    cost_pct = float(metrics.get("cost_pct_initial_cash", 0.0) or 0.0)
+    native_stops = (
+        f"loss={execution.get('native_stop_loss', True)} "
+        f"profit={execution.get('native_take_profit', True)} "
+        f"trailing={execution.get('native_trailing', True)} "
+        f"hold={execution.get('native_hold_bars', True)}"
+    )
+    costs_text = (
+        f"fee_mode={costs.get('fee_mode', 'none')} "
+        f"fee_amount={float(costs.get('fee_amount', 0.0) or 0.0):.4f} "
+        f"slippage_pct={float(costs.get('slippage_pct', 0.0) or 0.0):.4f}"
+    )
     lines = [
         f"RUN ID: {summary['run_id']}",
         f"MODE: {summary['mode']}",
@@ -565,16 +582,16 @@ def _write_simulation_artifacts(
         f"TRADES: {int(float(metrics.get('trade_count', 0) or 0))}",
         f"RETURN: {float(metrics.get('total_return_pct', 0.0) or 0.0):+.2f}%",
         f"WIN RATE: {float(metrics.get('win_rate', 0.0) or 0.0):.1f}%",
-        f"HIT RATE: {float(metrics.get('hit_rate_pct', metrics.get('win_rate', 0.0)) or 0.0):.1f}%",
-        f"AVG TRADE RETURN: {float(metrics.get('avg_trade_return_pct', metrics.get('avg_return_pct', 0.0)) or 0.0):+.2f}%",
+        f"HIT RATE: {hit_rate:.1f}%",
+        f"AVG TRADE RETURN: {avg_trade_return:+.2f}%",
         f"PROFIT FACTOR: {float(metrics.get('profit_factor', 0.0) or 0.0):.2f}",
         f"TURNOVER: {float(metrics.get('turnover_pct', 0.0) or 0.0):.2f}%",
         f"AVG EXPOSURE: {float(metrics.get('active_exposure_pct', 0.0) or 0.0):.2f}%",
-        f"COST: {float(metrics.get('total_cost', 0.0) or 0.0):+.2f} ({float(metrics.get('cost_pct_initial_cash', 0.0) or 0.0):.2f}%)",
+        f"COST: {total_cost:+.2f} ({cost_pct:.2f}%)",
         f"TOTAL PNL: {float(metrics.get('total_pnl', 0.0) or 0.0):+.2f}",
         f"PYBROKER SIZING: {execution.get('position_sizing', 'n/a')}",
-        f"NATIVE STOPS: loss={execution.get('native_stop_loss', True)} profit={execution.get('native_take_profit', True)} trailing={execution.get('native_trailing', True)} hold={execution.get('native_hold_bars', True)}",
-        f"COSTS: fee_mode={costs.get('fee_mode', 'none')} fee_amount={float(costs.get('fee_amount', 0.0) or 0.0):.4f} slippage_pct={float(costs.get('slippage_pct', 0.0) or 0.0):.4f}",
+        f"NATIVE STOPS: {native_stops}",
+        f"COSTS: {costs_text}",
         "",
         "BASELINES:",
     ]
@@ -595,11 +612,15 @@ def _write_simulation_artifacts(
             ]
         )
         for row in baseline_comparison.get("rows", []) or []:
+            delta_return = float(row.get("return_delta_pct", 0.0) or 0.0)
+            delta_drawdown = float(row.get("drawdown_delta_pct", 0.0) or 0.0)
+            delta_hit = float(row.get("hit_rate_delta_pct", 0.0) or 0.0)
+            delta_pf = float(row.get("profit_factor_delta", 0.0) or 0.0)
             lines.append(
-                f"- {row.get('baseline')}: delta_return={float(row.get('return_delta_pct', 0.0) or 0.0):+.2f}% "
-                f"delta_drawdown={float(row.get('drawdown_delta_pct', 0.0) or 0.0):+.2f}% "
-                f"delta_hit={float(row.get('hit_rate_delta_pct', 0.0) or 0.0):+.2f}% "
-                f"delta_pf={float(row.get('profit_factor_delta', 0.0) or 0.0):+.2f}"
+                f"- {row.get('baseline')}: delta_return={delta_return:+.2f}% "
+                f"delta_drawdown={delta_drawdown:+.2f}% "
+                f"delta_hit={delta_hit:+.2f}% "
+                f"delta_pf={delta_pf:+.2f}"
             )
     if validation_decision:
         lines.extend(
@@ -616,7 +637,7 @@ def _write_simulation_artifacts(
         [
             "",
             note,
-            "Use it as a research sanity check before promoting any rule to the operational pipeline.",
+            "Use it as a research sanity check before promoting operational rules.",
         ]
     )
     summary_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")

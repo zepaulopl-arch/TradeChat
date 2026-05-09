@@ -5,7 +5,7 @@ Este patch consolida o TradeChat sem adicionar novos modelos, motores externos o
 ## O Que Foi Separado
 
 - A CLI publica foi reduzida para seis comandos raiz: `data`, `train`, `signal`, `validate`, `refine` e `portfolio`.
-- A orquestracao saiu de `app/cli_handlers.py` para `app/commands/`.
+- A orquestracao fica diretamente em `app/commands/`; a camada antiga de handlers foi removida.
 - A simulacao ganhou o pacote `app/simulation/` com contratos de adapter, custos, metricas e janelas walk-forward.
 - Validacao e refine agora possuem matrizes decisorias estruturadas.
 - A configuracao ganhou validacao explicita em `app/config_schema.py`.

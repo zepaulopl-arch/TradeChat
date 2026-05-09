@@ -17,12 +17,6 @@ TradeChat has six public root commands:
 | `refine` | Run contribution analysis and controlled removal in shadow artifacts. |
 | `portfolio` | Inspect and update the virtual portfolio layer. |
 
-Deprecated aliases:
-
-- `predict` -> `signal generate`
-- `predict --rank` -> `signal rank`
-- `report` -> `signal report`
-
 ## 2. Recommended Workflow
 
 1. Load data
@@ -54,14 +48,13 @@ Deprecated aliases:
 ## 3. Command Notes
 
 - `data load PETR4.SA` updates the local price cache.
-- `data PETR4.SA` remains a compatibility alias for `data load PETR4.SA`.
 - `train` never validates automatically.
 - `signal` does not rebalance the portfolio.
 - `validate --mode replay` is a replay sanity check over saved operational models.
 - `validate --mode walkforward` is the methodological validation path.
 - `refine --removal` means controlled removal; it recommends, but never changes defaults automatically.
 - `refine` writes shadow artifacts under `artifacts/refine/...`.
-- `portfolio` without a subcommand is equivalent to `portfolio status`.
+- `portfolio plan` and `portfolio simulate` render a dry-run allocation without saving state.
 
 ## 4. Interpretation
 

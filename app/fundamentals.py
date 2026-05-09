@@ -86,8 +86,8 @@ def add_fundamental_features(
     meta["cnpj_status"] = asset_profile.get("cnpj_status")
 
     # Selection controls whether fundamentals enter the model. It must not erase
-    # operational/report information from predict/report. Therefore disabled
-    # fundamentals still return a snapshot/meta block, but add no training column.
+    # operational signal/report information. Therefore disabled fundamentals still
+    # return a snapshot/meta block, but add no training column.
     if not bool(fcfg.get("enabled", True)):
         meta.update(
             {

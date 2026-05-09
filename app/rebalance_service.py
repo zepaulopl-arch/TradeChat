@@ -19,7 +19,7 @@ from .scoring import is_actionable_signal, signal_score
 from .trade_plan_service import trade_plan_from_signal
 
 
-def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
+def rebalance_portfolio(cfg: dict[str, Any], *, persist: bool = True) -> dict[str, Any]:
     portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
     current_positions = portfolio.get("positions", {})
     account = portfolio.get("account", {"cash": 10000.0, "initial_capital": 10000.0})
@@ -178,9 +178,11 @@ def rebalance_portfolio(cfg: dict[str, Any]) -> dict[str, Any]:
             )
 
     portfolio["history"] = history
-    save_portfolio_state(portfolio)
+    if persist:
+        save_portfolio_state(portfolio)
     return {
         "portfolio": portfolio,
+        "persisted": bool(persist),
         "active_signals": len(active_signals_map),
         "scored_signals": len(scored_signals),
         "closed_events": closed_events,

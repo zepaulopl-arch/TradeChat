@@ -115,7 +115,10 @@ def print_data_summary(status: dict[str, Any]) -> None:
         ),
         (
             "Registry",
-            f"{profile.get('group', 'n/a')} / {profile.get('subgroup', 'n/a')} / {profile.get('cnpj', 'n/a')}",
+            (
+                f"{profile.get('group', 'n/a')} / {profile.get('subgroup', 'n/a')} / "
+                f"{profile.get('cnpj', 'n/a')}"
+            ),
         ),
         (
             "Fundamentals",
@@ -263,7 +266,10 @@ def _signal_context_facts(signal: dict[str, Any]) -> list[tuple[str, str, str] |
         ("Context", context_desc),
         (
             "Fundamentals",
-            f"pl={float(fundamentals.get('pl', 0.0) or 0.0):.1f} | roe={float(fundamentals.get('roe', 0.0) or 0.0) * 100:.1f}%",
+            (
+                f"pl={float(fundamentals.get('pl', 0.0) or 0.0):.1f} | "
+                f"roe={float(fundamentals.get('roe', 0.0) or 0.0) * 100:.1f}%"
+            ),
         ),
     ]
 
@@ -347,6 +353,7 @@ def render_txt_report(signal: dict[str, Any]) -> str:
     top_features = manifest.get("top_features", []) or []
     family_profile = manifest.get("feature_family_profile", {}) or {}
     tune_summary = manifest.get("tune_summary", {}) or {}
+    quality_pct = float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0)
 
     lines: list[str] = []
     lines.extend(
@@ -364,10 +371,7 @@ def render_txt_report(signal: dict[str, Any]) -> str:
                 ("Last Price", _money(price)),
                 ("Signal", f"{policy.get('label', 'N/A')} ({policy.get('posture', 'n/a')})"),
                 ("Trigger", str(policy.get("horizon", "d1")).upper()),
-                (
-                    "Signal Quality",
-                    f"{float(policy.get('quality_pct', policy.get('confidence_pct', 0.0)) or 0.0):.0f}%",
-                ),
+                ("Signal Quality", f"{quality_pct:.0f}%"),
                 ("Size", policy.get("position_size", 0)),
                 ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
                 ("Target T1", _money(float(policy.get("target_partial", 0.0) or 0.0))),

@@ -198,7 +198,7 @@ def load_sentiment_daily_series(
 
 
 def get_sentiment(ticker: str, cfg: dict[str, Any]) -> tuple[float, dict[str, Any]]:
-    """Current operational sentiment for predict/report (3-day smoothed)."""
+    """Current operational sentiment for signal generation and reporting."""
     ticker = normalize_ticker(ticker)
     meta = update_sentiment_cache(ticker, cfg)
     path = _sentiment_cache_path(cfg, ticker)

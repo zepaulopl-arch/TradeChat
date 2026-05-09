@@ -56,7 +56,7 @@ def collect_ranked_signals(cfg: dict[str, Any], *, limit: int = 40) -> list[dict
 def render_ranking(cfg: dict[str, Any], *, limit: int = 40) -> list[str]:
     rows_data = collect_ranked_signals(cfg, limit=limit)
     if not rows_data:
-        return ["No signals found. Run predict first."]
+        return ["No signals found. Run signal generate first."]
 
     df = pd.DataFrame(rows_data)
     width = screen_width()

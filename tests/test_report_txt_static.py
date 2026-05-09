@@ -10,7 +10,8 @@ def test_report_command_writes_txt_instead_of_printing_signal():
     report_block = text.split("def _report", 1)[1].split("def run", 1)[0]
     assert "write_txt_report" in report_block
     assert "print_signal(signal)" not in report_block
-    assert "report written:" in report_block
+    assert "report written" in report_block
+    assert "report_path" not in report_block
 
 
 def test_removed_daily_report_toggle_is_not_in_cli_or_config():

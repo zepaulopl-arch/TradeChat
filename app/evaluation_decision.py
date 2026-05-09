@@ -172,7 +172,10 @@ def make_validation_decision(
     explanation = [
         f"Model beat {len(beaten_required)}/{len(required)} required baselines.",
         f"Trade count is {trade_count}; minimum is {_int(params, 'min_trade_count')}.",
-        f"Profit factor is {profit_factor:.2f}; minimum is {_float(params, 'min_profit_factor'):.2f}.",
+        (
+            f"Profit factor is {profit_factor:.2f}; "
+            f"minimum is {_float(params, 'min_profit_factor'):.2f}."
+        ),
         f"Active exposure is {exposure:.1f}%.",
     ]
     if final_decision == "promote":

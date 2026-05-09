@@ -5,7 +5,6 @@ app:
   data_cache_dir: data/cache
 batch:
   train_workers: 1
-  diagnose_workers: 1
 simulation:
   mode: replay
   rebalance_days: 5

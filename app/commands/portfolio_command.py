@@ -21,10 +21,6 @@ from ..report import C
 
 
 def _portfolio_action(args: argparse.Namespace) -> str:
-    if bool(getattr(args, "live", False)):
-        return "live"
-    if bool(getattr(args, "rebalance", False)):
-        return "rebalance"
     return str(getattr(args, "portfolio_action", None) or "status")
 
 
@@ -102,7 +98,12 @@ def run(args: argparse.Namespace) -> None:
             print(line)
         return
     if action == "rebalance":
-        summary = rebalance_portfolio(cfg)
+        summary = rebalance_portfolio(cfg, persist=True)
+        for line in render_rebalance_summary(summary):
+            print(line)
+        return
+    if action in {"plan", "simulate"}:
+        summary = rebalance_portfolio(cfg, persist=False)
         for line in render_rebalance_summary(summary):
             print(line)
         return
