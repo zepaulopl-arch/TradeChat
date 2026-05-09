@@ -147,7 +147,9 @@ def audit_dataframe(
     asset range. Padding before the first valid asset price is informational and should
     not be treated as an internal missing-price failure.
     """
-    requested_context = [str(item) for item in (requested_context_tickers or []) if str(item).strip()]
+    requested_context = [
+        str(item) for item in (requested_context_tickers or []) if str(item).strip()
+    ]
     min_rows = int(min_rows or 0)
     stale_days = int(stale_days)
     today_ts = _safe_timestamp(today) or pd.Timestamp.today().normalize()
@@ -172,7 +174,9 @@ def audit_dataframe(
     price_col = _find_price_column(df, ticker)
     price_column_present = bool(price_col and price_col in df.columns)
     if not price_column_present:
-        issues.append(AuditIssue("error", "price_column", f"main ticker column not found: {ticker}"))
+        issues.append(
+            AuditIssue("error", "price_column", f"main ticker column not found: {ticker}")
+        )
         return _empty_audit(
             requested_context=requested_context,
             min_rows=min_rows,
@@ -231,10 +235,22 @@ def audit_dataframe(
     effective_price = price_series.loc[effective_mask]
     effective_rows = int(len(effective_df))
     internal_missing_close_count = int(effective_price.isna().sum()) if effective_rows else 0
-    pre_asset_padding_count = int((pd.to_datetime(df.index) < effective_first).sum()) if effective_first is not None else 0
-    post_asset_missing_count = int((pd.to_datetime(df.index) > effective_last).sum()) if effective_last is not None else 0
-    effective_rows_with_any_missing = int(effective_df.isna().any(axis=1).sum()) if effective_rows else 0
-    effective_largest_gap = _largest_index_gap(effective_df.index) if effective_rows else {"days": 0, "start": None, "end": None}
+    pre_asset_padding_count = (
+        int((pd.to_datetime(df.index) < effective_first).sum())
+        if effective_first is not None
+        else 0
+    )
+    post_asset_missing_count = (
+        int((pd.to_datetime(df.index) > effective_last).sum()) if effective_last is not None else 0
+    )
+    effective_rows_with_any_missing = (
+        int(effective_df.isna().any(axis=1).sum()) if effective_rows else 0
+    )
+    effective_largest_gap = (
+        _largest_index_gap(effective_df.index)
+        if effective_rows
+        else {"days": 0, "start": None, "end": None}
+    )
 
     available = set(columns)
     present_context = [item for item in requested_context if item in available]
@@ -295,15 +311,27 @@ def audit_dataframe(
             )
         )
     if duplicate_dates:
-        issues.append(AuditIssue("warning", "duplicate_dates", f"{duplicate_dates} duplicate index dates found"))
+        issues.append(
+            AuditIssue(
+                "warning", "duplicate_dates", f"{duplicate_dates} duplicate index dates found"
+            )
+        )
     if age_days is None:
         issues.append(AuditIssue("warning", "freshness", "last valid price date is unavailable"))
     elif age_days > stale_days:
-        issues.append(AuditIssue("warning", "freshness", f"last valid price date is {age_days} days old"))
+        issues.append(
+            AuditIssue("warning", "freshness", f"last valid price date is {age_days} days old")
+        )
     if missing_context:
-        issues.append(AuditIssue("warning", "context", f"missing context tickers: {', '.join(missing_context)}"))
+        issues.append(
+            AuditIssue(
+                "warning", "context", f"missing context tickers: {', '.join(missing_context)}"
+            )
+        )
     if context_missing_inside_count:
-        top_context = ", ".join(context_missing_top_tickers) if context_missing_top_tickers else "n/a"
+        top_context = (
+            ", ".join(context_missing_top_tickers) if context_missing_top_tickers else "n/a"
+        )
         issues.append(
             AuditIssue(
                 "warning",
@@ -315,7 +343,13 @@ def audit_dataframe(
             )
         )
     if all_missing_columns:
-        issues.append(AuditIssue("warning", "all_missing_columns", f"all-missing columns: {', '.join(all_missing_columns[:5])}"))
+        issues.append(
+            AuditIssue(
+                "warning",
+                "all_missing_columns",
+                f"all-missing columns: {', '.join(all_missing_columns[:5])}",
+            )
+        )
 
     severity_rank = {"ok": 0, "warning": 1, "error": 2}
     worst = "ok"
@@ -352,7 +386,9 @@ def audit_dataframe(
         "rows_with_any_missing": rows_with_any_missing,
         "rows_with_any_missing_pct": _pct(rows_with_any_missing, rows),
         "effective_rows_with_any_missing": effective_rows_with_any_missing,
-        "effective_rows_with_any_missing_pct": _pct(effective_rows_with_any_missing, effective_rows),
+        "effective_rows_with_any_missing_pct": _pct(
+            effective_rows_with_any_missing, effective_rows
+        ),
         "context_missing_inside_count": context_missing_inside_count,
         "context_missing_inside_pct": _pct(context_missing_inside_count, effective_rows),
         "context_complete_rows_count": context_complete_rows_count,

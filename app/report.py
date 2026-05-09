@@ -533,8 +533,12 @@ def print_data_audit(status: dict[str, Any]) -> None:
 
     age = audit.get("age_days")
     age_text = "n/a" if age is None else f"{age} days"
-    last_valid = audit.get("effective_last_date") or audit.get("last_date") or status.get("end") or "n/a"
-    raw_start = audit.get("raw_first_date") or audit.get("first_date") or status.get("start") or "n/a"
+    last_valid = (
+        audit.get("effective_last_date") or audit.get("last_date") or status.get("end") or "n/a"
+    )
+    raw_start = (
+        audit.get("raw_first_date") or audit.get("first_date") or status.get("start") or "n/a"
+    )
     raw_end = audit.get("raw_last_date") or status.get("end") or "n/a"
     effective_start = audit.get("effective_first_date") or "n/a"
     effective_end = audit.get("effective_last_date") or "n/a"
@@ -550,9 +554,15 @@ def print_data_audit(status: dict[str, Any]) -> None:
         ("Effective Rows", audit.get("effective_rows", 0)),
         ("Asset Range", f"{effective_start} -> {effective_end}"),
         ("Age", age_text),
-        ("Context", f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)}"),
+        (
+            "Context",
+            f"{audit.get('present_context_count', 0)}/{audit.get('requested_context_count', 0)}",
+        ),
         ("Coverage", _fmt_pct(audit.get("context_coverage_pct", 0.0))),
-        ("Fundamentals", f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}"),
+        (
+            "Fundamentals",
+            f"{fundamentals.get('status', 'n/a')} | {fundamentals.get('source', 'n/a')}",
+        ),
         (
             "Sentiment",
             f"{sentiment.get('status', 'n/a')} | rows={sentiment.get('cache_rows', 0)}",
@@ -567,7 +577,8 @@ def print_data_audit(status: dict[str, Any]) -> None:
         ],
         [
             "Price column",
-            audit.get("price_column") or ("present" if audit.get("price_column_present") else "missing"),
+            audit.get("price_column")
+            or ("present" if audit.get("price_column_present") else "missing"),
             "PASS" if audit.get("price_column_present") else "FAIL",
         ],
         [
@@ -629,7 +640,11 @@ def print_data_audit(status: dict[str, Any]) -> None:
 
     rendered_rows = []
     for check, value, state in rows:
-        tone = C.GREEN if state == "PASS" else C.RED if state == "FAIL" else C.BLUE if state == "INFO" else C.YELLOW
+        tone = (
+            C.GREEN
+            if state == "PASS"
+            else C.RED if state == "FAIL" else C.BLUE if state == "INFO" else C.YELLOW
+        )
         rendered_rows.append([check, value, paint(state, tone)])
 
     print()
@@ -640,10 +655,13 @@ def print_data_audit(status: dict[str, Any]) -> None:
 
     missing_context = audit.get("missing_context_tickers", []) or []
     if missing_context:
-        _print_lines(render_wrapped("Missing context", _compact_items(missing_context, limit=8), width=width))
+        _print_lines(
+            render_wrapped("Missing context", _compact_items(missing_context, limit=8), width=width)
+        )
 
     context_missing_by_ticker = [
-        item for item in (audit.get("context_missing_by_ticker", []) or [])
+        item
+        for item in (audit.get("context_missing_by_ticker", []) or [])
         if int(item.get("missing_count", 0) or 0) > 0
     ]
     if context_missing_by_ticker:
@@ -659,13 +677,19 @@ def print_data_audit(status: dict[str, Any]) -> None:
 
     all_missing = audit.get("all_missing_columns", []) or []
     if all_missing:
-        _print_lines(render_wrapped("All-missing columns", _compact_items(all_missing, limit=8), width=width))
+        _print_lines(
+            render_wrapped("All-missing columns", _compact_items(all_missing, limit=8), width=width)
+        )
 
     issues = audit.get("issues", []) or []
     if issues:
         print()
         issue_rows = [
-            [str(item.get("severity", "n/a")).upper(), item.get("check", "n/a"), item.get("message", "")]
+            [
+                str(item.get("severity", "n/a")).upper(),
+                item.get("check", "n/a"),
+                item.get("message", ""),
+            ]
             for item in issues
         ]
         _print_lines(render_table(["Severity", "Check", "Message"], issue_rows, width=width))

@@ -42,6 +42,7 @@ def _signal_position_side(signal: dict[str, Any], trade_plan: dict[str, Any]) ->
         return "LONG"
     return "NONE"
 
+
 def rebalance_portfolio(cfg: dict[str, Any], *, persist: bool = True) -> dict[str, Any]:
     portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
     current_positions = portfolio.get("positions", {})

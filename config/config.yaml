@@ -29,6 +29,12 @@ data:
   - USDBRL=X
   - BZ=F
   registry_file: data.yaml
+  context_policy:
+    min_valid_count: 150
+    pass_coverage_pct: 90
+    warn_coverage_pct: 70
+    review_coverage_pct: 40
+    use_min_coverage_pct: 70
 model:
   random_state: 42
   test_size: 0.2

@@ -31,11 +31,12 @@ indices:
       yahoo_ticker: BZ=F
       enabled: true
     IFNC:
-      label: Indice Financeiro B3
+      label: Financial sector proxy (FIND11 ETF)
       role: sector_financials
       provider: yfinance
-      yahoo_ticker: IFNC.SA
+      yahoo_ticker: FIND11.SA
       enabled: true
+      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
     IEEX:
       label: Indice de Energia Eletrica B3
       role: sector_utilities
@@ -160,7 +161,7 @@ assets:
     cnpj_status: verified_seed
     context_tickers:
     - ^BVSP
-    - IFNC.SA
+    - FIND11.SA
     - USDBRL=X
     - ^IBX50
     linked_indices:

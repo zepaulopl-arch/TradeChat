@@ -121,6 +121,45 @@ def validate_config(config: dict[str, Any]) -> list[ConfigIssue]:
     if macro_tickers is not None and not isinstance(macro_tickers, list):
         issues.append(_issue("data.macro_tickers", "error", "must be a list", macro_tickers))
 
+    context_policy = _get(config, "data.context_policy", {}) or {}
+    if context_policy is not None and not isinstance(context_policy, dict):
+        issues.append(_issue("data.context_policy", "error", "must be a mapping", context_policy))
+    elif isinstance(context_policy, dict):
+        for key in (
+            "min_valid_count",
+            "pass_coverage_pct",
+            "warn_coverage_pct",
+            "review_coverage_pct",
+            "use_min_coverage_pct",
+        ):
+            value = context_policy.get(key)
+            if value is not None and (not _is_number(value) or float(value) < 0):
+                issues.append(
+                    _issue(
+                        f"data.context_policy.{key}",
+                        "error",
+                        "must be non-negative",
+                        value,
+                    )
+                )
+
+        ordered = [
+            context_policy.get("pass_coverage_pct", 90),
+            context_policy.get("warn_coverage_pct", 70),
+            context_policy.get("review_coverage_pct", 40),
+        ]
+        if all(_is_number(x) for x in ordered) and not (
+            float(ordered[0]) >= float(ordered[1]) >= float(ordered[2])
+        ):
+            issues.append(
+                _issue(
+                    "data.context_policy",
+                    "error",
+                    "coverage thresholds must satisfy pass >= warn >= review",
+                    context_policy,
+                )
+            )
+
     for path in ("app.artifact_dir", "app.data_cache_dir", "features_file"):
         value = _get(config, path)
         if value is not None and not isinstance(value, str):

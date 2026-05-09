@@ -29,6 +29,7 @@ def _display_position_side(pos: dict) -> str:
     """Return the real position side, ignoring stale stored labels such as FLAT."""
     return position_side(int(pos.get("shares", 0) or 0))
 
+
 def _render_status(cfg: dict) -> None:
     portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
     account = portfolio["account"]

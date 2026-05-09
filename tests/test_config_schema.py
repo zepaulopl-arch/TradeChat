@@ -21,7 +21,16 @@ def test_config_schema_units():
                 "max_positions": 0,
                 "costs": {"fee_mode": "mystery", "fee_amount": -0.1, "slippage_pct": -0.2},
             },
-            "data": {"min_rows": 150, "macro_tickers": "^BVSP"},
+            "data": {
+                "min_rows": 150,
+                "macro_tickers": "^BVSP",
+                "context_policy": {
+                    "min_valid_count": -1,
+                    "pass_coverage_pct": 50,
+                    "warn_coverage_pct": 80,
+                    "review_coverage_pct": 40,
+                },
+            },
             "batch": {"train_workers": -1},
             "trading": {"capital": 10000.0, "trade_management": {"max_hold_days": {"d99": 1}}},
             "model": {
@@ -40,6 +49,8 @@ def test_config_schema_units():
         "simulation.costs.fee_amount",
         "simulation.costs.slippage_pct",
         "data.macro_tickers",
+        "data.context_policy.min_valid_count",
+        "data.context_policy",
         "batch.train_workers",
         "trading.trade_management.max_hold_days",
         "model.confidence.maximum_confidence",

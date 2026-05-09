@@ -12,6 +12,7 @@ import pandas as pd
 import yfinance as yf
 
 from .config import historical_dir, load_data_registry
+from .context_policy import filter_context_columns, load_context_policy
 from .utils import normalize_ticker, safe_ticker
 
 
@@ -182,14 +183,8 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
     canonical = resolved["canonical"]
     path = price_cache_path(cfg, canonical)
 
-    if path.exists():
-        if not update:
-            return pd.read_parquet(path)
-
-        # Speed optimization: skip if file is < 15 minutes old
-        mtime = os.path.getmtime(path)
-        if (time.time() - mtime) < 900:  # 15 minutes
-            return pd.read_parquet(path)
+    if path.exists() and not update:
+        return pd.read_parquet(path)
 
     period = cfg.get("data", {}).get("period", "5y")
     macros = resolve_context_tickers(cfg, canonical)
@@ -202,6 +197,14 @@ def load_prices(cfg: dict[str, Any], ticker: str, update: bool = False) -> pd.Da
         raise RuntimeError(
             f"Yahoo did not return close prices for {canonical} requested as {requested}."
         )
+
+    close, _context_decisions = filter_context_columns(
+        close,
+        asset_column=canonical,
+        context_columns=macros,
+        policy=load_context_policy(cfg),
+    )
+
     close.to_parquet(path)
     return close
 
