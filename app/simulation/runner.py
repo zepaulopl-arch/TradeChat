@@ -18,7 +18,7 @@ from ..evaluation_service import (
 from ..features import build_dataset
 from ..models import predict_multi_horizon, train_models
 from ..pipeline_service import canonical_ticker
-from ..policy import classify_signal
+from ..policy import active_policy_profile, classify_signal
 from ..scoring import is_actionable_signal, signal_score
 from ..trade_plan_service import build_trade_plan, trade_plan_from_signal
 from ..utils import safe_ticker, write_json
@@ -578,6 +578,7 @@ def _write_simulation_artifacts(
         f"WINDOW: {summary['start_date']} -> {summary['end_date']}",
         f"TICKERS: {', '.join(summary.get('tickers', []) or [])}",
         f"REBALANCE DAYS: {summary['rebalance_days']}",
+        f"POLICY PROFILE: {summary.get('policy_profile', 'strict')}",
         f"WARMUP BARS: {summary['warmup_bars']}",
         f"TRADES: {int(float(metrics.get('trade_count', 0) or 0))}",
         f"RETURN: {float(metrics.get('total_return_pct', 0.0) or 0.0):+.2f}%",
@@ -747,6 +748,7 @@ def run_pybroker_replay(
         "warmup_bars": int(effective_warmup),
         "allow_short": bool(allow_short),
         "max_positions": int(max_positions or max(1, len(canonical))),
+        "policy_profile": active_policy_profile(cfg),
         "metrics": metrics,
         "baselines": baselines,
         "baseline_comparison": baseline_comparison,

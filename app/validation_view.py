@@ -62,6 +62,7 @@ def render_validation_summary(
                 "Experimento": "Simulacao PyBroker",
                 "Amostra": sample_text,
                 "Modo": mode_label,
+                "Policy": str(summary.get("policy_profile", "strict")),
                 "Conclusao preliminar": conclusion,
             },
             width=width,

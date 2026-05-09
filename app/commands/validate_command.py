@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from ..config import load_config
+from ..policy import apply_policy_profile
 from ..simulation.runner import run_pybroker_replay
 from ..validation_view import render_validation_summary
 from ._shared import resolve_cli_tickers
@@ -10,6 +11,9 @@ from ._shared import resolve_cli_tickers
 
 def run(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
+    policy_profile = getattr(args, "policy_profile", None)
+    if policy_profile:
+        cfg = apply_policy_profile(cfg, policy_profile)
     tickers = resolve_cli_tickers(cfg, args)
     sim_cfg = cfg.get("simulation", {}) or {}
     mode = str(args.mode or sim_cfg.get("mode", "replay") or "replay").lower()

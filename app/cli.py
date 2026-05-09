@@ -31,6 +31,7 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--allow-short", action="store_true")
     parser.add_argument("--walkforward-autotune", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--policy-profile", default=None, help="policy profile for calibration: strict, balanced or relaxed")
 
 
 def _add_refine_args(parser: argparse.ArgumentParser) -> None:
