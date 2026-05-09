@@ -3,8 +3,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_no_bat_files_or_legacy_operational_scripts_remain():
-    assert not list(ROOT.glob("*.bat"))
+def test_only_shortcut_bat_remains():
+    root_bats = sorted(path.name for path in ROOT.glob("*.bat"))
+    assert root_bats == ["run.bat"]
     assert not (ROOT / "scripts" / "diagnose_assets.py").exists()
     assert not (ROOT / "scripts" / "analyze_assets.py").exists()
 
