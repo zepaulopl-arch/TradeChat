@@ -354,6 +354,187 @@ def _exposure_from_trade_dates(
     return float(len(active_days) / total_days * 100.0) if active_days else 0.0
 
 
+def _string_column(frame: pd.DataFrame, candidates: list[str]) -> pd.Series | None:
+    if frame is None or frame.empty:
+        return None
+    lower_map = {str(col).lower(): col for col in frame.columns}
+    for candidate in candidates:
+        if candidate.lower() in lower_map:
+            values = (
+                frame[lower_map[candidate.lower()]].astype(str).replace({"nan": ""}).str.strip()
+            )
+            values = values[values != ""]
+            if not values.empty:
+                return values
+    return None
+
+
+def _group_trade_stats(
+    frame: pd.DataFrame,
+    group_col: str,
+    *,
+    pnl_col: str | None,
+    return_col: str | None,
+    costs_by_group: dict[str, float] | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    if frame is None or frame.empty or group_col not in frame.columns:
+        return []
+    rows: list[dict[str, Any]] = []
+    for group_value, group in frame.groupby(group_col, dropna=True):
+        label = str(group_value).strip()
+        if not label:
+            continue
+        pnl = (
+            pd.to_numeric(group[pnl_col], errors="coerce").dropna().astype(float)
+            if pnl_col and pnl_col in group.columns
+            else pd.Series(dtype=float)
+        )
+        returns = (
+            pd.to_numeric(group[return_col], errors="coerce").dropna().astype(float)
+            if return_col and return_col in group.columns
+            else pd.Series(dtype=float)
+        )
+        trade_count = int(len(group))
+        win_count = int((pnl > 0).sum()) if not pnl.empty else int((returns > 0).sum())
+        gross_profit = float(pnl[pnl > 0].sum()) if not pnl.empty else 0.0
+        gross_loss = float(abs(pnl[pnl < 0].sum())) if not pnl.empty else 0.0
+        net_pnl = float(pnl.sum()) if not pnl.empty else 0.0
+        avg_pnl = float(pnl.mean()) if not pnl.empty else 0.0
+        avg_return = float(returns.mean()) if not returns.empty else None
+        pf_payload = _profit_factor_from_pnl(pnl) if not pnl.empty else {}
+        costs = float((costs_by_group or {}).get(label, 0.0) or 0.0)
+        rows.append(
+            {
+                "group": label,
+                "trade_count": trade_count,
+                "win_count": win_count,
+                "hit_rate_pct": (float(win_count / trade_count * 100.0) if trade_count else 0.0),
+                "gross_profit": gross_profit,
+                "gross_loss": gross_loss,
+                "net_pnl": net_pnl,
+                "avg_pnl": avg_pnl,
+                "avg_return_pct": avg_return,
+                "profit_factor": pf_payload.get("profit_factor"),
+                "profit_factor_display": pf_payload.get("profit_factor_display", "n/a"),
+                "cost": costs,
+                "net_after_cost": net_pnl - costs,
+            }
+        )
+    rows.sort(key=lambda item: (float(item.get("net_after_cost", 0.0) or 0.0)), reverse=True)
+    return rows[:limit] if limit else rows
+
+
+def _order_costs_by_group(orders: pd.DataFrame, group_col: str | None) -> dict[str, float]:
+    if orders is None or orders.empty or not group_col or group_col not in orders.columns:
+        return {}
+    cost_col = None
+    lower_map = {str(col).lower(): col for col in orders.columns}
+    for candidate in ["fees", "fee", "commission", "commissions", "cost", "costs"]:
+        if candidate in lower_map:
+            cost_col = lower_map[candidate]
+            break
+    if not cost_col:
+        return {}
+    frame = orders[[group_col, cost_col]].copy()
+    frame[group_col] = frame[group_col].astype(str).str.strip()
+    frame[cost_col] = pd.to_numeric(frame[cost_col], errors="coerce").abs().fillna(0.0)
+    return {
+        str(key): float(value) for key, value in frame.groupby(group_col)[cost_col].sum().items()
+    }
+
+
+def build_trade_attribution(
+    trades: pd.DataFrame | None,
+    orders: pd.DataFrame | None = None,
+) -> dict[str, Any]:
+    """Aggregate executed trades by ticker/side/horizon when columns are available."""
+    if trades is None or trades.empty:
+        return {"by_ticker": [], "by_side": [], "by_horizon": [], "warnings": []}
+
+    frame = trades.copy()
+    warnings: list[str] = []
+    lower_map = {str(col).lower(): col for col in frame.columns}
+
+    symbol_col = None
+    for candidate in ["symbol", "ticker", "asset", "instrument"]:
+        if candidate in lower_map:
+            symbol_col = lower_map[candidate]
+            break
+    side_col = None
+    for candidate in ["side", "type", "direction", "position", "long_short"]:
+        if candidate in lower_map:
+            side_col = lower_map[candidate]
+            break
+    horizon_col = None
+    for candidate in ["horizon", "policy_horizon", "selected_horizon", "target_horizon"]:
+        if candidate in lower_map:
+            horizon_col = lower_map[candidate]
+            break
+    pnl_col = None
+    for candidate in ["pnl", "profit", "profit_loss", "pl", "realized_pnl"]:
+        if candidate in lower_map:
+            pnl_col = lower_map[candidate]
+            break
+    return_col = None
+    for candidate in ["return_pct", "ret_pct", "pct_return", "return_percent", "return"]:
+        if candidate in lower_map:
+            return_col = lower_map[candidate]
+            break
+
+    if not symbol_col:
+        warnings.append("trade attribution by ticker unavailable: no symbol/ticker column detected")
+    if not pnl_col and not return_col:
+        warnings.append("trade attribution has no PnL or return column; counts only")
+
+    orders_frame = orders if orders is not None else pd.DataFrame()
+    order_lower = (
+        {str(col).lower(): col for col in orders_frame.columns} if not orders_frame.empty else {}
+    )
+    order_symbol_col = None
+    if symbol_col:
+        for candidate in [symbol_col, "symbol", "ticker", "asset", "instrument"]:
+            if str(candidate).lower() in order_lower:
+                order_symbol_col = order_lower[str(candidate).lower()]
+                break
+
+    costs_by_ticker = _order_costs_by_group(orders_frame, order_symbol_col)
+    by_ticker = (
+        _group_trade_stats(
+            frame,
+            symbol_col,
+            pnl_col=pnl_col,
+            return_col=return_col,
+            costs_by_group=costs_by_ticker,
+        )
+        if symbol_col
+        else []
+    )
+    by_side = (
+        _group_trade_stats(frame, side_col, pnl_col=pnl_col, return_col=return_col)
+        if side_col
+        else []
+    )
+    by_horizon = (
+        _group_trade_stats(frame, horizon_col, pnl_col=pnl_col, return_col=return_col)
+        if horizon_col
+        else []
+    )
+    return {
+        "by_ticker": by_ticker,
+        "by_side": by_side,
+        "by_horizon": by_horizon,
+        "warnings": warnings,
+        "columns": {
+            "symbol": symbol_col,
+            "side": side_col,
+            "horizon": horizon_col,
+            "pnl": pnl_col,
+            "return": return_col,
+        },
+    }
+
+
 def enrich_model_metrics_from_execution(
     metrics: dict[str, Any],
     *,
@@ -496,6 +677,11 @@ def enrich_model_metrics_from_execution(
         and _safe_float(out.get("profit_factor"), 0.0) == 0.0
     ):
         warnings.append("inconsistent metrics: positive 100% hit-rate run has zero profit factor")
+
+    trade_attribution = build_trade_attribution(trades_df, orders_df)
+    attribution_warnings = trade_attribution.get("warnings", []) or []
+    warnings.extend(str(item) for item in attribution_warnings)
+    out["trade_attribution"] = trade_attribution
 
     out["metric_warnings"] = sorted(set(str(item) for item in warnings if item))
     out["economic_metrics_source"] = {

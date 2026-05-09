@@ -23,6 +23,40 @@ def _fmt_pct_or_na(value: object, *, signed: bool = False) -> str:
     return f"{number:{prefix}.1f}%" if signed else f"{number:.1f}%"
 
 
+def _fmt_cash(value: object) -> str:
+    try:
+        return f"{float(value):+.2f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _fmt_pf(value: object) -> str:
+    if value is None:
+        return "n/a"
+    return str(value)
+
+
+def _trade_attribution_rows(rows: list[dict[str, Any]], *, max_rows: int = 12) -> list[list[str]]:
+    table_rows: list[list[str]] = []
+    for row in (rows or [])[:max_rows]:
+        avg_return = row.get("avg_return_pct")
+        avg_return_display = "n/a" if avg_return is None else f"{float(avg_return):+.2f}%"
+        table_rows.append(
+            [
+                str(row.get("group", "n/a")),
+                str(int(float(row.get("trade_count", 0) or 0))),
+                f"{float(row.get('hit_rate_pct', 0.0) or 0.0):.1f}%",
+                _fmt_pf(row.get("profit_factor_display")),
+                _fmt_cash(row.get("net_pnl", 0.0)),
+                _fmt_cash(row.get("gross_profit", 0.0)),
+                _fmt_cash(-float(row.get("gross_loss", 0.0) or 0.0)),
+                avg_return_display,
+                _fmt_cash(row.get("cost", 0.0)),
+            ]
+        )
+    return table_rows
+
+
 def render_validation_summary(
     summary: dict[str, Any],
     *,
@@ -203,8 +237,93 @@ def render_validation_summary(
                 min_widths=[9, 9, 9, 11, 10],
             )
         )
-        for warning in metrics.get("metric_warnings", []) or []:
-            lines.extend(ui5.render_callout(str(warning), status="warn", width=width))
+        attribution = metrics.get("trade_attribution", {}) or {}
+        by_ticker = _trade_attribution_rows(attribution.get("by_ticker", []) or [])
+        if by_ticker:
+            lines.extend(ui5.render_section("TRADE ATTRIBUTION | BY TICKER", width=width))
+            lines.extend(
+                ui5.render_table(
+                    [
+                        "Ticker",
+                        "Trades",
+                        "Hit",
+                        "PF",
+                        "Net",
+                        "Gross +",
+                        "Gross -",
+                        "Avg Ret",
+                        "Cost",
+                    ],
+                    by_ticker,
+                    width=width,
+                    aligns=[
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                    ],
+                    min_widths=[10, 6, 6, 6, 8, 8, 8, 8, 7],
+                )
+            )
+        by_horizon = _trade_attribution_rows(attribution.get("by_horizon", []) or [])
+        if by_horizon:
+            lines.extend(ui5.render_section("TRADE ATTRIBUTION | BY HORIZON", width=width))
+            lines.extend(
+                ui5.render_table(
+                    [
+                        "Horizon",
+                        "Trades",
+                        "Hit",
+                        "PF",
+                        "Net",
+                        "Gross +",
+                        "Gross -",
+                        "Avg Ret",
+                        "Cost",
+                    ],
+                    by_horizon,
+                    width=width,
+                    aligns=[
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                    ],
+                    min_widths=[10, 6, 6, 6, 8, 8, 8, 8, 7],
+                )
+            )
+        by_side = _trade_attribution_rows(attribution.get("by_side", []) or [])
+        if by_side:
+            lines.extend(ui5.render_section("TRADE ATTRIBUTION | BY SIDE", width=width))
+            lines.extend(
+                ui5.render_table(
+                    ["Side", "Trades", "Hit", "PF", "Net", "Gross +", "Gross -", "Avg Ret", "Cost"],
+                    by_side,
+                    width=width,
+                    aligns=[
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                    ],
+                    min_widths=[10, 6, 6, 6, 8, 8, 8, 8, 7],
+                )
+            )
 
     if baselines:
         rows = []

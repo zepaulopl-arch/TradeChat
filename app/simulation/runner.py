@@ -627,6 +627,28 @@ def _write_simulation_artifacts(
                 f"delta_hit={delta_hit:+.2f}% "
                 f"delta_pf={delta_pf:+.2f}"
             )
+    attribution = metrics.get("trade_attribution", {}) or {}
+    by_ticker = attribution.get("by_ticker", []) or []
+    if by_ticker:
+        lines.extend(["", "TRADE ATTRIBUTION BY TICKER:"])
+        for row in by_ticker:
+            lines.append(
+                f"- {row.get('group')}: trades={int(float(row.get('trade_count', 0) or 0))} "
+                f"hit={float(row.get('hit_rate_pct', 0.0) or 0.0):.1f}% "
+                f"pf={row.get('profit_factor_display', 'n/a')} "
+                f"net={float(row.get('net_pnl', 0.0) or 0.0):+.2f} "
+                f"cost={float(row.get('cost', 0.0) or 0.0):+.2f}"
+            )
+    by_horizon = attribution.get("by_horizon", []) or []
+    if by_horizon:
+        lines.extend(["", "TRADE ATTRIBUTION BY HORIZON:"])
+        for row in by_horizon:
+            lines.append(
+                f"- {row.get('group')}: trades={int(float(row.get('trade_count', 0) or 0))} "
+                f"hit={float(row.get('hit_rate_pct', 0.0) or 0.0):.1f}% "
+                f"pf={row.get('profit_factor_display', 'n/a')} "
+                f"net={float(row.get('net_pnl', 0.0) or 0.0):+.2f}"
+            )
     if validation_decision:
         lines.extend(
             [
