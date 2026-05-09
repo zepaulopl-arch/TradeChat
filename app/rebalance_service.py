@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from .portfolio_service import iter_latest_signals, load_portfolio_state, save_portfolio_state
+from .portfolio_service import (
+    iter_latest_signals,
+    load_portfolio_state,
+    position_side,
+    save_portfolio_state,
+)
 from .presentation import (
     C,
     banner,
@@ -18,6 +23,24 @@ from .presentation import (
 from .scoring import is_actionable_signal, signal_score
 from .trade_plan_service import trade_plan_from_signal
 
+
+def _signal_position_side(signal: dict[str, Any], trade_plan: dict[str, Any]) -> str:
+    """Resolve desired portfolio position from trade plan and signal label.
+
+    Older artifacts may carry ambiguous labels such as FLAT. For actionable
+    signals, BUY means LONG and SELL means SHORT unless the trade plan provides
+    an explicit LONG/SHORT side.
+    """
+    raw_side = str(trade_plan.get("side", "") or "").upper()
+    if raw_side in {"LONG", "SHORT"}:
+        return raw_side
+
+    label = str(((signal.get("policy", {}) or {}).get("label", "")) or "").upper()
+    if "SELL" in label:
+        return "SHORT"
+    if "BUY" in label:
+        return "LONG"
+    return "NONE"
 
 def rebalance_portfolio(cfg: dict[str, Any], *, persist: bool = True) -> dict[str, Any]:
     portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
@@ -91,7 +114,9 @@ def rebalance_portfolio(cfg: dict[str, Any], *, persist: bool = True) -> dict[st
             policy = signal.get("policy", {}) or {}
             trade_plan = trade_plan_from_signal(cfg, signal)
             label = str(policy.get("label", ""))
-            side = str(trade_plan.get("side", "LONG")).upper()
+            side = _signal_position_side(signal, trade_plan)
+            if side == "NONE":
+                continue
             is_short = side == "SHORT"
             weight = signal["_temp_score"] / total_score
             amount_to_invest = total_equity * weight
@@ -230,7 +255,7 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
                 item["action"],
                 paint(item["ticker"], C.BOLD),
                 paint(
-                    "SHORT" if int(item["shares"]) < 0 else "LONG",
+                    position_side(int(item["shares"])),
                     C.RED if int(item["shares"]) < 0 else C.GREEN,
                 ),
                 paint(
@@ -243,7 +268,7 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
         ]
         lines.extend(
             render_table(
-                ["ACTION", "TICKER", "SIDE", "P/L CASH", "REASON"],
+                ["ACTION", "TICKER", "POSITION", "P/L CASH", "REASON"],
                 closed_rows,
                 width=width,
                 aligns=["left", "left", "left", "right", "left"],
@@ -258,7 +283,7 @@ def render_rebalance_summary(summary: dict[str, Any]) -> list[str]:
             paint("No actionable signals with positive score. Portfolio remains in cash.", C.DIM)
         )
     else:
-        headers = ["STATUS", "TICKER", "SIDE", "WEIGHT", "SHARES", "PRICE"]
+        headers = ["ACTION", "TICKER", "POSITION", "WEIGHT", "SHARES", "PRICE"]
         aligns = ["left", "left", "left", "right", "right", "right"]
         min_widths = [6, 8, 5, 7, 6, 8]
         rows = []

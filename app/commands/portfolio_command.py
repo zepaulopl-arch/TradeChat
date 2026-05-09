@@ -15,6 +15,7 @@ from ..presentation import (
     render_table,
     screen_width,
     tone_delta,
+    tone_signal,
 )
 from ..rebalance_service import rebalance_portfolio, render_rebalance_summary
 from ..report import C
@@ -23,6 +24,10 @@ from ..report import C
 def _portfolio_action(args: argparse.Namespace) -> str:
     return str(getattr(args, "portfolio_action", None) or "status")
 
+
+def _display_position_side(pos: dict) -> str:
+    """Return the real position side, ignoring stale stored labels such as FLAT."""
+    return position_side(int(pos.get("shares", 0) or 0))
 
 def _render_status(cfg: dict) -> None:
     portfolio = load_portfolio_state(capital=float(cfg.get("trading", {}).get("capital", 10000.0)))
@@ -38,7 +43,10 @@ def _render_status(cfg: dict) -> None:
         entry_price = float(pos.get("entry_price", 0.0) or 0.0)
         signal = load_latest_signal(cfg, ticker) or {}
         policy = signal.get("policy", {}) or {}
-        side = str(pos.get("side") or position_side(shares)).upper()
+        position = _display_position_side(pos)
+        if position == "NONE":
+            continue
+        label = str(policy.get("label", "n/a") or "n/a").upper()
         target_value = pos.get("target_final", policy.get("target_price"))
         stop_value = pos.get("stop_loss", policy.get("stop_loss_price"))
         exposure = shares * entry_price
@@ -47,11 +55,12 @@ def _render_status(cfg: dict) -> None:
         rows.append(
             [
                 paint(ticker, C.BOLD),
-                paint(side, C.RED if side == "SHORT" else C.GREEN),
+                paint(position, C.RED if position == "SHORT" else C.GREEN),
                 str(shares),
                 f"{entry_price:.2f}",
                 f"{float(target_value):.2f}" if target_value is not None else "n/a",
                 f"{float(stop_value):.2f}" if stop_value is not None else "n/a",
+                paint(label, tone_signal(label)),
             ]
         )
 
@@ -80,11 +89,11 @@ def _render_status(cfg: dict) -> None:
         print(paint("No active positions.", C.DIM))
     else:
         for line in render_table(
-            ["TICKER", "SIDE", "SHARES", "ENTRY", "TARGET", "STOP"],
+            ["TICKER", "POSITION", "SHARES", "ENTRY", "TARGET", "STOP", "SIGNAL"],
             rows,
             width=width,
-            aligns=["left", "left", "right", "right", "right", "right"],
-            min_widths=[8, 5, 6, 8, 8, 8],
+            aligns=["left", "left", "right", "right", "right", "right", "left"],
+            min_widths=[8, 8, 6, 8, 8, 8, 7],
         ):
             print(line)
     print(divider(width))

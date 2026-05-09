@@ -204,4 +204,10 @@ def iter_latest_signals(cfg: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def position_side(shares: int) -> str:
-    return "SHORT" if int(shares) < 0 else "LONG"
+    """Return the actual portfolio position side from signed share quantity."""
+    qty = int(shares)
+    if qty > 0:
+        return "LONG"
+    if qty < 0:
+        return "SHORT"
+    return "NONE"
