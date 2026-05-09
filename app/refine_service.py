@@ -179,15 +179,7 @@ def _write_decision_artifacts(
             out["rationale"] = " | ".join(str(item) for item in row.get("rationale", []) or [])
             writer.writerow(out)
 
-    lines = ["REFINE DECISION", ""]
-    if not decisions:
-        lines.append("No decision matrix was produced.")
-    for row in decisions:
-        rationale = "; ".join(str(item) for item in row.get("rationale", []) or [])
-        lines.append(
-            f"{row.get('profile', 'n/a')}: {row.get('decision', 'inconclusive')} "
-            f"removed={row.get('removed_family', 'n/a')} {rationale}"
-        )
+    lines = render_refine_decision_table(decisions)
     decision_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -679,8 +671,10 @@ def render_refine_decision_table(
     decisions: list[dict[str, Any]], *, width: int | None = None
 ) -> list[str]:
     width = width or screen_width()
+    grouped = _consolidate_refine_decisions(decisions)
     table_rows = []
-    for row in decisions:
+    notes: list[str] = []
+    for row in grouped:
         table_rows.append(
             [
                 str(row.get("profile", "n/a")),
@@ -689,19 +683,81 @@ def render_refine_decision_table(
                 _fmt_delta(row.get("drawdown_delta_pct")),
                 _fmt_delta(row.get("profit_factor_delta"), decimals=2, suffix=""),
                 str(row.get("decision", "inconclusive")),
+                str(row.get("scope", "tickers=0")),
             ]
         )
+        for note in row.get("notes", []) or []:
+            if note not in notes:
+                notes.append(str(note))
     lines = ["REFINE DECISION"]
+    if not grouped:
+        lines.append("No decision matrix was produced.")
+        return lines
     lines.extend(
         render_table(
-            ["Profile", "Removed", "Return d", "DD d", "PF d", "Decision"],
+            ["Profile", "Removed", "Return d", "DD d", "PF d", "Decision", "Scope"],
             table_rows,
             width=width,
-            aligns=["left", "left", "right", "right", "right", "left"],
-            min_widths=[14, 14, 9, 8, 7, 16],
+            aligns=["left", "left", "right", "right", "right", "left", "left"],
+            min_widths=[14, 14, 9, 8, 7, 16, 9],
         )
     )
+    lines.extend(notes)
     return lines
+
+
+def _consolidate_refine_decisions(decisions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str], dict[str, Any]] = {}
+    order: list[tuple[str, str]] = []
+    for row in decisions:
+        profile = str(row.get("profile", "n/a"))
+        removed = str(row.get("removed_family", "n/a"))
+        key = (profile, removed)
+        if key not in groups:
+            groups[key] = {
+                "profile": profile,
+                "removed_family": removed,
+                "return_delta_pct": row.get("return_delta_pct"),
+                "drawdown_delta_pct": row.get("drawdown_delta_pct"),
+                "profit_factor_delta": row.get("profit_factor_delta"),
+                "decisions": [],
+                "tickers": set(),
+                "samples": 0,
+                "notes": [],
+            }
+            order.append(key)
+        group = groups[key]
+        group["samples"] += 1
+        ticker = str(row.get("ticker", "") or "")
+        if ticker:
+            group["tickers"].add(ticker)
+        decision = str(row.get("decision", "inconclusive"))
+        if decision not in group["decisions"]:
+            group["decisions"].append(decision)
+        for note in (row.get("no_op_notes", []) or []) + (row.get("rationale", []) or []):
+            note = str(note)
+            if "no-op for this run" in note and note not in group["notes"]:
+                group["notes"].append(note)
+
+    consolidated: list[dict[str, Any]] = []
+    for key in order:
+        group = groups[key]
+        decisions = group["decisions"]
+        tickers = group["tickers"]
+        scope = f"tickers={len(tickers)}" if tickers else f"runs={group['samples']}"
+        consolidated.append(
+            {
+                "profile": group["profile"],
+                "removed_family": group["removed_family"],
+                "return_delta_pct": group["return_delta_pct"],
+                "drawdown_delta_pct": group["drawdown_delta_pct"],
+                "profit_factor_delta": group["profit_factor_delta"],
+                "decision": decisions[0] if len(decisions) == 1 else "mixed",
+                "scope": scope,
+                "notes": group["notes"],
+            }
+        )
+    return consolidated
 
 
 def _fmt_delta(value: Any, *, decimals: int = 2, suffix: str = "%") -> str:

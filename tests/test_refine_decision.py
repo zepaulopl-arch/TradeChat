@@ -1,4 +1,5 @@
 from app.refine_decision import build_refine_decision_matrix
+from app.refine_service import render_refine_decision_table
 
 
 def test_refine_decision_remove_candidate():
@@ -71,3 +72,50 @@ def test_refine_decision_inconclusive_low_trades():
     )
     no_fundamentals = next(row for row in decisions if row["profile"] == "no_fundamentals")
     assert no_fundamentals["decision"] == "inconclusive"
+
+
+def test_refine_decision_render_consolidates_profile_and_reports_noop_family():
+    decisions = build_refine_decision_matrix(
+        [
+            {
+                "ticker": "PETR4.SA",
+                "horizon": "d1",
+                "profile": "full",
+                "mae_return": 0.010,
+                "quality": 0.50,
+                "selected_feature_count": 8,
+                "family_counts": {"technical": 8, "context": 1, "fundamentals": 0, "sentiment": 0},
+            },
+            {
+                "ticker": "PETR4.SA",
+                "horizon": "d1",
+                "profile": "no_sentiment",
+                "mae_return": 0.010,
+                "quality": 0.50,
+                "selected_feature_count": 8,
+                "family_counts": {"technical": 8, "context": 1, "fundamentals": 0, "sentiment": 0},
+            },
+            {
+                "ticker": "VALE3.SA",
+                "horizon": "d1",
+                "profile": "full",
+                "mae_return": 0.010,
+                "quality": 0.50,
+                "selected_feature_count": 8,
+                "family_counts": {"technical": 8, "context": 1, "fundamentals": 0, "sentiment": 0},
+            },
+            {
+                "ticker": "VALE3.SA",
+                "horizon": "d1",
+                "profile": "no_sentiment",
+                "mae_return": 0.010,
+                "quality": 0.50,
+                "selected_feature_count": 8,
+                "family_counts": {"technical": 8, "context": 1, "fundamentals": 0, "sentiment": 0},
+            },
+        ]
+    )
+    output = "\n".join(render_refine_decision_table(decisions, width=100))
+    assert output.count("no_sentiment") == 1
+    assert "tickers=2" in output
+    assert "sentiment has 0 selected features; removal is a no-op for this run." in output

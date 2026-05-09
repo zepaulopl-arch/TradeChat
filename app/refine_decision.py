@@ -24,6 +24,20 @@ def _int(row: dict[str, Any], key: str, default: int = 0) -> int:
         return default
 
 
+def _removed_family_noop_notes(removed_family: str, base_counts: dict[str, Any]) -> list[str]:
+    notes: list[str] = []
+    for family in str(removed_family or "").split("+"):
+        if family in {"", "none"}:
+            continue
+        try:
+            selected_count = int(float(base_counts.get(family, 0) or 0))
+        except (TypeError, ValueError):
+            selected_count = 0
+        if selected_count <= 0:
+            notes.append(f"{family} has 0 selected features; removal is a no-op for this run.")
+    return notes
+
+
 def _decision_from_economic_delta(
     *,
     profile: str,
@@ -129,6 +143,7 @@ def build_refine_decision_matrix(
         horizon = str(row.get("horizon", ""))
         profile = str(row.get("profile", "n/a"))
         base = grouped.get((ticker, horizon, "full"), row)
+        removed_family = PROFILE_TO_REMOVED_FAMILY.get(profile, "none")
         mae_delta = _float(row, "mae_return") - _float(base, "mae_return")
         quality_delta = _float(row, "quality") - _float(base, "quality")
         decision, rationale = _decision_from_holdout_delta(
@@ -137,12 +152,17 @@ def build_refine_decision_matrix(
             quality_delta=quality_delta,
             selected_feature_count=_int(row, "selected_feature_count"),
         )
+        no_op_notes = _removed_family_noop_notes(
+            removed_family,
+            base.get("family_counts", {}) or {},
+        )
+        rationale = [*rationale, *no_op_notes]
         decisions.append(
             {
                 "ticker": ticker,
                 "horizon": horizon,
                 "profile": profile,
-                "removed_family": PROFILE_TO_REMOVED_FAMILY.get(profile, "none"),
+                "removed_family": removed_family,
                 "mae_delta": float(mae_delta),
                 "quality_delta": float(quality_delta),
                 "return_delta_pct": "",
@@ -152,6 +172,7 @@ def build_refine_decision_matrix(
                 "exposure_delta_pct": "",
                 "decision": decision,
                 "rationale": rationale,
+                "no_op_notes": no_op_notes,
             }
         )
     return decisions
