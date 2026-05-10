@@ -61,6 +61,15 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
     matrix.add_argument("--skip-pytest", action="store_true")
     matrix.add_argument("--skip-data-audit", action="store_true")
     matrix.add_argument("--skip-signal-rank", action="store_true")
+    matrix.add_argument(
+        "--skip-preflight", action="store_true", help="skip matrix artifact/model preflight"
+    )
+    matrix.add_argument(
+        "--allow-untrained",
+        action="store_true",
+        help="allow matrix smoke tests with missing/zero artifacts",
+    )
+    matrix.add_argument("--preflight-sample-size", type=int, default=10)
     matrix.add_argument("--skip-full-universe", action="store_true")
     matrix.add_argument("--include-full-universe", action="store_true")
     matrix.add_argument("--skip-per-asset", action="store_true")

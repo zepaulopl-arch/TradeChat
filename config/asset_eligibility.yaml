@@ -1,0 +1,556 @@
+asset_eligibility:
+  aggressive_profiles: [relaxed]
+  default_reason: "no matrix evidence for this asset/profile"
+  generated_from: logs/policy_matrix/full_20260510_after_retrain
+  note: replay-only evidence; require walk-forward before operational promotion
+  default_status: untested
+  assets:
+    SBSP3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 3.05
+      replay_trades: 20
+      replay_profit_factor: "2.41"
+      replay_drawdown_pct: -1.30
+      decision: OBSERVE
+      reason: "relaxed: return +3.05%, PF 2.41, trades 20, DD -1.30%"
+    TOTS3.SA:
+      status: observe
+      best_profile: active
+      replay_return_pct: 2.59
+      replay_trades: 9
+      replay_profit_factor: "6.6"
+      replay_drawdown_pct: -0.79
+      decision: PROMOTE
+      reason: "active: return +2.59%, PF 6.6, trades 9, DD -0.79%"
+    PETR4.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.87
+      replay_trades: 14
+      replay_profit_factor: "2.69"
+      replay_drawdown_pct: -1.63
+      decision: OBSERVE
+      reason: "relaxed: return +1.87%, PF 2.69, trades 14, DD -1.63%"
+    BBDC4.SA:
+      status: observe
+      best_profile: active
+      replay_return_pct: 1.85
+      replay_trades: 8
+      replay_profit_factor: "3.3"
+      replay_drawdown_pct: -1.09
+      decision: OBSERVE
+      reason: "active: return +1.85%, PF 3.3, trades 8, DD -1.09%"
+    ABEV3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.76
+      replay_trades: 20
+      replay_profit_factor: "1.34"
+      replay_drawdown_pct: -2.25
+      decision: OBSERVE
+      reason: "relaxed: return +1.76%, PF 1.34, trades 20, DD -2.25%"
+    TAEE11.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.71
+      replay_trades: 13
+      replay_profit_factor: "3.71"
+      replay_drawdown_pct: -0.71
+      decision: OBSERVE
+      reason: "relaxed: return +1.71%, PF 3.71, trades 13, DD -0.71%"
+    AXIA3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.54
+      replay_trades: 9
+      replay_profit_factor: "2.33"
+      replay_drawdown_pct: -1.23
+      decision: OBSERVE
+      reason: "relaxed: return +1.54%, PF 2.33, trades 9, DD -1.23%"
+    WEGE3.SA:
+      status: observe
+      best_profile: active
+      replay_return_pct: 1.34
+      replay_trades: 5
+      replay_profit_factor: "2.46"
+      replay_drawdown_pct: -1.17
+      decision: INCONCLUSIVE
+      reason: "active: return +1.34%, PF 2.46, trades 5, DD -1.17%"
+    AXIA6.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.19
+      replay_trades: 10
+      replay_profit_factor: "inf"
+      replay_drawdown_pct: -0.92
+      decision: OBSERVE
+      reason: "relaxed: return +1.19%, PF inf, trades 10, DD -0.92%"
+    EGIE3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 1.15
+      replay_trades: 20
+      replay_profit_factor: "1.43"
+      replay_drawdown_pct: -1.61
+      decision: OBSERVE
+      reason: "relaxed: return +1.15%, PF 1.43, trades 20, DD -1.61%"
+    AXIA5.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 0.99
+      replay_trades: 5
+      replay_profit_factor: "inf"
+      replay_drawdown_pct: -0.05
+      decision: PROMOTE
+      reason: "relaxed: return +0.99%, PF inf, trades 5, DD -0.05%"
+    B3SA3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 0.85
+      replay_trades: 11
+      replay_profit_factor: "1.69"
+      replay_drawdown_pct: -1.23
+      decision: OBSERVE
+      reason: "relaxed: return +0.85%, PF 1.69, trades 11, DD -1.23%"
+    YDUQ3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 0.71
+      replay_trades: 6
+      replay_profit_factor: "1.82"
+      replay_drawdown_pct: -1.05
+      decision: INCONCLUSIVE
+      reason: "relaxed: return +0.71%, PF 1.82, trades 6, DD -1.05%"
+    RAIL3.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 0.67
+      replay_trades: 18
+      replay_profit_factor: "1.23"
+      replay_drawdown_pct: -1.40
+      decision: PROMOTE
+      reason: "relaxed: return +0.67%, PF 1.23, trades 18, DD -1.40%"
+    ITUB4.SA:
+      status: observe
+      best_profile: relaxed
+      replay_return_pct: 0.43
+      replay_trades: 16
+      replay_profit_factor: "1.12"
+      replay_drawdown_pct: -2.48
+      decision: OBSERVE
+      reason: "relaxed: return +0.43%, PF 1.12, trades 16, DD -2.48%"
+    PRIO3.SA:
+      status: observe
+      best_profile: active
+      replay_return_pct: 0.20
+      replay_trades: 9
+      replay_profit_factor: "1.14"
+      replay_drawdown_pct: -1.59
+      decision: OBSERVE
+      reason: "active: return +0.20%, PF 1.14, trades 9, DD -1.59%"
+    BBSE3.SA:
+      status: observe_insufficient
+      best_profile: relaxed
+      replay_return_pct: 0.57
+      replay_trades: 4
+      replay_profit_factor: "inf"
+      replay_drawdown_pct: -0.34
+      decision: INCONCLUSIVE
+      reason: "best weak relaxed: return +0.57%, PF inf, trades 4, DD -0.34%"
+    AZZA3.SA:
+      status: observe_insufficient
+      best_profile: relaxed
+      replay_return_pct: 0.26
+      replay_trades: 3
+      replay_profit_factor: "inf"
+      replay_drawdown_pct: -0.14
+      decision: INCONCLUSIVE
+      reason: "best weak relaxed: return +0.26%, PF inf, trades 3, DD -0.14%"
+    USIM5.SA:
+      status: observe_insufficient
+      best_profile: relaxed
+      replay_return_pct: 0.15
+      replay_trades: 2
+      replay_profit_factor: "inf"
+      replay_drawdown_pct: -0.11
+      decision: INCONCLUSIVE
+      reason: "best weak relaxed: return +0.15%, PF inf, trades 2, DD -0.11%"
+    CYRE3.SA:
+      status: observe_insufficient
+      best_profile: active
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.0"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "best weak active: return +0.00%, PF 0.0, trades 0, DD +0.00%"
+    MOTV3.SA:
+      status: observe_insufficient
+      best_profile: strict
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.0"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "best weak strict: return +0.00%, PF 0.0, trades 0, DD +0.00%"
+    MRVE3.SA:
+      status: observe_insufficient
+      best_profile: active
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.0"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "best weak active: return +0.00%, PF 0.0, trades 0, DD +0.00%"
+    SUZB3.SA:
+      status: observe_insufficient
+      best_profile: active
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.0"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "best weak active: return +0.00%, PF 0.0, trades 0, DD +0.00%"
+    KLBN11.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.07
+      replay_trades: 8
+      replay_profit_factor: "0.95"
+      replay_drawdown_pct: -1.41
+      decision: REJECT
+      reason: "relaxed bad: return -0.07%, PF 0.95, trades 8, DD -1.41%"
+    BPAC11.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.32
+      replay_trades: 20
+      replay_profit_factor: "0.93"
+      replay_drawdown_pct: -2.45
+      decision: REJECT
+      reason: "relaxed bad: return -0.32%, PF 0.93, trades 20, DD -2.45%"
+    RENT3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.33
+      replay_trades: 20
+      replay_profit_factor: "0.92"
+      replay_drawdown_pct: -4.17
+      decision: REJECT
+      reason: "relaxed bad: return -0.33%, PF 0.92, trades 20, DD -4.17%"
+    SANB11.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.40
+      replay_trades: 11
+      replay_profit_factor: "0.84"
+      replay_drawdown_pct: -2.56
+      decision: REJECT
+      reason: "relaxed bad: return -0.40%, PF 0.84, trades 11, DD -2.56%"
+    PSSA3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.47
+      replay_trades: 14
+      replay_profit_factor: "0.84"
+      replay_drawdown_pct: -2.52
+      decision: REJECT
+      reason: "relaxed bad: return -0.47%, PF 0.84, trades 14, DD -2.52%"
+    BRAP4.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.88
+      replay_trades: 20
+      replay_profit_factor: "0.77"
+      replay_drawdown_pct: -2.28
+      decision: REJECT
+      reason: "relaxed bad: return -0.88%, PF 0.77, trades 20, DD -2.28%"
+    MULT3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.88
+      replay_trades: 17
+      replay_profit_factor: "0.77"
+      replay_drawdown_pct: -2.25
+      decision: REJECT
+      reason: "relaxed bad: return -0.88%, PF 0.77, trades 17, DD -2.25%"
+    POMO4.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -0.94
+      replay_trades: 18
+      replay_profit_factor: "0.77"
+      replay_drawdown_pct: -2.60
+      decision: REJECT
+      reason: "relaxed bad: return -0.94%, PF 0.77, trades 18, DD -2.60%"
+    TIMS3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.13
+      replay_trades: 9
+      replay_profit_factor: "0.45"
+      replay_drawdown_pct: -1.96
+      decision: REJECT
+      reason: "relaxed bad: return -1.13%, PF 0.45, trades 9, DD -1.96%"
+    GGBR4.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.16
+      replay_trades: 18
+      replay_profit_factor: "0.76"
+      replay_drawdown_pct: -4.49
+      decision: REJECT
+      reason: "relaxed bad: return -1.16%, PF 0.76, trades 18, DD -4.49%"
+    SMTO3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.16
+      replay_trades: 19
+      replay_profit_factor: "0.63"
+      replay_drawdown_pct: -2.44
+      decision: REJECT
+      reason: "relaxed bad: return -1.16%, PF 0.63, trades 19, DD -2.44%"
+    MGLU3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.19
+      replay_trades: 18
+      replay_profit_factor: "0.66"
+      replay_drawdown_pct: -3.12
+      decision: REJECT
+      reason: "relaxed bad: return -1.19%, PF 0.66, trades 18, DD -3.12%"
+    SLCE3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.54
+      replay_trades: 19
+      replay_profit_factor: "0.57"
+      replay_drawdown_pct: -3.16
+      decision: REJECT
+      reason: "relaxed bad: return -1.54%, PF 0.57, trades 19, DD -3.16%"
+    CSAN3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.66
+      replay_trades: 19
+      replay_profit_factor: "0.62"
+      replay_drawdown_pct: -3.77
+      decision: REJECT
+      reason: "relaxed bad: return -1.66%, PF 0.62, trades 19, DD -3.77%"
+    CPFE3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.72
+      replay_trades: 20
+      replay_profit_factor: "0.54"
+      replay_drawdown_pct: -3.07
+      decision: REJECT
+      reason: "relaxed bad: return -1.72%, PF 0.54, trades 20, DD -3.07%"
+    CSNA3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.76
+      replay_trades: 11
+      replay_profit_factor: "0.45"
+      replay_drawdown_pct: -4.11
+      decision: REJECT
+      reason: "relaxed bad: return -1.76%, PF 0.45, trades 11, DD -4.11%"
+    LREN3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -1.97
+      replay_trades: 18
+      replay_profit_factor: "0.68"
+      replay_drawdown_pct: -3.01
+      decision: REJECT
+      reason: "relaxed bad: return -1.97%, PF 0.68, trades 18, DD -3.01%"
+    CMIG4.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.03
+      replay_trades: 17
+      replay_profit_factor: "0.48"
+      replay_drawdown_pct: -2.81
+      decision: REJECT
+      reason: "relaxed bad: return -2.03%, PF 0.48, trades 17, DD -2.81%"
+    IGTI11.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.12
+      replay_trades: 16
+      replay_profit_factor: "0.47"
+      replay_drawdown_pct: -3.12
+      decision: REJECT
+      reason: "relaxed bad: return -2.12%, PF 0.47, trades 16, DD -3.12%"
+    BBAS3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.29
+      replay_trades: 17
+      replay_profit_factor: "0.54"
+      replay_drawdown_pct: -2.89
+      decision: REJECT
+      reason: "relaxed bad: return -2.29%, PF 0.54, trades 17, DD -2.89%"
+    RADL3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.48
+      replay_trades: 20
+      replay_profit_factor: "0.48"
+      replay_drawdown_pct: -4.02
+      decision: REJECT
+      reason: "relaxed bad: return -2.48%, PF 0.48, trades 20, DD -4.02%"
+    CMIN3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.80
+      replay_trades: 12
+      replay_profit_factor: "0.39"
+      replay_drawdown_pct: -3.45
+      decision: REJECT
+      reason: "relaxed bad: return -2.80%, PF 0.39, trades 12, DD -3.45%"
+    VALE3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -2.89
+      replay_trades: 20
+      replay_profit_factor: "0.51"
+      replay_drawdown_pct: -4.02
+      decision: REJECT
+      reason: "relaxed bad: return -2.89%, PF 0.51, trades 20, DD -4.02%"
+    AGRO3.SA:
+      status: blocked_aggressive
+      best_profile: none
+      replay_return_pct: -3.97
+      replay_trades: 19
+      replay_profit_factor: "0.35"
+      replay_drawdown_pct: -5.81
+      decision: REJECT
+      reason: "relaxed bad: return -3.97%, PF 0.35, trades 19, DD -5.81%"
+    AMER3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    AZUL3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    BRAV3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    COGN3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    EMBJ3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    FLRY3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    HAPV3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    JBSS32.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    MBRF3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    RAIZ4.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    RDOR3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    UGPA3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    VAMO3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"
+    VIVT3.SA:
+      status: untested_no_trades
+      best_profile: none
+      replay_return_pct: 0.00
+      replay_trades: 0
+      replay_profit_factor: "0.00"
+      replay_drawdown_pct: 0.00
+      decision: REJECT
+      reason: "no trades across profiles"

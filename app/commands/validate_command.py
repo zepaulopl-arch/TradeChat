@@ -74,6 +74,9 @@ def _run_matrix(args: argparse.Namespace) -> None:
     _append_optional(argv, "--cash", getattr(args, "cash", None))
     _append_optional(argv, "--max-positions", getattr(args, "max_positions", None))
     _append_positive_int(argv, "--max-assets", getattr(args, "max_assets", 0))
+    _append_positive_int(
+        argv, "--preflight-sample-size", getattr(args, "preflight_sample_size", 10)
+    )
 
     for attr, flag in (
         ("allow_short", "--allow-short"),
@@ -81,6 +84,8 @@ def _run_matrix(args: argparse.Namespace) -> None:
         ("skip_pytest", "--skip-pytest"),
         ("skip_data_audit", "--skip-data-audit"),
         ("skip_signal_rank", "--skip-signal-rank"),
+        ("skip_preflight", "--skip-preflight"),
+        ("allow_untrained", "--allow-untrained"),
         ("skip_per_asset", "--skip-per-asset"),
         ("resume", "--resume"),
         ("stop_on_error", "--stop-on-error"),

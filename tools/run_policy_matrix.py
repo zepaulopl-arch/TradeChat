@@ -86,6 +86,123 @@ def _load_all_tickers(config_path: str | None, asset_list: str) -> list[str]:
     return list(registry_list_tickers(cfg, asset_list))
 
 
+def _artifact_profile_for_ticker(config_path: str | None, ticker: str) -> dict[str, object]:
+    # Import lazily so --help/static tests remain cheap.
+    from app.config import load_config, models_dir
+    from app.utils import normalize_ticker, read_json, safe_ticker
+
+    cfg = load_config(config_path)
+    normalized = normalize_ticker(ticker)
+    ticker_dir = models_dir(cfg) / safe_ticker(normalized)
+    signal_path = ticker_dir / "latest_signal.json"
+    model_files = []
+    if ticker_dir.exists():
+        model_files = [
+            p
+            for p in ticker_dir.rglob("*")
+            if p.is_file() and p.name != "latest_signal.json" and not p.name.endswith(".tmp")
+        ]
+
+    has_signal = signal_path.exists()
+    zero_signal = False
+    quality = 0.0
+    max_abs_prediction = 0.0
+    if has_signal:
+        try:
+            signal = read_json(signal_path)
+            horizons = signal.get("horizons", {}) or {}
+            values = []
+            for data in horizons.values():
+                if isinstance(data, dict):
+                    values.append(float(data.get("prediction_return", 0.0) or 0.0))
+                    quality = max(
+                        quality,
+                        float(data.get("quality", data.get("confidence", 0.0)) or 0.0),
+                    )
+            policy = signal.get("policy", {}) or {}
+            quality = max(
+                quality,
+                float(policy.get("quality_pct", policy.get("confidence_pct", 0.0)) or 0.0) / 100.0,
+            )
+            max_abs_prediction = max([abs(v) for v in values] or [0.0])
+            zero_signal = max_abs_prediction <= 1e-12 and quality <= 1e-12
+        except Exception:
+            zero_signal = True
+
+    return {
+        "ticker": normalized,
+        "ticker_dir": str(ticker_dir),
+        "has_dir": ticker_dir.exists(),
+        "has_signal": has_signal,
+        "model_file_count": len(model_files),
+        "has_model_artifacts": len(model_files) > 0,
+        "zero_signal": zero_signal,
+        "quality": quality,
+        "max_abs_prediction": max_abs_prediction,
+    }
+
+
+def _write_preflight_report(run_dir: Path, rows: list[dict[str, object]]) -> Path:
+    path = run_dir / "preflight_artifacts.csv"
+    fieldnames = (
+        "ticker",
+        "has_dir",
+        "has_signal",
+        "has_model_artifacts",
+        "model_file_count",
+        "zero_signal",
+        "quality",
+        "max_abs_prediction",
+        "ticker_dir",
+    )
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _run_artifact_preflight(run_dir: Path, tickers: list[str], args: argparse.Namespace) -> None:
+    if bool(getattr(args, "skip_preflight", False)):
+        print("[SKIP] preflight artifact/model check")
+        return
+
+    rows = [_artifact_profile_for_ticker(args.config, ticker) for ticker in tickers]
+    report_path = _write_preflight_report(run_dir, rows)
+    missing_model = [r for r in rows if not r.get("has_model_artifacts")]
+    missing_signal = [r for r in rows if not r.get("has_signal")]
+    zero_signal = [r for r in rows if r.get("has_signal") and r.get("zero_signal")]
+
+    print("Preflight artifacts/models:")
+    print(f"  checked: {len(rows)}")
+    print(f"  missing model artifacts: {len(missing_model)}")
+    print(f"  missing latest_signal.json: {len(missing_signal)}")
+    print(f"  zero latest signals: {len(zero_signal)}")
+    print(f"  report: {report_path}")
+
+    if (missing_model or missing_signal or zero_signal) and not bool(
+        getattr(args, "allow_untrained", False)
+    ):
+
+        def sample(items: list[dict[str, object]]) -> str:
+            cap = max(1, int(getattr(args, "preflight_sample_size", 10) or 10))
+            return ", ".join(str(item.get("ticker")) for item in items[:cap])
+
+        messages = []
+        if missing_model:
+            messages.append(f"assets without model artifacts: {sample(missing_model)}")
+        if missing_signal:
+            messages.append(f"assets without latest_signal.json: {sample(missing_signal)}")
+        if zero_signal:
+            messages.append(f"assets with zero signals: {sample(zero_signal)}")
+        joined = "; ".join(messages)
+        raise SystemExit(
+            "Policy matrix preflight failed. "
+            f"{joined}. "
+            "Train/generate signals first, or pass --allow-untrained for a smoke test."
+        )
+
+
 def _iter_existing(paths: Iterable[str]) -> list[str]:
     return [p for p in paths if Path(p).exists()]
 
@@ -347,6 +464,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-pytest", action="store_true")
     parser.add_argument("--skip-data-audit", action="store_true")
     parser.add_argument("--skip-signal-rank", action="store_true")
+    parser.add_argument(
+        "--skip-preflight", action="store_true", help="skip artifact/model preflight"
+    )
+    parser.add_argument(
+        "--allow-untrained",
+        action="store_true",
+        help="allow matrix to run even when preflight finds missing/zero artifacts",
+    )
+    parser.add_argument(
+        "--preflight-sample-size",
+        type=int,
+        default=10,
+        help="number of problematic tickers shown in preflight error",
+    )
     parser.add_argument("--skip-full-universe", action="store_true")
     parser.add_argument("--skip-per-asset", action="store_true")
     parser.add_argument("--max-assets", type=int, default=0, help="optional cap for smoke tests")
@@ -420,6 +551,8 @@ def main(argv: list[str] | None = None) -> int:
             "allow_short": args.allow_short,
             "walkforward_autotune": args.walkforward_autotune,
             "jobs": max(1, int(args.jobs or 1)),
+            "skip_preflight": bool(args.skip_preflight),
+            "allow_untrained": bool(args.allow_untrained),
         },
     }
     _write_manifest(run_dir / "manifest.json", manifest)
@@ -427,6 +560,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Tickers: {len(tickers)} | Profiles: {', '.join(args.profiles)} | Mode: {args.mode} | Jobs: {max(1, int(args.jobs or 1))}"
     )
+
+    _run_artifact_preflight(run_dir, tickers, args)
 
     if not args.skip_pytest:
         tests = _iter_existing(DEFAULT_LIGHT_TESTS)

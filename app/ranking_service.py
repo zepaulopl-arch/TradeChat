@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from .asset_eligibility import apply_eligibility_to_signal
 from .policy import active_policy_profile, signal_policy_summary
 from .portfolio_service import iter_latest_signals
 from .presentation import (
@@ -29,7 +30,9 @@ def collect_ranked_signals(
 ) -> list[dict[str, Any]]:
     allowed = {normalize_ticker(ticker) for ticker in (tickers or [])}
     signals: list[dict[str, Any]] = []
-    for data in iter_latest_signals(cfg):
+    profile_name = active_policy_profile(cfg)
+    for raw_data in iter_latest_signals(cfg):
+        data = apply_eligibility_to_signal(cfg, raw_data, profile=profile_name)
         ticker = normalize_ticker(str(data.get("ticker", "")))
         if allowed and ticker not in allowed:
             continue
@@ -52,10 +55,21 @@ def collect_ranked_signals(
                     "d20_ret": float(horizons.get("d20", {}).get("prediction_return", 0.0) or 0.0)
                     * 100.0,
                     "quality_pct": quality_pct,
-                    "score": signal_score(data),
-                    "priority": signal_priority(data),
+                    "score": (
+                        0.0 if data.get("eligibility", {}).get("blocked") else signal_score(data)
+                    ),
+                    "priority": (
+                        0 if data.get("eligibility", {}).get("blocked") else signal_priority(data)
+                    ),
                     "rr": float(policy.get("risk_reward_ratio", 0.0) or 0.0),
-                    "blocker": signal_policy_summary(cfg, data),
+                    "blocker": (
+                        data.get("eligibility", {}).get("blocker")
+                        if data.get("eligibility", {}).get("blocked")
+                        else signal_policy_summary(cfg, data)
+                    ),
+                    "eligibility": str(data.get("eligibility", {}).get("label", "n/a")),
+                    "eligibility_reason": str(data.get("eligibility", {}).get("reason", "")),
+                    "eligibility_blocked": bool(data.get("eligibility", {}).get("blocked", False)),
                 }
             )
         except Exception:
@@ -124,7 +138,7 @@ def render_ranking(
         aligns = ["left", "left", "left", "right", "right", "right"]
         min_widths = [8, 8, 3, 8, 6, 7]
     elif diagnostic:
-        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "BLOCKER"]
+        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "ELIG", "BLOCKER"]
         rows = [
             [
                 paint(row["ticker"], C.BOLD),
@@ -134,14 +148,15 @@ def render_ranking(
                 f"{row['d5_ret']:+.2f}%",
                 f"{row['d20_ret']:+.2f}%",
                 f"{row['quality_pct']:.0f}%",
+                str(row.get("eligibility", "n/a")),
                 str(row.get("blocker", "n/a")),
             ]
             for row in rows_data
         ]
-        aligns = ["left", "left", "left", "right", "right", "right", "right", "left"]
-        min_widths = [8, 8, 3, 7, 7, 8, 6, 18]
+        aligns = ["left", "left", "left", "right", "right", "right", "right", "left", "left"]
+        min_widths = [8, 8, 3, 7, 7, 8, 6, 12, 18]
     else:
-        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "R/R", "SCORE"]
+        headers = ["TICKER", "SIGNAL", "H", "D1 %", "D5 %", "D20 %", "QUAL", "ELIG", "R/R", "SCORE"]
         rows = [
             [
                 paint(row["ticker"], C.BOLD),
@@ -151,13 +166,25 @@ def render_ranking(
                 f"{row['d5_ret']:+.2f}%",
                 f"{row['d20_ret']:+.2f}%",
                 f"{row['quality_pct']:.0f}%",
+                str(row.get("eligibility", "n/a")),
                 f"{row['rr']:.1f}",
                 f"{row['score']:.1f}",
             ]
             for row in rows_data
         ]
-        aligns = ["left", "left", "left", "right", "right", "right", "right", "right", "right"]
-        min_widths = [8, 8, 3, 7, 7, 8, 6, 5, 7]
+        aligns = [
+            "left",
+            "left",
+            "left",
+            "right",
+            "right",
+            "right",
+            "right",
+            "left",
+            "right",
+            "right",
+        ]
+        min_widths = [8, 8, 3, 7, 7, 8, 6, 12, 5, 7]
 
     lines.extend(render_table(headers, rows, width=width, aligns=aligns, min_widths=min_widths))
     lines.append(f"{paint('Score', C.DIM)} = signal quality x |trigger return| / sqrt(days)")
