@@ -1,0 +1,2940 @@
+version: 1
+description: IBOV operational asset registry generated from the attached B3 daily Ibovespa composition file. This file is
+  intentionally saved as data_ibov.yaml and does not replace config/data.yaml. Enriched with researched sector/CNPJ metadata
+  for all IBOV components.
+sources:
+  b3_companies_listed: B3 Empresas Listadas
+  b3_sector_classification: B3 Classificacao Setorial
+  cvm: CVM demonstracoes financeiras
+  market_prices: Yahoo Finance tickers used by yfinance
+  b3_ibov_daily_file: IBOVDia_11-05-26.csv
+  cvm_cad_cia_aberta: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv
+  b3_listed_companies_pages: B3 Empresas Listadas / Códigos de Negociação pages consulted for CNPJ, activity and CVM codes
+  b3_sector_classification_pages: B3/listed-company and market-data pages consulted for sector/subsector/segment validation
+  ri_company_pages: Company investor-relations pages used as secondary validation when available
+indices:
+  default_context:
+  - IBOV
+  - USDBRL
+  - BRENT
+  available_now:
+    IBOV:
+      label: Ibovespa
+      role: benchmark_market
+      provider: yfinance
+      yahoo_ticker: ^BVSP
+      enabled: true
+    USDBRL:
+      label: USD/BRL
+      role: fx
+      provider: yfinance
+      yahoo_ticker: USDBRL=X
+      enabled: true
+    BRENT:
+      label: Brent crude oil futures
+      role: commodity_oil
+      provider: yfinance
+      yahoo_ticker: BZ=F
+      enabled: true
+    IFNC:
+      label: Financial sector proxy (FIND11 ETF)
+      role: sector_financials
+      provider: yfinance
+      yahoo_ticker: FIND11.SA
+      enabled: true
+      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+    IEEX:
+      label: Indice de Energia Eletrica B3
+      role: sector_utilities
+      provider: yfinance
+      yahoo_ticker: ^IEE
+      enabled: true
+    IBRX50:
+      label: IBrX 50 B3
+      role: large_caps
+      provider: yfinance
+      yahoo_ticker: ^IBX50
+      enabled: true
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+    UTIL:
+      label: Utilities proxy via IEEX
+      role: sector_utilities
+      provider: derived
+      yahoo_ticker: null
+      enabled: false
+      validation_status: use_IEEX_until_direct_provider
+  future_candidates:
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+  catalog:
+    IBOV:
+      label: Ibovespa
+      role: benchmark_market
+      provider: yfinance
+      yahoo_ticker: ^BVSP
+      enabled: true
+    USDBRL:
+      label: USD/BRL
+      role: fx
+      provider: yfinance
+      yahoo_ticker: USDBRL=X
+      enabled: true
+    BRENT:
+      label: Brent crude oil futures
+      role: commodity_oil
+      provider: yfinance
+      yahoo_ticker: BZ=F
+      enabled: true
+    IFNC:
+      label: Financial sector proxy (FIND11 ETF)
+      role: sector_financials
+      provider: yfinance
+      yahoo_ticker: FIND11.SA
+      enabled: true
+      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+    IEEX:
+      label: Indice de Energia Eletrica B3
+      role: sector_utilities
+      provider: yfinance
+      yahoo_ticker: ^IEE
+      enabled: true
+    IBRX50:
+      label: IBrX 50 B3
+      role: large_caps
+      provider: yfinance
+      yahoo_ticker: ^IBX50
+      enabled: true
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+    UTIL:
+      label: Utilities proxy via IEEX
+      role: sector_utilities
+      provider: derived
+      yahoo_ticker: null
+      enabled: false
+      validation_status: use_IEEX_until_direct_provider
+defaults:
+  asset_type: stock
+  country: BR
+  currency: BRL
+  context_tickers:
+  - ^BVSP
+  - USDBRL=X
+  - BZ=F
+assets:
+  ALOS3.SA:
+    name: ALLOS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 05.878.397/0001-32
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ALOS3
+    yahoo_ticker: ALOS3.SA
+    b3_name: ALLOS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 478558715
+      weight_pct: 0.567
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: 'B3/CVM: Allos S.A.; operationally mapped to real_estate/shopping_centers.'
+  ABEV3.SA:
+    name: AMBEV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: beverages
+    financial_class: non_financial
+    cnpj: 07.526.557/0001-00
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: ABEV3
+    yahoo_ticker: ABEV3.SA
+    b3_name: AMBEV S/A
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 4273841357
+      weight_pct: 2.724
+  ASAI3.SA:
+    name: ASSAI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_retail
+    financial_class: non_financial
+    cnpj: 06.057.223/0001-71
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ASAI3
+    yahoo_ticker: ASAI3.SA
+    b3_name: ASSAI
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1338623499
+      weight_pct: 0.485
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Sendas Distribuidora S.A.; cash-and-carry food retail.
+  AURE3.SA:
+    name: AUREN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 28.594.234/0001-23
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: AURE3
+    yahoo_ticker: AURE3.SA
+    b3_name: AUREN
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 317799925
+      weight_pct: 0.171
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Auren Energia S.A.; electric generation/transmission/commercialization.
+  AXIA3.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - ^IEE
+    - ^IBX50
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    share_class: 'ON'
+    b3_code: AXIA3
+    yahoo_ticker: AXIA3.SA
+    b3_name: AXIA ENERGIA
+    b3_type_raw: ON      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1863816444
+      weight_pct: 4.276
+  AXIA6.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - ^IEE
+    - ^IBX50
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    share_class: PNB
+    b3_code: AXIA6
+    yahoo_ticker: AXIA6.SA
+    b3_name: AXIA ENERGIA
+    b3_type_raw: PNB     N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 266311915
+      weight_pct: 0.671
+  AZZA3.SA:
+    name: AZZAS 2154
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 16.590.234/0001-76
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: AZZA3
+    yahoo_ticker: AZZA3.SA
+    b3_name: AZZAS 2154
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 109571260
+      weight_pct: 0.087
+  B3SA3.SA:
+    name: B3
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: market_infrastructure
+    financial_class: financial
+    cnpj: 09.346.601/0001-25
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: B3SA3
+    yahoo_ticker: B3SA3.SA
+    b3_name: B3
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 4997059816
+      weight_pct: 3.499
+  BBSE3.SA:
+    name: BB SEGURIDADE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 17.344.597/0001-94
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BBSE3
+    yahoo_ticker: BBSE3.SA
+    b3_name: BBSEGURIDADE
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 616248544
+      weight_pct: 0.831
+  BBDC3.SA:
+    name: BRADESCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.746.948/0001-12
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BBDC3
+    yahoo_ticker: BBDC3.SA
+    b3_name: BRADESCO
+    share_class: 'ON'
+    b3_type_raw: ON  EJ  N1
+    b3_listing_segment: N1
+    b3_type_flags:
+    - EJ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1464429403
+      weight_pct: 0.923
+  BBDC4.SA:
+    name: BRADESCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.746.948/0001-12
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BBDC4
+    yahoo_ticker: BBDC4.SA
+    b3_name: BRADESCO
+    share_class: PN
+    b3_type_raw: PN  EJ  N1
+    b3_listing_segment: N1
+    b3_type_flags:
+    - EJ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 5100889966
+      weight_pct: 3.703
+  BRAP4.SA:
+    name: BRADESPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: holding_mining
+    financial_class: non_financial
+    cnpj: 03.847.461/0001-92
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BRAP4
+    yahoo_ticker: BRAP4.SA
+    b3_name: BRADESPAR
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 250914708
+      weight_pct: 0.225
+  BBAS3.SA:
+    name: BANCO DO BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 00.000.000/0001-91
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BBAS3
+    yahoo_ticker: BBAS3.SA
+    b3_name: BRASIL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 2842496541
+      weight_pct: 2.42
+  BRKM5.SA:
+    name: BRASKEM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: petrochemicals
+    financial_class: non_financial
+    cnpj: 42.150.391/0001-70
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: BRKM5
+    yahoo_ticker: BRKM5.SA
+    b3_name: BRASKEM
+    share_class: PNA
+    b3_type_raw: PNA     N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 265709734
+      weight_pct: 0.093
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Braskem S.A.; petrochemicals; Brent included as optional commodity context.
+  BRAV3.SA:
+    name: BRAVA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 12.091.809/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    - ^IBX50
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BRAV3
+    yahoo_ticker: BRAV3.SA
+    b3_name: BRAVA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 462883017
+      weight_pct: 0.317
+  BPAC11.SA:
+    name: BTG PACTUAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: investment_bank
+    financial_class: financial
+    cnpj: 30.306.294/0001-45
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: BPAC11
+    yahoo_ticker: BPAC11.SA
+    b3_name: BTGP BANCO
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1194624560
+      weight_pct: 2.736
+  CXSE3.SA:
+    name: CAIXA SEGURI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 22.543.331/0001-00
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: CXSE3
+    yahoo_ticker: CXSE3.SA
+    b3_name: CAIXA SEGURI
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 600000000
+      weight_pct: 0.415
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Caixa Seguridade Participações S.A.; insurance/financial holdings.
+  CEAB3.SA:
+    name: CEA MODAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 45.242.914/0001-05
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: CEAB3
+    yahoo_ticker: CEAB3.SA
+    b3_name: CEA MODAS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 204964309
+      weight_pct: 0.098
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: C&A Modas S.A.; apparel retail.
+  CMIG4.SA:
+    name: CEMIG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 17.155.730/0001-64
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CMIG4
+    yahoo_ticker: CMIG4.SA
+    b3_name: CEMIG
+    share_class: PN
+    b3_type_raw: PN  ED  N1
+    b3_listing_segment: N1
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1904057894
+      weight_pct: 0.875
+  COGN3.SA:
+    name: COGNA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: 02.800.026/0001-40
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: COGN3
+    yahoo_ticker: COGN3.SA
+    b3_name: COGNA ON
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1915914094
+      weight_pct: 0.211
+  CSMG3.SA:
+    name: COPASA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: water_sanitation
+    financial_class: non_financial
+    cnpj: 17.281.106/0001-03
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - UTIL
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: CSMG3
+    yahoo_ticker: CSMG3.SA
+    b3_name: COPASA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 188467895
+      weight_pct: 0.401
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Copasa; water and sanitation.
+  CPLE3.SA:
+    name: COPEL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 76.483.817/0001-20
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: CPLE3
+    yahoo_ticker: CPLE3.SA
+    b3_name: COPEL
+    share_class: 'ON'
+    b3_type_raw: ON  EJ  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - EJ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 2969406694
+      weight_pct: 1.794
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Companhia Paranaense de Energia - Copel.
+  CSAN3.SA:
+    name: COSAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_logistics
+    financial_class: non_financial
+    cnpj: 50.746.577/0001-15
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CSAN3
+    yahoo_ticker: CSAN3.SA
+    b3_name: COSAN
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 2242671999
+      weight_pct: 0.45
+  CPFE3.SA:
+    name: CPFL ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 02.429.144/0001-93
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CPFE3
+    yahoo_ticker: CPFE3.SA
+    b3_name: CPFL ENERGIA
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 187732538
+      weight_pct: 0.359
+  CMIN3.SA:
+    name: CSN MINERACAO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: 08.902.291/0001-15
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CMIN3
+    yahoo_ticker: CMIN3.SA
+    b3_name: CSNMINERACAO
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1646519336
+      weight_pct: 0.309
+  CURY3.SA:
+    name: CURY S/A
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 08.797.760/0001-83
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: CURY3
+    yahoo_ticker: CURY3.SA
+    b3_name: CURY S/A
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 160988231
+      weight_pct: 0.196
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Cury Construtora e Incorporadora S.A.; homebuilding/development.
+  CYRE3.SA:
+    name: CYRELA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 73.178.600/0001-12
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CYRE3
+    yahoo_ticker: CYRE3.SA
+    b3_name: CYRELA REALT
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 281609283
+      weight_pct: 0.246
+  DIRR3.SA:
+    name: DIRECIONAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 16.614.075/0001-00
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: DIRR3
+    yahoo_ticker: DIRR3.SA
+    b3_name: DIRECIONAL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 327091595
+      weight_pct: 0.169
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Direcional Engenharia S.A.; homebuilding/development.
+  EMBJ3.SA:
+    name: EMBRAER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: aerospace_defense
+    financial_class: non_financial
+    cnpj: 07.689.002/0001-89
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - ^IBX50
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: EMBJ3
+    yahoo_ticker: EMBJ3.SA
+    b3_name: EMBRAER
+    share_class: 'ON'
+    b3_type_raw: ON  ATZ NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ATZ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 711833141
+      weight_pct: 2.051
+  ENGI11.SA:
+    name: ENERGISA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.864.214/0001-06
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ENGI11
+    yahoo_ticker: ENGI11.SA
+    b3_name: ENERGISA
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 325503046
+      weight_pct: 0.67
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Energisa S.A.; electric utilities holding.
+  ENEV3.SA:
+    name: ENEVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 04.423.567/0001-21
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ENEV3
+    yahoo_ticker: ENEV3.SA
+    b3_name: ENEVA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1913352180
+      weight_pct: 2.037
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Eneva S.A.; electric power and gas-related generation; Brent optional context.
+  EGIE3.SA:
+    name: ENGIE BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 02.474.971/0001-90
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: EGIE3
+    yahoo_ticker: EGIE3.SA
+    b3_name: ENGIE BRASIL
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 357310487
+      weight_pct: 0.478
+  EQTL3.SA:
+    name: EQUATORIAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 03.220.438/0001-73
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: EQTL3
+    yahoo_ticker: EQTL3.SA
+    b3_name: EQUATORIAL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1247728993
+      weight_pct: 2.061
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Equatorial Energia S.A.; electric utilities holding.
+  FLRY3.SA:
+    name: FLEURY
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: diagnostics
+    financial_class: non_financial
+    cnpj: 60.840.055/0001-31
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: FLRY3
+    yahoo_ticker: FLRY3.SA
+    b3_name: FLEURY
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 447150822
+      weight_pct: 0.289
+  GGBR4.SA:
+    name: GERDAU
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 33.611.500/0001-19
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: GGBR4
+    yahoo_ticker: GGBR4.SA
+    b3_name: GERDAU
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1258208269
+      weight_pct: 1.174
+  GOAU4.SA:
+    name: GERDAU MET
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 92.690.783/0001-09
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: GOAU4
+    yahoo_ticker: GOAU4.SA
+    b3_name: GERDAU MET
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 830837767
+      weight_pct: 0.339
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Metalúrgica Gerdau S.A.; steel holding.
+  HAPV3.SA:
+    name: HAPVIDA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: health_plans
+    financial_class: non_financial
+    cnpj: 63.554.067/0001-98
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: HAPV3
+    yahoo_ticker: HAPV3.SA
+    b3_name: HAPVIDA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 271662290
+      weight_pct: 0.125
+  HYPE3.SA:
+    name: HYPERA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: pharmaceuticals
+    financial_class: non_financial
+    cnpj: 02.932.074/0001-91
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: HYPE3
+    yahoo_ticker: HYPE3.SA
+    b3_name: HYPERA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 321083946
+      weight_pct: 0.293
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Hypera/Hypermarcas; pharmaceuticals/consumer health.
+  IGTI11.SA:
+    name: IGUATEMI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 09.346.392/0001-30
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: IGTI11
+    yahoo_ticker: IGTI11.SA
+    b3_name: IGUATEMI S.A
+    share_class: UNT
+    b3_type_raw: UNT     N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 205800982
+      weight_pct: 0.226
+  ISAE4.SA:
+    name: ISA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power_transmission
+    financial_class: non_financial
+    cnpj: 02.998.611/0001-04
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ISAE4
+    yahoo_ticker: ISAE4.SA
+    b3_name: ISA ENERGIA
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 415568772
+      weight_pct: 0.493
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: ISA Energia Brasil S.A.; electric power transmission.
+  ITSA4.SA:
+    name: ITAUSA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: financial_holding
+    financial_class: financial
+    cnpj: 61.532.644/0001-15
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: ITSA4
+    yahoo_ticker: ITSA4.SA
+    b3_name: ITAUSA
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 5970738360
+      weight_pct: 3.147
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Itaúsa S.A.; financial/diversified holding, closely linked to Itaú Unibanco.
+  ITUB4.SA:
+    name: ITAU UNIBANCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.872.504/0001-23
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - FIND11.SA
+    - USDBRL=X
+    - ^IBX50
+    linked_indices:
+    - IBOV
+    - IFNC
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: ITUB4
+    yahoo_ticker: ITUB4.SA
+    b3_name: ITAUUNIBANCO
+    share_class: PN
+    b3_type_raw: PN  EJ  N1
+    b3_listing_segment: N1
+    b3_type_flags:
+    - EJ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 5050269111
+      weight_pct: 8.137
+  KLBN11.SA:
+    name: KLABIN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: 89.637.490/0001-45
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: KLBN11
+    yahoo_ticker: KLBN11.SA
+    b3_name: KLABIN S/A
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 804572623
+      weight_pct: 0.54
+  RENT3.SA:
+    name: LOCALIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: car_rental
+    financial_class: non_financial
+    cnpj: 16.670.085/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    provider_status: active_verify_yahoo_if_download_fails
+    b3_code: RENT3
+    yahoo_ticker: RENT3.SA
+    b3_name: LOCALIZA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 978479038
+      weight_pct: 1.906
+  LREN3.SA:
+    name: LOJAS RENNER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 92.754.738/0001-62
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: LREN3
+    yahoo_ticker: LREN3.SA
+    b3_name: LOJAS RENNER
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 982593716
+      weight_pct: 0.551
+  MGLU3.SA:
+    name: MAGAZINE LUIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_ecommerce
+    financial_class: non_financial
+    cnpj: 47.960.950/0001-21
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    provider_status: active_verify_yahoo_if_download_fails
+    b3_code: MGLU3
+    yahoo_ticker: MGLU3.SA
+    b3_name: MAGAZ LUIZA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 373155063
+      weight_pct: 0.104
+  POMO4.SA:
+    name: MARCOPOLO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_equipment
+    financial_class: non_financial
+    cnpj: 88.611.835/0001-29
+    context_tickers:
+    - ^BVSP
+    - INDX
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: POMO4
+    yahoo_ticker: POMO4.SA
+    b3_name: MARCOPOLO
+    share_class: PN
+    b3_type_raw: PN      N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 728266241
+      weight_pct: 0.183
+  MBRF3.SA:
+    name: MBRF
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: 03.853.896/0001-40
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: MBRF3
+    yahoo_ticker: MBRF3.SA
+    b3_name: MARFRIG
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 761175338
+      weight_pct: 0.513
+  BEEF3.SA:
+    name: MINERVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: 67.620.377/0001-14
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: BEEF3
+    yahoo_ticker: BEEF3.SA
+    b3_name: MINERVA
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 454804863
+      weight_pct: 0.073
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Minerva S.A.; meat protein and food exports.
+  MOTV3.SA:
+    name: MOTIVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_infrastructure
+    financial_class: non_financial
+    cnpj: 02.846.056/0001-97
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: MOTV3
+    yahoo_ticker: MOTV3.SA
+    b3_name: MOTIVA SA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1002196725
+      weight_pct: 0.621
+  MRVE3.SA:
+    name: MRV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 08.343.492/0001-20
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: MRVE3
+    yahoo_ticker: MRVE3.SA
+    b3_name: MRV
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 374681353
+      weight_pct: 0.098
+  MULT3.SA:
+    name: MULTIPLAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 07.816.890/0001-53
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMOB
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: MULT3
+    yahoo_ticker: MULT3.SA
+    b3_name: MULTIPLAN
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 320022221
+      weight_pct: 0.397
+  NATU3.SA:
+    name: NATURA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: personal_care
+    financial_class: non_financial
+    cnpj: 71.673.990/0001-77
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: NATU3
+    yahoo_ticker: NATU3.SA
+    b3_name: NATURA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 838359453
+      weight_pct: 0.35
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Natura Cosméticos S.A.; personal care/cosmetics.
+  PETR3.SA:
+    name: PETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 33.000.167/0001-01
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    - ^IBX50
+    linked_indices:
+    - IBOV
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: PETR3
+    yahoo_ticker: PETR3.SA
+    b3_name: PETROBRAS
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 2237877167
+      weight_pct: 4.379
+  PETR4.SA:
+    name: PETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 33.000.167/0001-01
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    - ^IBX50
+    linked_indices:
+    - IBOV
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: PETR4
+    yahoo_ticker: PETR4.SA
+    b3_name: PETROBRAS
+    share_class: PN
+    b3_type_raw: PN      N2
+    b3_listing_segment: N2
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 4410960450
+      weight_pct: 7.866
+  RECV3.SA:
+    name: PETRORECSA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 03.342.704/0001-30
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: RECV3
+    yahoo_ticker: RECV3.SA
+    b3_name: PETRORECSA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 274624898
+      weight_pct: 0.133
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: PetroRecôncavo S.A.; oil and gas exploration/production.
+  PSSA3.SA:
+    name: PORTO SEGURO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 02.149.205/0001-69
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: PSSA3
+    yahoo_ticker: PSSA3.SA
+    b3_name: PORTO SEGURO
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 178825403
+      weight_pct: 0.36
+  PRIO3.SA:
+    name: PRIO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 01.378.898/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: PRIO3
+    yahoo_ticker: PRIO3.SA
+    b3_name: PRIO
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 757265605
+      weight_pct: 1.871
+  RADL3.SA:
+    name: RAIA DROGASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: pharmacy_retail
+    financial_class: non_financial
+    cnpj: 61.585.865/0001-51
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: RADL3
+    yahoo_ticker: RADL3.SA
+    b3_name: RAIADROGASIL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1313915830
+      weight_pct: 1.076
+  RDOR3.SA:
+    name: REDE D OR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: hospitals
+    financial_class: non_financial
+    cnpj: 40.654.926/0001-40
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: RDOR3
+    yahoo_ticker: RDOR3.SA
+    b3_name: REDE D OR
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1091469308
+      weight_pct: 1.632
+  RAIL3.SA:
+    name: RUMO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: rail_logistics
+    financial_class: non_financial
+    cnpj: 02.392.766/0001-02
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: RAIL3
+    yahoo_ticker: RAIL3.SA
+    b3_name: RUMO S.A.
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1221155293
+      weight_pct: 0.807
+  SBSP3.SA:
+    name: SABESP
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: water_sanitation
+    financial_class: non_financial
+    cnpj: 43.776.517/0001-80
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - UTIL
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: SBSP3
+    yahoo_ticker: SBSP3.SA
+    b3_name: SABESP
+    share_class: 'ON'
+    b3_type_raw: ON  EB  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - EB
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 2870627990
+      weight_pct: 3.489
+  SANB11.SA:
+    name: SANTANDER BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 90.400.888/0001-42
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IFNC
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: SANB11
+    yahoo_ticker: SANB11.SA
+    b3_name: SANTANDER BR
+    share_class: UNT
+    b3_type_raw: UNT
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 360347199
+      weight_pct: 0.402
+  CSNA3.SA:
+    name: CSN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel_mining
+    financial_class: non_financial
+    cnpj: 33.042.730/0001-04
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: CSNA3
+    yahoo_ticker: CSNA3.SA
+    b3_name: SID NACIONAL
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 727975012
+      weight_pct: 0.19
+  SLCE3.SA:
+    name: SLC AGRICOLA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: agriculture
+    financial_class: non_financial
+    cnpj: 89.096.457/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: SLCE3
+    yahoo_ticker: SLCE3.SA
+    b3_name: SLC AGRICOLA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 220403658
+      weight_pct: 0.149
+  SMFT3.SA:
+    name: SMART FIT
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: sports_fitness
+    financial_class: non_financial
+    cnpj: 07.594.978/0001-78
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: SMFT3
+    yahoo_ticker: SMFT3.SA
+    b3_name: SMART FIT
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 556651316
+      weight_pct: 0.44
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Smart Fit; fitness services/gyms.
+  SUZB3.SA:
+    name: SUZANO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: 16.404.287/0001-55
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: SUZB3
+    yahoo_ticker: SUZB3.SA
+    b3_name: SUZANO S.A.
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 612918471
+      weight_pct: 1.046
+  TAEE11.SA:
+    name: TAESA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power_transmission
+    financial_class: non_financial
+    cnpj: 07.859.971/0001-30
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IEEX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: TAEE11
+    yahoo_ticker: TAEE11.SA
+    b3_name: TAESA
+    share_class: UNT
+    b3_type_raw: UNT ED  N2
+    b3_listing_segment: N2
+    b3_type_flags:
+    - ED
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 218568234
+      weight_pct: 0.35
+  VIVT3.SA:
+    name: TELEFONICA BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: 02.558.157/0001-62
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: VIVT3
+    yahoo_ticker: VIVT3.SA
+    b3_name: TELEF BRASIL
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 707125712
+      weight_pct: 1.059
+  TIMS3.SA:
+    name: TIM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: 02.421.421/0001-11
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    provider_status: active_verify_yahoo_if_download_fails
+    b3_code: TIMS3
+    yahoo_ticker: TIMS3.SA
+    b3_name: TIM
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 777451080
+      weight_pct: 0.708
+  TOTS3.SA:
+    name: TOTVS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: technology
+    subgroup: software_services
+    financial_class: non_financial
+    cnpj: 53.113.791/0001-22
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: TOTS3
+    yahoo_ticker: TOTS3.SA
+    b3_name: TOTVS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 533997411
+      weight_pct: 0.734
+  UGPA3.SA:
+    name: ULTRAPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: 33.256.439/0001-06
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: UGPA3
+    yahoo_ticker: UGPA3.SA
+    b3_name: ULTRAPAR
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1067870496
+      weight_pct: 1.258
+  USIM5.SA:
+    name: USIMINAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 60.894.730/0001-05
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: USIM5
+    yahoo_ticker: USIM5.SA
+    b3_name: USIMINAS
+    share_class: PNA
+    b3_type_raw: PNA     N1
+    b3_listing_segment: N1
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 518256757
+      weight_pct: 0.182
+  VALE3.SA:
+    name: VALE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: 33.592.510/0001-54
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - IMAT
+    - IBRX50
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: VALE3
+    yahoo_ticker: VALE3.SA
+    b3_name: VALE
+    share_class: 'ON'
+    b3_type_raw: ON  ATZ NM
+    b3_listing_segment: NM
+    b3_type_flags:
+    - ATZ
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 3535764048
+      weight_pct: 11.251
+  VAMO3.SA:
+    name: VAMOS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: truck_equipment_rental
+    financial_class: non_financial
+    cnpj: 23.373.000/0001-32
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    provider_status: active_verify_yahoo_if_download_fails
+    b3_code: VAMO3
+    yahoo_ticker: VAMO3.SA
+    b3_name: VAMOS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 448052066
+      weight_pct: 0.066
+  VBBR3.SA:
+    name: VIBRA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: 34.274.233/0001-02
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: VBBR3
+    yahoo_ticker: VBBR3.SA
+    b3_name: VIBRA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1192004780
+      weight_pct: 1.573
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Vibra Energia S.A.; fuels distribution.
+  VIVA3.SA:
+    name: VIVARA S.A.
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_accessories
+    financial_class: non_financial
+    cnpj: 33.839.910/0001-11
+    cnpj_status: researched_2026_05
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    enrichment_status: enriched_researched
+    b3_code: VIVA3
+    yahoo_ticker: VIVA3.SA
+    b3_name: VIVARA S.A.
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 123698325
+      weight_pct: 0.12
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Vivara Participações S.A.; accessories/jewelry retail.
+  WEGE3.SA:
+    name: WEG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: capital_goods
+    financial_class: non_financial
+    cnpj: 84.429.695/0001-11
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - INDX
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: WEGE3
+    yahoo_ticker: WEGE3.SA
+    b3_name: WEG
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 1485954732
+      weight_pct: 2.641
+  YDUQ3.SA:
+    name: YDUQS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: 08.807.432/0001-10
+    cnpj_status: verified_seed
+    context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    linked_indices:
+    - IBOV
+    - ICON
+    use_in_reference_sample: true
+    registry_status: active
+    b3_code: YDUQ3
+    yahoo_ticker: YDUQ3.SA
+    b3_name: YDUQS PART
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+    ibov_component: true
+    ibov:
+      composition_date: '2026-05-11'
+      source_file: IBOVDia_11-05-26.csv
+      theoretical_quantity: 261365845
+      weight_pct: 0.111
+context:
+  description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to Yahoo tickers when available.
+  global:
+  - IBOV
+  group_defaults:
+    financials:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    utilities:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    energy:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    materials:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    consumer:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    healthcare:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    industrials:
+    - IBOV
+    - USDBRL
+    - INDX
+    - IBRX50
+    real_estate:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+    telecom:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IDIV
+    technology:
+    - IBOV
+    - USDBRL
+    - IBRX50
+  subgroup_defaults:
+    oil_gas:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    fuel_distribution:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    banking:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    - IDIV
+    insurance:
+    - IBOV
+    - IFNC
+    - USDBRL
+    - IDIV
+    electric_power:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    mining:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    retail:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    real_estate_development:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+ibov_metadata:
+  source_title: IBOV - Carteira do Dia 11/05/26
+  source_file: IBOVDia_11-05-26.csv
+  composition_date: '2026-05-11'
+  asset_count: 79
+  total_weight_pct: 100.0
+  theoretical_total_raw: 93.123.685.158
+  redutor_raw: 13.910.085,26793474
+  generation_note: Generated by merging existing data.yaml metadata with B3 IBOV daily composition rows. Missing sector/CNPJ
+    fields are marked pending_enrichment instead of guessed.
+  enrichment_summary:
+    assets_total: 79
+    assets_with_cnpj: 79
+    pending_enrichment: []
+    researched_assets_updated:
+    - ALOS3.SA
+    - ASAI3.SA
+    - AURE3.SA
+    - BEEF3.SA
+    - BRKM5.SA
+    - CEAB3.SA
+    - CPLE3.SA
+    - CSMG3.SA
+    - CURY3.SA
+    - CXSE3.SA
+    - DIRR3.SA
+    - ENEV3.SA
+    - ENGI11.SA
+    - EQTL3.SA
+    - GOAU4.SA
+    - HYPE3.SA
+    - ISAE4.SA
+    - ITSA4.SA
+    - NATU3.SA
+    - RECV3.SA
+    - SMFT3.SA
+    - VBBR3.SA
+    - VIVA3.SA
+ibov_universe:
+- ALOS3.SA
+- ABEV3.SA
+- ASAI3.SA
+- AURE3.SA
+- AXIA3.SA
+- AXIA6.SA
+- AZZA3.SA
+- B3SA3.SA
+- BBSE3.SA
+- BBDC3.SA
+- BBDC4.SA
+- BRAP4.SA
+- BBAS3.SA
+- BRKM5.SA
+- BRAV3.SA
+- BPAC11.SA
+- CXSE3.SA
+- CEAB3.SA
+- CMIG4.SA
+- COGN3.SA
+- CSMG3.SA
+- CPLE3.SA
+- CSAN3.SA
+- CPFE3.SA
+- CMIN3.SA
+- CURY3.SA
+- CYRE3.SA
+- DIRR3.SA
+- EMBJ3.SA
+- ENGI11.SA
+- ENEV3.SA
+- EGIE3.SA
+- EQTL3.SA
+- FLRY3.SA
+- GGBR4.SA
+- GOAU4.SA
+- HAPV3.SA
+- HYPE3.SA
+- IGTI11.SA
+- ISAE4.SA
+- ITSA4.SA
+- ITUB4.SA
+- KLBN11.SA
+- RENT3.SA
+- LREN3.SA
+- MGLU3.SA
+- POMO4.SA
+- MBRF3.SA
+- BEEF3.SA
+- MOTV3.SA
+- MRVE3.SA
+- MULT3.SA
+- NATU3.SA
+- PETR3.SA
+- PETR4.SA
+- RECV3.SA
+- PSSA3.SA
+- PRIO3.SA
+- RADL3.SA
+- RDOR3.SA
+- RAIL3.SA
+- SBSP3.SA
+- SANB11.SA
+- CSNA3.SA
+- SLCE3.SA
+- SMFT3.SA
+- SUZB3.SA
+- TAEE11.SA
+- VIVT3.SA
+- TIMS3.SA
+- TOTS3.SA
+- UGPA3.SA
+- USIM5.SA
+- VALE3.SA
+- VAMO3.SA
+- VBBR3.SA
+- VIVA3.SA
+- WEGE3.SA
+- YDUQ3.SA
+enrichment_metadata:
+  generated_by: ChatGPT
+  generation_date: '2026-05-09'
+  base_file: data_ibov.yaml
+  ibov_source_file: IBOVDia_11-05-26.csv
+  composition_date: '2026-05-11'
+  notes:
+  - CNPJ and B3 sector metadata were researched from CVM/B3 and company/market reference pages.
+  - Operational group/subgroup names are normalized for TradeChat and may intentionally differ from literal B3 sector labels.
+  - Context tickers are candidates; TradeChat context coverage policy must still validate/drop low-coverage contexts before
+    training.
