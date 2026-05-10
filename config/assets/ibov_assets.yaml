@@ -1,0 +1,1412 @@
+version: 1
+description: Static IBOV asset registry. Asset identity/classification only; index composition and context rules are split
+  into separate config files.
+generated_from: data_ibov.yaml
+asset_count: 79
+assets:
+  ALOS3.SA:
+    name: ALLOS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 05.878.397/0001-32
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: 'B3/CVM: Allos S.A.; operationally mapped to real_estate/shopping_centers.'
+    b3_code: ALOS3
+    yahoo_ticker: ALOS3.SA
+    b3_name: ALLOS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  ABEV3.SA:
+    name: AMBEV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: beverages
+    financial_class: non_financial
+    cnpj: 07.526.557/0001-00
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: ABEV3
+    yahoo_ticker: ABEV3.SA
+    b3_name: AMBEV S/A
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+  ASAI3.SA:
+    name: ASSAI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_retail
+    financial_class: non_financial
+    cnpj: 06.057.223/0001-71
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Sendas Distribuidora S.A.; cash-and-carry food retail.
+    b3_code: ASAI3
+    yahoo_ticker: ASAI3.SA
+    b3_name: ASSAI
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  AURE3.SA:
+    name: AUREN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 28.594.234/0001-23
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Auren Energia S.A.; electric generation/transmission/commercialization.
+    b3_code: AURE3
+    yahoo_ticker: AURE3.SA
+    b3_name: AUREN
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  AXIA3.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: AXIA3
+    yahoo_ticker: AXIA3.SA
+    b3_name: AXIA ENERGIA
+    share_class: 'ON'
+    b3_type_raw: ON      N1
+    b3_listing_segment: N1
+  AXIA6.SA:
+    name: AXIA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.001.180/0001-26
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: AXIA6
+    yahoo_ticker: AXIA6.SA
+    b3_name: AXIA ENERGIA
+    share_class: PNB
+    b3_type_raw: PNB     N1
+    b3_listing_segment: N1
+  AZZA3.SA:
+    name: AZZAS 2154
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 16.590.234/0001-76
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: AZZA3
+    yahoo_ticker: AZZA3.SA
+    b3_name: AZZAS 2154
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  B3SA3.SA:
+    name: B3
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: market_infrastructure
+    financial_class: financial
+    cnpj: 09.346.601/0001-25
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: B3SA3
+    yahoo_ticker: B3SA3.SA
+    b3_name: B3
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  BBSE3.SA:
+    name: BB SEGURIDADE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 17.344.597/0001-94
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BBSE3
+    yahoo_ticker: BBSE3.SA
+    b3_name: BBSEGURIDADE
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  BBDC3.SA:
+    name: BRADESCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.746.948/0001-12
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BBDC3
+    yahoo_ticker: BBDC3.SA
+    b3_name: BRADESCO
+    share_class: 'ON'
+    b3_type_raw: ON  EJ  N1
+    b3_listing_segment: N1
+  BBDC4.SA:
+    name: BRADESCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.746.948/0001-12
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BBDC4
+    yahoo_ticker: BBDC4.SA
+    b3_name: BRADESCO
+    share_class: PN
+    b3_type_raw: PN  EJ  N1
+    b3_listing_segment: N1
+  BRAP4.SA:
+    name: BRADESPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: holding_mining
+    financial_class: non_financial
+    cnpj: 03.847.461/0001-92
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BRAP4
+    yahoo_ticker: BRAP4.SA
+    b3_name: BRADESPAR
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+  BBAS3.SA:
+    name: BANCO DO BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 00.000.000/0001-91
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BBAS3
+    yahoo_ticker: BBAS3.SA
+    b3_name: BRASIL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  BRKM5.SA:
+    name: BRASKEM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: petrochemicals
+    financial_class: non_financial
+    cnpj: 42.150.391/0001-70
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Braskem S.A.; petrochemicals; Brent included as optional commodity context.
+    b3_code: BRKM5
+    yahoo_ticker: BRKM5.SA
+    b3_name: BRASKEM
+    share_class: PNA
+    b3_type_raw: PNA     N1
+    b3_listing_segment: N1
+  BRAV3.SA:
+    name: BRAVA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 12.091.809/0001-55
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BRAV3
+    yahoo_ticker: BRAV3.SA
+    b3_name: BRAVA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  BPAC11.SA:
+    name: BTG PACTUAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: investment_bank
+    financial_class: financial
+    cnpj: 30.306.294/0001-45
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: BPAC11
+    yahoo_ticker: BPAC11.SA
+    b3_name: BTGP BANCO
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+  CXSE3.SA:
+    name: CAIXA SEGURI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 22.543.331/0001-00
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Caixa Seguridade Participações S.A.; insurance/financial holdings.
+    b3_code: CXSE3
+    yahoo_ticker: CXSE3.SA
+    b3_name: CAIXA SEGURI
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  CEAB3.SA:
+    name: CEA MODAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 45.242.914/0001-05
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: C&A Modas S.A.; apparel retail.
+    b3_code: CEAB3
+    yahoo_ticker: CEAB3.SA
+    b3_name: CEA MODAS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  CMIG4.SA:
+    name: CEMIG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 17.155.730/0001-64
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CMIG4
+    yahoo_ticker: CMIG4.SA
+    b3_name: CEMIG
+    share_class: PN
+    b3_type_raw: PN  ED  N1
+    b3_listing_segment: N1
+  COGN3.SA:
+    name: COGNA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: 02.800.026/0001-40
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: COGN3
+    yahoo_ticker: COGN3.SA
+    b3_name: COGNA ON
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  CSMG3.SA:
+    name: COPASA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: water_sanitation
+    financial_class: non_financial
+    cnpj: 17.281.106/0001-03
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Copasa; water and sanitation.
+    b3_code: CSMG3
+    yahoo_ticker: CSMG3.SA
+    b3_name: COPASA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  CPLE3.SA:
+    name: COPEL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 76.483.817/0001-20
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Companhia Paranaense de Energia - Copel.
+    b3_code: CPLE3
+    yahoo_ticker: CPLE3.SA
+    b3_name: COPEL
+    share_class: 'ON'
+    b3_type_raw: ON  EJ  NM
+    b3_listing_segment: NM
+  CSAN3.SA:
+    name: COSAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_logistics
+    financial_class: non_financial
+    cnpj: 50.746.577/0001-15
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CSAN3
+    yahoo_ticker: CSAN3.SA
+    b3_name: COSAN
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  CPFE3.SA:
+    name: CPFL ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 02.429.144/0001-93
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CPFE3
+    yahoo_ticker: CPFE3.SA
+    b3_name: CPFL ENERGIA
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  CMIN3.SA:
+    name: CSN MINERACAO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: 08.902.291/0001-15
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CMIN3
+    yahoo_ticker: CMIN3.SA
+    b3_name: CSNMINERACAO
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+  CURY3.SA:
+    name: CURY S/A
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 08.797.760/0001-83
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Cury Construtora e Incorporadora S.A.; homebuilding/development.
+    b3_code: CURY3
+    yahoo_ticker: CURY3.SA
+    b3_name: CURY S/A
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  CYRE3.SA:
+    name: CYRELA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 73.178.600/0001-12
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CYRE3
+    yahoo_ticker: CYRE3.SA
+    b3_name: CYRELA REALT
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  DIRR3.SA:
+    name: DIRECIONAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 16.614.075/0001-00
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Direcional Engenharia S.A.; homebuilding/development.
+    b3_code: DIRR3
+    yahoo_ticker: DIRR3.SA
+    b3_name: DIRECIONAL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  EMBJ3.SA:
+    name: EMBRAER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: aerospace_defense
+    financial_class: non_financial
+    cnpj: 07.689.002/0001-89
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: EMBJ3
+    yahoo_ticker: EMBJ3.SA
+    b3_name: EMBRAER
+    share_class: 'ON'
+    b3_type_raw: ON  ATZ NM
+    b3_listing_segment: NM
+  ENGI11.SA:
+    name: ENERGISA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 00.864.214/0001-06
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Energisa S.A.; electric utilities holding.
+    b3_code: ENGI11
+    yahoo_ticker: ENGI11.SA
+    b3_name: ENERGISA
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+  ENEV3.SA:
+    name: ENEVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 04.423.567/0001-21
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Eneva S.A.; electric power and gas-related generation; Brent optional context.
+    b3_code: ENEV3
+    yahoo_ticker: ENEV3.SA
+    b3_name: ENEVA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  EGIE3.SA:
+    name: ENGIE BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 02.474.971/0001-90
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: EGIE3
+    yahoo_ticker: EGIE3.SA
+    b3_name: ENGIE BRASIL
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  EQTL3.SA:
+    name: EQUATORIAL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power
+    financial_class: non_financial
+    cnpj: 03.220.438/0001-73
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Equatorial Energia S.A.; electric utilities holding.
+    b3_code: EQTL3
+    yahoo_ticker: EQTL3.SA
+    b3_name: EQUATORIAL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  FLRY3.SA:
+    name: FLEURY
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: diagnostics
+    financial_class: non_financial
+    cnpj: 60.840.055/0001-31
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: FLRY3
+    yahoo_ticker: FLRY3.SA
+    b3_name: FLEURY
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  GGBR4.SA:
+    name: GERDAU
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 33.611.500/0001-19
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: GGBR4
+    yahoo_ticker: GGBR4.SA
+    b3_name: GERDAU
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+  GOAU4.SA:
+    name: GERDAU MET
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 92.690.783/0001-09
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Metalúrgica Gerdau S.A.; steel holding.
+    b3_code: GOAU4
+    yahoo_ticker: GOAU4.SA
+    b3_name: GERDAU MET
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+  HAPV3.SA:
+    name: HAPVIDA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: health_plans
+    financial_class: non_financial
+    cnpj: 63.554.067/0001-98
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: HAPV3
+    yahoo_ticker: HAPV3.SA
+    b3_name: HAPVIDA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  HYPE3.SA:
+    name: HYPERA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: pharmaceuticals
+    financial_class: non_financial
+    cnpj: 02.932.074/0001-91
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Hypera/Hypermarcas; pharmaceuticals/consumer health.
+    b3_code: HYPE3
+    yahoo_ticker: HYPE3.SA
+    b3_name: HYPERA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  IGTI11.SA:
+    name: IGUATEMI
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 09.346.392/0001-30
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: IGTI11
+    yahoo_ticker: IGTI11.SA
+    b3_name: IGUATEMI S.A
+    share_class: UNT
+    b3_type_raw: UNT     N1
+    b3_listing_segment: N1
+  ISAE4.SA:
+    name: ISA ENERGIA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power_transmission
+    financial_class: non_financial
+    cnpj: 02.998.611/0001-04
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: ISA Energia Brasil S.A.; electric power transmission.
+    b3_code: ISAE4
+    yahoo_ticker: ISAE4.SA
+    b3_name: ISA ENERGIA
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+  ITSA4.SA:
+    name: ITAUSA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: financial_holding
+    financial_class: financial
+    cnpj: 61.532.644/0001-15
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Itaúsa S.A.; financial/diversified holding, closely linked to Itaú Unibanco.
+    b3_code: ITSA4
+    yahoo_ticker: ITSA4.SA
+    b3_name: ITAUSA
+    share_class: PN
+    b3_type_raw: PN      N1
+    b3_listing_segment: N1
+  ITUB4.SA:
+    name: ITAU UNIBANCO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 60.872.504/0001-23
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: ITUB4
+    yahoo_ticker: ITUB4.SA
+    b3_name: ITAUUNIBANCO
+    share_class: PN
+    b3_type_raw: PN  EJ  N1
+    b3_listing_segment: N1
+  KLBN11.SA:
+    name: KLABIN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: 89.637.490/0001-45
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: KLBN11
+    yahoo_ticker: KLBN11.SA
+    b3_name: KLABIN S/A
+    share_class: UNT
+    b3_type_raw: UNT     N2
+    b3_listing_segment: N2
+  RENT3.SA:
+    name: LOCALIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: car_rental
+    financial_class: non_financial
+    cnpj: 16.670.085/0001-55
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: RENT3
+    yahoo_ticker: RENT3.SA
+    b3_name: LOCALIZA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  LREN3.SA:
+    name: LOJAS RENNER
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_apparel
+    financial_class: non_financial
+    cnpj: 92.754.738/0001-62
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: LREN3
+    yahoo_ticker: LREN3.SA
+    b3_name: LOJAS RENNER
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  MGLU3.SA:
+    name: MAGAZINE LUIZA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_ecommerce
+    financial_class: non_financial
+    cnpj: 47.960.950/0001-21
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: MGLU3
+    yahoo_ticker: MGLU3.SA
+    b3_name: MAGAZ LUIZA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  POMO4.SA:
+    name: MARCOPOLO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_equipment
+    financial_class: non_financial
+    cnpj: 88.611.835/0001-29
+    registry_status: active
+    b3_code: POMO4
+    yahoo_ticker: POMO4.SA
+    b3_name: MARCOPOLO
+    share_class: PN
+    b3_type_raw: PN      N2
+    b3_listing_segment: N2
+  MBRF3.SA:
+    name: MBRF
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: 03.853.896/0001-40
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: MBRF3
+    yahoo_ticker: MBRF3.SA
+    b3_name: MARFRIG
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  BEEF3.SA:
+    name: MINERVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: food_protein
+    financial_class: non_financial
+    cnpj: 67.620.377/0001-14
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Minerva S.A.; meat protein and food exports.
+    b3_code: BEEF3
+    yahoo_ticker: BEEF3.SA
+    b3_name: MINERVA
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  MOTV3.SA:
+    name: MOTIVA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: transport_infrastructure
+    financial_class: non_financial
+    cnpj: 02.846.056/0001-97
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: MOTV3
+    yahoo_ticker: MOTV3.SA
+    b3_name: MOTIVA SA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  MRVE3.SA:
+    name: MRV
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: homebuilding
+    financial_class: non_financial
+    cnpj: 08.343.492/0001-20
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: MRVE3
+    yahoo_ticker: MRVE3.SA
+    b3_name: MRV
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  MULT3.SA:
+    name: MULTIPLAN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: real_estate
+    subgroup: shopping_centers
+    financial_class: non_financial
+    cnpj: 07.816.890/0001-53
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: MULT3
+    yahoo_ticker: MULT3.SA
+    b3_name: MULTIPLAN
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+  NATU3.SA:
+    name: NATURA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: personal_care
+    financial_class: non_financial
+    cnpj: 71.673.990/0001-77
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Natura Cosméticos S.A.; personal care/cosmetics.
+    b3_code: NATU3
+    yahoo_ticker: NATU3.SA
+    b3_name: NATURA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  PETR3.SA:
+    name: PETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 33.000.167/0001-01
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: PETR3
+    yahoo_ticker: PETR3.SA
+    b3_name: PETROBRAS
+    share_class: 'ON'
+    b3_type_raw: ON      N2
+    b3_listing_segment: N2
+  PETR4.SA:
+    name: PETROBRAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 33.000.167/0001-01
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: PETR4
+    yahoo_ticker: PETR4.SA
+    b3_name: PETROBRAS
+    share_class: PN
+    b3_type_raw: PN      N2
+    b3_listing_segment: N2
+  RECV3.SA:
+    name: PETRORECSA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 03.342.704/0001-30
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: PetroRecôncavo S.A.; oil and gas exploration/production.
+    b3_code: RECV3
+    yahoo_ticker: RECV3.SA
+    b3_name: PETRORECSA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  PSSA3.SA:
+    name: PORTO SEGURO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: insurance
+    financial_class: financial
+    cnpj: 02.149.205/0001-69
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: PSSA3
+    yahoo_ticker: PSSA3.SA
+    b3_name: PORTO SEGURO
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  PRIO3.SA:
+    name: PRIO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: oil_gas
+    financial_class: non_financial
+    cnpj: 01.378.898/0001-55
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: PRIO3
+    yahoo_ticker: PRIO3.SA
+    b3_name: PRIO
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  RADL3.SA:
+    name: RAIA DROGASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: pharmacy_retail
+    financial_class: non_financial
+    cnpj: 61.585.865/0001-51
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: RADL3
+    yahoo_ticker: RADL3.SA
+    b3_name: RAIADROGASIL
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  RDOR3.SA:
+    name: REDE D OR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: health_care
+    subgroup: hospitals
+    financial_class: non_financial
+    cnpj: 40.654.926/0001-40
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: RDOR3
+    yahoo_ticker: RDOR3.SA
+    b3_name: REDE D OR
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  RAIL3.SA:
+    name: RUMO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: rail_logistics
+    financial_class: non_financial
+    cnpj: 02.392.766/0001-02
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: RAIL3
+    yahoo_ticker: RAIL3.SA
+    b3_name: RUMO S.A.
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  SBSP3.SA:
+    name: SABESP
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: water_sanitation
+    financial_class: non_financial
+    cnpj: 43.776.517/0001-80
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: SBSP3
+    yahoo_ticker: SBSP3.SA
+    b3_name: SABESP
+    share_class: 'ON'
+    b3_type_raw: ON  EB  NM
+    b3_listing_segment: NM
+  SANB11.SA:
+    name: SANTANDER BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: financials
+    subgroup: banking
+    financial_class: financial
+    cnpj: 90.400.888/0001-42
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: SANB11
+    yahoo_ticker: SANB11.SA
+    b3_name: SANTANDER BR
+    share_class: UNT
+    b3_type_raw: UNT
+  CSNA3.SA:
+    name: CSN
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel_mining
+    financial_class: non_financial
+    cnpj: 33.042.730/0001-04
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: CSNA3
+    yahoo_ticker: CSNA3.SA
+    b3_name: SID NACIONAL
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+  SLCE3.SA:
+    name: SLC AGRICOLA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_staples
+    subgroup: agriculture
+    financial_class: non_financial
+    cnpj: 89.096.457/0001-55
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: SLCE3
+    yahoo_ticker: SLCE3.SA
+    b3_name: SLC AGRICOLA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  SMFT3.SA:
+    name: SMART FIT
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: sports_fitness
+    financial_class: non_financial
+    cnpj: 07.594.978/0001-78
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Smart Fit; fitness services/gyms.
+    b3_code: SMFT3
+    yahoo_ticker: SMFT3.SA
+    b3_name: SMART FIT
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  SUZB3.SA:
+    name: SUZANO
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: pulp_paper
+    financial_class: non_financial
+    cnpj: 16.404.287/0001-55
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: SUZB3
+    yahoo_ticker: SUZB3.SA
+    b3_name: SUZANO S.A.
+    share_class: 'ON'
+    b3_type_raw: ON  ED  NM
+    b3_listing_segment: NM
+  TAEE11.SA:
+    name: TAESA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: utilities
+    subgroup: electric_power_transmission
+    financial_class: non_financial
+    cnpj: 07.859.971/0001-30
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: TAEE11
+    yahoo_ticker: TAEE11.SA
+    b3_name: TAESA
+    share_class: UNT
+    b3_type_raw: UNT ED  N2
+    b3_listing_segment: N2
+  VIVT3.SA:
+    name: TELEFONICA BRASIL
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: 02.558.157/0001-62
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: VIVT3
+    yahoo_ticker: VIVT3.SA
+    b3_name: TELEF BRASIL
+    share_class: 'ON'
+    b3_type_raw: 'ON'
+  TIMS3.SA:
+    name: TIM
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: communication
+    subgroup: telecom
+    financial_class: non_financial
+    cnpj: 02.421.421/0001-11
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: TIMS3
+    yahoo_ticker: TIMS3.SA
+    b3_name: TIM
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  TOTS3.SA:
+    name: TOTVS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: technology
+    subgroup: software_services
+    financial_class: non_financial
+    cnpj: 53.113.791/0001-22
+    registry_status: active
+    b3_code: TOTS3
+    yahoo_ticker: TOTS3.SA
+    b3_name: TOTVS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  UGPA3.SA:
+    name: ULTRAPAR
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: 33.256.439/0001-06
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: UGPA3
+    yahoo_ticker: UGPA3.SA
+    b3_name: ULTRAPAR
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  USIM5.SA:
+    name: USIMINAS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: steel
+    financial_class: non_financial
+    cnpj: 60.894.730/0001-05
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: USIM5
+    yahoo_ticker: USIM5.SA
+    b3_name: USIMINAS
+    share_class: PNA
+    b3_type_raw: PNA     N1
+    b3_listing_segment: N1
+  VALE3.SA:
+    name: VALE
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: materials
+    subgroup: mining
+    financial_class: non_financial
+    cnpj: 33.592.510/0001-54
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: VALE3
+    yahoo_ticker: VALE3.SA
+    b3_name: VALE
+    share_class: 'ON'
+    b3_type_raw: ON  ATZ NM
+    b3_listing_segment: NM
+  VAMO3.SA:
+    name: VAMOS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: truck_equipment_rental
+    financial_class: non_financial
+    cnpj: 23.373.000/0001-32
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: VAMO3
+    yahoo_ticker: VAMO3.SA
+    b3_name: VAMOS
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  VBBR3.SA:
+    name: VIBRA
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: energy
+    subgroup: fuel_distribution
+    financial_class: non_financial
+    cnpj: 34.274.233/0001-02
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Vibra Energia S.A.; fuels distribution.
+    b3_code: VBBR3
+    yahoo_ticker: VBBR3.SA
+    b3_name: VIBRA
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  VIVA3.SA:
+    name: VIVARA S.A.
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: retail_accessories
+    financial_class: non_financial
+    cnpj: 33.839.910/0001-11
+    cnpj_status: researched_2026_05
+    registry_status: active
+    enrichment_status: enriched_researched
+    enrichment_source: manual_research_cvm_b3_web_2026_05
+    enrichment_note: Vivara Participações S.A.; accessories/jewelry retail.
+    b3_code: VIVA3
+    yahoo_ticker: VIVA3.SA
+    b3_name: VIVARA S.A.
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  WEGE3.SA:
+    name: WEG
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: industrials
+    subgroup: capital_goods
+    financial_class: non_financial
+    cnpj: 84.429.695/0001-11
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: WEGE3
+    yahoo_ticker: WEGE3.SA
+    b3_name: WEG
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM
+  YDUQ3.SA:
+    name: YDUQS
+    asset_type: stock
+    country: BR
+    currency: BRL
+    group: consumer_discretionary
+    subgroup: education
+    financial_class: non_financial
+    cnpj: 08.807.432/0001-10
+    cnpj_status: verified_seed
+    registry_status: active
+    b3_code: YDUQ3
+    yahoo_ticker: YDUQ3.SA
+    b3_name: YDUQS PART
+    share_class: 'ON'
+    b3_type_raw: ON      NM
+    b3_listing_segment: NM

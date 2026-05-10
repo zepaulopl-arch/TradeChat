@@ -5,6 +5,7 @@ from typing import Any
 
 import yaml
 
+from .config_registry import load_config_registry
 from .config_schema import assert_valid_config, normalize_config
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -212,20 +213,26 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 def load_data_registry(
     cfg: dict[str, Any] | None = None, path: str | Path | None = None
 ) -> dict[str, Any]:
-    """Load cadastral asset metadata from data.yaml.
+    """Load cadastral asset metadata.
 
-    config.yaml remains operational. data.yaml stores asset metadata: groups,
-    subgroups, CNPJ hints, linked indices and context baskets.
+    The runtime shape remains compatible with the former data.yaml registry.
+    During the transition, split registry files under config/assets,
+    config/universes, config/indices, config/context, config/sources and
+    config/defaults are assembled when present. The legacy registry file remains
+    the fallback and can still be loaded explicitly through the path argument.
     """
     if path:
         registry_path = Path(path)
-    elif cfg:
+        base = registry_path.parent if registry_path.parent != Path("") else CONFIG_DIR
+        return load_config_registry(base, registry_path=registry_path, prefer_split=False)
+
+    if cfg:
         registry_file = Path(cfg.get("data", {}).get("registry_file", "data.yaml"))
         base = Path(cfg.get("_config_dir", str(CONFIG_DIR)))
         registry_path = registry_file if registry_file.is_absolute() else base / registry_file
-    else:
-        registry_path = DATA_REGISTRY_PATH
-    return _load_yaml(registry_path)
+        return load_config_registry(base, registry_path=registry_path, prefer_split=True)
+
+    return load_config_registry(CONFIG_DIR, registry_path=DATA_REGISTRY_PATH, prefer_split=True)
 
 
 def artifact_dir(cfg: dict[str, Any]) -> Path:

@@ -1,0 +1,23 @@
+version: 1
+description: Data-source catalog for market data, CVM/B3 metadata, context candidates and enrichment provenance.
+sources:
+  b3_companies_listed: B3 Empresas Listadas
+  b3_sector_classification: B3 Classificacao Setorial
+  cvm: CVM demonstracoes financeiras
+  market_prices: Yahoo Finance tickers used by yfinance
+  b3_ibov_daily_file: IBOVDia_11-05-26.csv
+  cvm_cad_cia_aberta: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv
+  b3_listed_companies_pages: B3 Empresas Listadas / Códigos de Negociação pages consulted for CNPJ, activity and CVM codes
+  b3_sector_classification_pages: B3/listed-company and market-data pages consulted for sector/subsector/segment validation
+  ri_company_pages: Company investor-relations pages used as secondary validation when available
+enrichment_metadata:
+  generated_by: ChatGPT
+  generation_date: '2026-05-09'
+  base_file: data_ibov.yaml
+  ibov_source_file: IBOVDia_11-05-26.csv
+  composition_date: '2026-05-11'
+  notes:
+  - CNPJ and B3 sector metadata were researched from CVM/B3 and company/market reference pages.
+  - Operational group/subgroup names are normalized for TradeChat and may intentionally differ from literal B3 sector labels.
+  - Context tickers are candidates; TradeChat context coverage policy must still validate/drop low-coverage contexts before
+    training.

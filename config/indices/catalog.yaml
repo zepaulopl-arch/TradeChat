@@ -1,0 +1,209 @@
+version: 1
+description: Index and benchmark catalog. Do not store asset registry or universe composition here.
+indices:
+  default_context:
+  - IBOV
+  - USDBRL
+  - BRENT
+  available_now:
+    IBOV:
+      label: Ibovespa
+      role: benchmark_market
+      provider: yfinance
+      yahoo_ticker: ^BVSP
+      enabled: true
+    USDBRL:
+      label: USD/BRL
+      role: fx
+      provider: yfinance
+      yahoo_ticker: USDBRL=X
+      enabled: true
+    BRENT:
+      label: Brent crude oil futures
+      role: commodity_oil
+      provider: yfinance
+      yahoo_ticker: BZ=F
+      enabled: true
+    IFNC:
+      label: Financial sector proxy (FIND11 ETF)
+      role: sector_financials
+      provider: yfinance
+      yahoo_ticker: FIND11.SA
+      enabled: true
+      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+    IEEX:
+      label: Indice de Energia Eletrica B3
+      role: sector_utilities
+      provider: yfinance
+      yahoo_ticker: ^IEE
+      enabled: true
+    IBRX50:
+      label: IBrX 50 B3
+      role: large_caps
+      provider: yfinance
+      yahoo_ticker: ^IBX50
+      enabled: true
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+    UTIL:
+      label: Utilities proxy via IEEX
+      role: sector_utilities
+      provider: derived
+      yahoo_ticker: null
+      enabled: false
+      validation_status: use_IEEX_until_direct_provider
+  future_candidates:
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+  catalog:
+    IBOV:
+      label: Ibovespa
+      role: benchmark_market
+      provider: yfinance
+      yahoo_ticker: ^BVSP
+      enabled: true
+    USDBRL:
+      label: USD/BRL
+      role: fx
+      provider: yfinance
+      yahoo_ticker: USDBRL=X
+      enabled: true
+    BRENT:
+      label: Brent crude oil futures
+      role: commodity_oil
+      provider: yfinance
+      yahoo_ticker: BZ=F
+      enabled: true
+    IFNC:
+      label: Financial sector proxy (FIND11 ETF)
+      role: sector_financials
+      provider: yfinance
+      yahoo_ticker: FIND11.SA
+      enabled: true
+      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+    IEEX:
+      label: Indice de Energia Eletrica B3
+      role: sector_utilities
+      provider: yfinance
+      yahoo_ticker: ^IEE
+      enabled: true
+    IBRX50:
+      label: IBrX 50 B3
+      role: large_caps
+      provider: yfinance
+      yahoo_ticker: ^IBX50
+      enabled: true
+    IMAT:
+      label: Indice Materiais Basicos B3
+      role: sector_materials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    ICON:
+      label: Indice Consumo B3
+      role: sector_consumption
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    INDX:
+      label: Indice Industrial B3
+      role: sector_industrials
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IMOB:
+      label: Indice Imobiliario B3
+      role: sector_real_estate
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    SMLL:
+      label: Indice Small Cap B3
+      role: style_small_caps
+      provider: future
+      yahoo_ticker: null
+      enabled: false
+    IDIV:
+      label: Indice Dividendos B3
+      role: style_dividends
+      provider: future_b3_or_yfinance
+      yahoo_ticker: null
+      enabled: false
+      validation_status: pending_provider_validation
+    UTIL:
+      label: Utilities proxy via IEEX
+      role: sector_utilities
+      provider: derived
+      yahoo_ticker: null
+      enabled: false
+      validation_status: use_IEEX_until_direct_provider

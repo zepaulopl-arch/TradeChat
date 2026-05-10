@@ -1,0 +1,519 @@
+version: 1
+description: Context layers and candidate context tickers. Runtime context_policy must validate coverage before contexts become
+  features.
+context:
+  description: Context baskets by asset group/subgroup. Codes are resolved through indices.catalog to Yahoo tickers when available.
+  global:
+  - IBOV
+  group_defaults:
+    financials:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    utilities:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    energy:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    materials:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    consumer:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    healthcare:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    industrials:
+    - IBOV
+    - USDBRL
+    - INDX
+    - IBRX50
+    real_estate:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+    telecom:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IDIV
+    technology:
+    - IBOV
+    - USDBRL
+    - IBRX50
+  subgroup_defaults:
+    oil_gas:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    - IDIV
+    fuel_distribution:
+    - IBOV
+    - BRENT
+    - USDBRL
+    - IBRX50
+    banking:
+    - IBOV
+    - IFNC
+    - IBRX50
+    - USDBRL
+    - IDIV
+    insurance:
+    - IBOV
+    - IFNC
+    - USDBRL
+    - IDIV
+    electric_power:
+    - IBOV
+    - IEEX
+    - IBRX50
+    - USDBRL
+    - IDIV
+    mining:
+    - IBOV
+    - USDBRL
+    - IBRX50
+    - IMAT
+    retail:
+    - IBOV
+    - USDBRL
+    - ICON
+    - IBRX50
+    real_estate_development:
+    - IBOV
+    - USDBRL
+    - IMOB
+    - IBRX50
+asset_context_overrides:
+  ALOS3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ABEV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ASAI3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  AURE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  AXIA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - ^IEE
+    - ^IBX50
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  AXIA6.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - ^IEE
+    - ^IBX50
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  AZZA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  B3SA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BBSE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BBDC3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BBDC4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BRAP4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BBAS3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BRKM5.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BRAV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    - ^IBX50
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BPAC11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CXSE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CEAB3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CMIG4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  COGN3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CSMG3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CPLE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CSAN3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CPFE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CMIN3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CURY3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CYRE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  DIRR3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  EMBJ3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - ^IBX50
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ENGI11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ENEV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  EGIE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  EQTL3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  FLRY3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  GGBR4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  GOAU4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  HAPV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  HYPE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  IGTI11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ISAE4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ITSA4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  ITUB4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - FIND11.SA
+    - USDBRL=X
+    - ^IBX50
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  KLBN11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  RENT3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  LREN3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  MGLU3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  POMO4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - INDX
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  MBRF3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  BEEF3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  MOTV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  MRVE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  MULT3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  NATU3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  PETR3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    - ^IBX50
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  PETR4.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    - ^IBX50
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  RECV3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  PSSA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  PRIO3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  RADL3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  RDOR3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  RAIL3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  SBSP3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  SANB11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  CSNA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  SLCE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  SMFT3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  SUZB3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  TAEE11.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  VIVT3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  TIMS3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  TOTS3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  UGPA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    - BZ=F
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  USIM5.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  VALE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  VAMO3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  VBBR3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - BZ=F
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  VIVA3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  WEGE3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.
+  YDUQ3.SA:
+    candidate_context_tickers:
+    - ^BVSP
+    - USDBRL=X
+    note: Candidate contexts only; runtime context_policy must still check coverage before use.

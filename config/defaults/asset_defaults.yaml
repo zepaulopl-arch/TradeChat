@@ -1,0 +1,10 @@
+version: 1
+description: Shared defaults used by asset/universe config loaders.
+defaults:
+  asset_type: stock
+  country: BR
+  currency: BRL
+  context_tickers:
+  - ^BVSP
+  - USDBRL=X
+  - BZ=F
