@@ -28,3 +28,17 @@ Thumbs.db
 
 # Generated model/report artifacts
 artifacts/
+
+# Local patch/archive artifacts
+_local_archive/
+_patch_*/
+_upload_*/
+_data_ibov_*/
+*.patch
+*.zip
+fix_*.py
+diagnose_*.py
+backup_before_*.patch
+
+# Local logs and run outputs
+logs/

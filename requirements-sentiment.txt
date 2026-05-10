@@ -1,3 +1,0 @@
-feedparser
-nltk
-deep-translator
