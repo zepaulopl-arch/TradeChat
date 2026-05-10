@@ -514,10 +514,19 @@ def main(argv: list[str] | None = None) -> int:
                 )
         _run_tasks(run_dir, validate_tasks, args, parallel=True)
 
+    # Always rebuild the summary at the end. This makes --resume robust and
+    # avoids empty/stale summaries when all validation tasks were skipped.
+    try:
+        from tools.analyze_policy_matrix import rebuild_validation_summary
+
+        summary = rebuild_validation_summary(run_dir, force=True)
+    except Exception as exc:  # pragma: no cover - defensive safety for long runs
+        summary = run_dir / "validation_summary.csv"
+        print(f"[WARN] could not rebuild validation summary: {exc}")
+
     print("\nDone.")
     print(f"Run directory: {run_dir}")
     print(f"Status CSV: {run_dir / 'status.csv'}")
-    summary = run_dir / "validation_summary.csv"
     if summary.exists():
         print(f"Validation summary CSV: {summary}")
     return 0

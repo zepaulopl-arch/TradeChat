@@ -46,8 +46,15 @@ def test_portfolio_subcommands_exist():
         assert parser.parse_args(["portfolio", action]).portfolio_action == action
 
 
-def test_validate_requires_explicit_mode():
+def test_validate_accepts_normal_runs_and_matrix_interface():
     parser = build_parser()
-    with pytest.raises(SystemExit):
-        parser.parse_args(["validate", "PETR4"])
     assert parser.parse_args(["validate", "PETR4", "--mode", "walkforward"]).mode == "walkforward"
+
+    matrix = parser.parse_args(["validate", "matrix", "--universe", "ibov", "--jobs", "6"])
+    assert matrix.tickers == ["matrix"]
+    assert matrix.universe == "ibov"
+    assert matrix.jobs == 6
+
+    report = parser.parse_args(["validate", "report", "--latest"])
+    assert report.tickers == ["report"]
+    assert report.latest is True
