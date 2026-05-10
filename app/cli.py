@@ -21,7 +21,12 @@ def _add_ticker_list_args(parser: argparse.ArgumentParser, *, nargs: str = "*") 
 
 def _add_validate_args(parser: argparse.ArgumentParser) -> None:
     _add_ticker_list_args(parser)
-    parser.add_argument("--mode", choices=["replay", "walkforward"], required=True)
+    parser.add_argument(
+        "--mode",
+        choices=["replay", "walkforward"],
+        default=None,
+        help="validation mode; required for normal validate, defaults to replay for validate matrix",
+    )
     parser.add_argument("--start", default=None, help="start date YYYY-MM-DD")
     parser.add_argument("--end", default=None, help="end date YYYY-MM-DD")
     parser.add_argument("--rebalance-days", type=int, default=0)
@@ -36,6 +41,36 @@ def _add_validate_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="policy profile for calibration: strict, balanced, active or relaxed",
     )
+
+    matrix = parser.add_argument_group("validate matrix/report")
+    matrix.add_argument(
+        "--universe",
+        default=None,
+        help="asset universe for 'validate matrix' (all, ibov, validacao, etc.)",
+    )
+    matrix.add_argument(
+        "--profiles",
+        nargs="+",
+        default=None,
+        help="policy profiles for 'validate matrix'",
+    )
+    matrix.add_argument("--jobs", type=int, default=1, help="parallel jobs for 'validate matrix'")
+    matrix.add_argument("--log-dir", default=None, help="log directory for 'validate matrix'")
+    matrix.add_argument("--resume", action="store_true", help="resume a matrix run")
+    matrix.add_argument("--max-assets", type=int, default=0, help="smoke-test cap for matrix runs")
+    matrix.add_argument("--skip-pytest", action="store_true")
+    matrix.add_argument("--skip-data-audit", action="store_true")
+    matrix.add_argument("--skip-signal-rank", action="store_true")
+    matrix.add_argument("--skip-full-universe", action="store_true")
+    matrix.add_argument("--include-full-universe", action="store_true")
+    matrix.add_argument("--skip-per-asset", action="store_true")
+    matrix.add_argument("--stop-on-error", action="store_true")
+    matrix.add_argument("--serial-data-audit", action="store_true")
+    matrix.add_argument("--latest", action="store_true", help="analyze the latest matrix run")
+    matrix.add_argument("--out-dir", default=None, help="output directory for 'validate report'")
+    matrix.add_argument("--min-trades", type=int, default=5)
+    matrix.add_argument("--min-pf", type=float, default=1.0)
+    matrix.add_argument("--min-return-pct", type=float, default=0.0)
 
 
 def _add_refine_args(parser: argparse.ArgumentParser) -> None:
@@ -112,6 +147,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  python trade.py signal generate PETR4.SA\n"
             "  python trade.py signal rank --list validacao\n"
             "  python trade.py validate --list validacao --mode walkforward\n"
+            "  python trade.py validate matrix --universe ibov --jobs 4\n"
+            "  python trade.py validate report --latest\n"
             "  python trade.py refine --list validacao --removal --walkforward\n"
             "  python trade.py portfolio status"
         ),
