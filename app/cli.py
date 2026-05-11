@@ -201,24 +201,3 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     args.func(args)
 
-# =========================================================
-# promote-policy parser
-# =========================================================
-
-try:
-
-    promote_parser = (
-        validate_subparsers.add_parser(
-            "promote-policy",
-            help="promote runtime policy from matrix results",
-        )
-    )
-
-    promote_parser.add_argument(
-        "--matrix-dir",
-        required=True,
-    )
-
-except Exception:
-    pass
-
