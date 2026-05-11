@@ -92,3 +92,14 @@ def test_ibov_universe_does_not_duplicate_registry_metadata():
             duplicated.append({"ticker": ticker, "fields": repeated})
 
     assert not duplicated, f"Universe duplicates registry metadata: {duplicated}"
+
+
+def test_context_asset_keys_exist_in_asset_registry():
+    registry = load_yaml("config/assets/ibov_assets.yaml").get("assets", {})
+    layers = load_yaml("config/context/layers.yaml")
+
+    asset_contexts = layers.get("context", {}).get("assets", {}) or {}
+
+    missing = [ticker for ticker in asset_contexts.keys() if ticker not in registry]
+
+    assert not missing, f"Context asset keys missing from registry: {missing}"
