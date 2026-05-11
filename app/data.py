@@ -11,6 +11,7 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
+from .asset_registry import canonical_asset_ticker
 from .config import historical_dir, load_data_registry
 from .context_policy import filter_context_columns, load_context_policy
 from .utils import normalize_ticker, safe_ticker
@@ -108,7 +109,7 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         return None
 
     key = lookup_key(requested)
-    canonical = normalize_ticker(key or requested)
+    canonical = normalize_ticker(canonical_asset_ticker(cfg, key or requested))
     profile = dict(assets.get(canonical, {}) or {})
     if not profile and canonical.split(".")[0] in assets:
         profile = dict(assets.get(canonical.split(".")[0], {}) or {})

@@ -522,6 +522,16 @@ assets:
     registry_status: active
     b3_code: EMBJ3
     yahoo_ticker: EMBJ3.SA
+    aliases:
+      - EMBJ3
+      - EMBR3
+      - EMBR3.SA
+    lineage:
+      predecessors:
+        - ticker: EMBR3.SA
+          b3_code: EMBR3
+          until: "2025-10-31"
+          reason: ticker_migration
     b3_name: EMBRAER
     share_class: 'ON'
     b3_type_raw: ON  ATZ NM
