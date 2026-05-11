@@ -16,7 +16,26 @@ ROOT_COMMANDS = ("data", "train", "signal", "validate", "refine", "portfolio")
 
 def _add_ticker_list_args(parser: argparse.ArgumentParser, *, nargs: str = "*") -> None:
     parser.add_argument("tickers", nargs=nargs)
-    parser.add_argument("--list", dest="asset_list", default=None, help="asset list from registry")
+
+    parser.add_argument(
+        "--matrix-dir",
+        default=None,
+        help="matrix directory for validate promote-policy",
+    )
+
+    parser.add_argument(
+        "--exclude",
+        nargs="+",
+        default=[],
+        help="tickers to exclude from matrix runs",
+    )
+
+    parser.add_argument(
+        "--list",
+        dest="asset_list",
+        default=None,
+        help="asset list from registry",
+    )
 
 
 def _add_validate_args(parser: argparse.ArgumentParser) -> None:
@@ -200,6 +219,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     args.func(args)
+
 
 
 
