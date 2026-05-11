@@ -103,3 +103,25 @@ def test_context_asset_keys_exist_in_asset_registry():
     missing = [ticker for ticker in asset_contexts.keys() if ticker not in registry]
 
     assert not missing, f"Context asset keys missing from registry: {missing}"
+
+
+def test_context_candidate_tickers_are_declared_or_market_symbols():
+    indices = load_yaml("config/indices/catalog.yaml").get("indices", {})
+    catalog = indices.get("catalog", {}) or indices.get("available_now", {}) or {}
+    layers = load_yaml("config/context/layers.yaml")
+
+    allowed_codes = set(catalog.keys())
+    asset_contexts = layers.get("context", {}).get("assets", {}) or {}
+
+    unresolved = []
+
+    for ticker, meta in asset_contexts.items():
+        for candidate in meta.get("candidate_context_tickers", []) or []:
+            value = str(candidate)
+
+            is_market_symbol = value.startswith("^") or value.endswith(".SA") or "=" in value
+
+            if value not in allowed_codes and not is_market_symbol:
+                unresolved.append({"asset": ticker, "candidate": value})
+
+    assert not unresolved, f"Unresolved context candidates: {unresolved}"
