@@ -13,7 +13,7 @@ sources:
 enrichment_metadata:
   generated_by: ChatGPT
   generation_date: '2026-05-09'
-  base_file: data_ibov.yaml
+  base_file: split_registry_migration_2026_05
   ibov_source_file: IBOVDia_11-05-26.csv
   composition_date: '2026-05-11'
   notes:

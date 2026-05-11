@@ -31,3 +31,4 @@ def test_external_features_do_not_shrink_rows_by_initial_nans():
     text = (ROOT / "app" / "features.py").read_text(encoding="utf-8")
     assert "external_prefixes" in text
     assert "ctx_" in text and "sent_" in text and "fund_" in text
+    assert ".bfill()" not in text

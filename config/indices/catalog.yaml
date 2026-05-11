@@ -25,12 +25,12 @@ indices:
       yahoo_ticker: BZ=F
       enabled: true
     IFNC:
-      label: Financial sector proxy (FIND11 ETF)
+      label: Financial sector index
       role: sector_financials
       provider: yfinance
-      yahoo_ticker: FIND11.SA
+      yahoo_ticker: IFNC.SA
       enabled: true
-      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+      provider_note: IFNC.SA is the canonical Yahoo ticker expected by the context catalog.
     IEEX:
       label: Indice de Energia Eletrica B3
       role: sector_utilities
@@ -145,12 +145,12 @@ indices:
       yahoo_ticker: BZ=F
       enabled: true
     IFNC:
-      label: Financial sector proxy (FIND11 ETF)
+      label: Financial sector index
       role: sector_financials
       provider: yfinance
-      yahoo_ticker: FIND11.SA
+      yahoo_ticker: IFNC.SA
       enabled: true
-      provider_note: IFNC.SA is not reliable with yfinance period=max; FIND11.SA is used as a free proxy.
+      provider_note: IFNC.SA is the canonical Yahoo ticker expected by the context catalog.
     IEEX:
       label: Indice de Energia Eletrica B3
       role: sector_utilities

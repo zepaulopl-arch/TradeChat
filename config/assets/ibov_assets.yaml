@@ -1,7 +1,7 @@
 version: 1
 description: Static IBOV asset registry. Asset identity/classification only; index composition and context rules are split
   into separate config files.
-generated_from: data_ibov.yaml
+generated_from: split_registry_migration_2026_05
 asset_count: 79
 assets:
   ALOS3.SA:

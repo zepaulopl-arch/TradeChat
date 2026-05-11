@@ -118,6 +118,10 @@ def add_fundamental_features(
     has_hist = (not hist.empty) and bool(snap.get("shares", 0)) and ticker in out.columns
     use_snapshot_as_features = bool(fcfg.get("use_snapshot_as_features", False))
     require_historical = bool(fcfg.get("require_historical", True))
+    enabled_features = fcfg.get("features", {}) or {}
+    use_valuation = bool(enabled_features.get("valuation", True))
+    use_quality = bool(enabled_features.get("quality", True))
+    use_yield = bool(enabled_features.get("yield", True))
 
     if has_hist:
         idx = (
@@ -133,28 +137,36 @@ def add_fundamental_features(
         market_cap = out[ticker].to_numpy() * float(snap["shares"])
         lucro = aligned["LUCRO_LIQUIDO"].replace(0, np.nan).to_numpy() * 1000
         patrimonio = aligned["PATRIMONIO_LIQUIDO"].replace(0, np.nan).to_numpy() * 1000
-        out["pl"] = pd.Series(market_cap / lucro, index=out.index).replace(
-            [np.inf, -np.inf], np.nan
-        )
-        out["pvp"] = pd.Series(market_cap / patrimonio, index=out.index).replace(
-            [np.inf, -np.inf], np.nan
-        )
-        out["roe"] = pd.Series(lucro / patrimonio, index=out.index).replace(
-            [np.inf, -np.inf], np.nan
-        )
+        if use_valuation:
+            out["pl"] = pd.Series(market_cap / lucro, index=out.index).replace(
+                [np.inf, -np.inf], np.nan
+            )
+            out["pvp"] = pd.Series(market_cap / patrimonio, index=out.index).replace(
+                [np.inf, -np.inf], np.nan
+            )
+        if use_quality:
+            out["roe"] = pd.Series(lucro / patrimonio, index=out.index).replace(
+                [np.inf, -np.inf], np.nan
+            )
         if use_snapshot_as_features:
-            out["pl"] = out["pl"].fillna(float(snap["pl"]))
-            out["pvp"] = out["pvp"].fillna(float(snap["pvp"]))
-            out["roe"] = out["roe"].fillna(float(snap["roe"]))
-            out["dy"] = float(snap["dy"])
+            if use_valuation:
+                out["pl"] = out["pl"].fillna(float(snap["pl"]))
+                out["pvp"] = out["pvp"].fillna(float(snap["pvp"]))
+            if use_quality:
+                out["roe"] = out["roe"].fillna(float(snap["roe"]))
+            if use_yield:
+                out["dy"] = float(snap["dy"])
         meta.update(
             {"source": "cvm_cache_temporal", "cvm_rows": int(len(hist)), "features_added": True}
         )
     elif use_snapshot_as_features and not require_historical:
-        out["pl"] = float(snap["pl"])
-        out["pvp"] = float(snap["pvp"])
-        out["roe"] = float(snap["roe"])
-        out["dy"] = float(snap["dy"])
+        if use_valuation:
+            out["pl"] = float(snap["pl"])
+            out["pvp"] = float(snap["pvp"])
+        if use_quality:
+            out["roe"] = float(snap["roe"])
+        if use_yield:
+            out["dy"] = float(snap["dy"])
         meta.update(
             {"source": "yfinance_snapshot_as_features", "cvm_rows": 0, "features_added": True}
         )
@@ -168,26 +180,32 @@ def add_fundamental_features(
         )
         return out, meta
 
-    if bool(fcfg.get("add_regime_features", True)) and {"pl", "roe"}.issubset(set(out.columns)):
+    if (
+        bool(fcfg.get("add_regime_features", True))
+        and bool(enabled_features.get("regime_score", True))
+        and {"pl", "roe"}.issubset(set(out.columns))
+    ):
         cheap_pl = float(fcfg.get("cheap_pl", 10.0))
         expensive_pl = float(fcfg.get("expensive_pl", 22.0))
         good_roe = float(fcfg.get("good_roe", 0.12))
         weak_roe = float(fcfg.get("weak_roe", 0.04))
-        out["fund_value_score"] = _clip_feature(
-            (expensive_pl - out["pl"]) / max(expensive_pl - cheap_pl, 1.0), -1.0, 1.0
-        )
-        out["fund_quality_score"] = _clip_feature(
-            (out["roe"] - weak_roe) / max(good_roe - weak_roe, 0.01), -1.0, 1.5
-        )
-        if "dy" in out.columns:
+        if use_valuation:
+            out["fund_value_score"] = _clip_feature(
+                (expensive_pl - out["pl"]) / max(expensive_pl - cheap_pl, 1.0), -1.0, 1.0
+            )
+        if use_quality:
+            out["fund_quality_score"] = _clip_feature(
+                (out["roe"] - weak_roe) / max(good_roe - weak_roe, 0.01), -1.0, 1.5
+            )
+        if use_yield and "dy" in out.columns:
             out["fund_yield_score"] = _clip_feature(
                 out["dy"] / max(float(fcfg.get("good_dy", 0.06)), 0.001), 0.0, 2.0
             )
         else:
             out["fund_yield_score"] = 0.0
         out["fund_regime_score"] = (
-            out["fund_value_score"] * float(fcfg.get("value_weight", 0.35))
-            + out["fund_quality_score"] * float(fcfg.get("quality_weight", 0.45))
+            out.get("fund_value_score", 0.0) * float(fcfg.get("value_weight", 0.35))
+            + out.get("fund_quality_score", 0.0) * float(fcfg.get("quality_weight", 0.45))
             + out["fund_yield_score"] * float(fcfg.get("yield_weight", 0.20))
         )
 

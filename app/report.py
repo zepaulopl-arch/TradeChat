@@ -65,7 +65,7 @@ def _top_feature_summary(top_features: list[dict[str, Any]] | None, *, limit: in
         short_name = item.get("short") or item.get("name", "n/a")
         family = item.get("family", "n/a")
         relevance = float(item.get("score", 0.0) or 0.0)
-        chunks.append(f"{short_name} [{family}, {relevance:.8f}]")
+        chunks.append(f"{short_name} [{family}, {relevance:.3f}]")
     return "top_5=" + "; ".join(chunks)
 
 

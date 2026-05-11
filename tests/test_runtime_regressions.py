@@ -180,6 +180,88 @@ def test_build_dataset_excludes_non_stationary_price_levels(monkeypatch):
     assert "PETR4.SA" in meta["excluded_training_features"]
 
 
+def test_build_dataset_respects_technical_feature_switches(monkeypatch):
+    monkeypatch.setattr(
+        feature_builder,
+        "add_fundamental_features",
+        lambda dataset, ticker, cfg: (dataset, {"enabled": False, "source": "test"}),
+    )
+    index = pd.date_range("2024-01-01", periods=180, freq="B")
+    prices = pd.DataFrame({"PETR4.SA": np.linspace(10.0, 20.0, len(index))}, index=index)
+    cfg = {
+        "features": {
+            "technical": {
+                "enabled": True,
+                "features": {
+                    "returns": True,
+                    "volatility": False,
+                    "rsi": False,
+                    "moving_averages": False,
+                    "ema": False,
+                    "roc": False,
+                    "bollinger": False,
+                    "fractional_memory": False,
+                },
+            },
+            "context": {"enabled": False},
+            "fundamentals": {"enabled": False},
+            "sentiment": {"enabled": False},
+            "preparation": {"stationarity": {"drop_raw_price": True}},
+        }
+    }
+
+    X, _all_y, _meta = feature_builder.build_dataset(cfg, prices, "PETR4.SA")
+
+    assert {"ret_1", "ret_5", "ret_20"}.issubset(set(X.columns))
+    assert "rsi" not in X.columns
+    assert "vol_20" not in X.columns
+    assert "sma_ratio" not in X.columns
+    assert "bb_width" not in X.columns
+
+
+def test_external_feature_fill_is_causal_without_backfill(monkeypatch):
+    def add_late_context(dataset, prices, ticker, cfg):
+        out = dataset.copy()
+        out["ctx_late_ret_5"] = np.nan
+        out.loc[out.index[100:], "ctx_late_ret_5"] = 0.25
+        return out, {"enabled": True, "columns": ["ctx_late_ret_5"]}
+
+    monkeypatch.setattr(feature_builder, "add_market_context_features", add_late_context)
+    monkeypatch.setattr(
+        feature_builder,
+        "add_fundamental_features",
+        lambda dataset, ticker, cfg: (dataset, {"enabled": False, "source": "test"}),
+    )
+    index = pd.date_range("2024-01-01", periods=180, freq="B")
+    prices = pd.DataFrame({"PETR4.SA": np.linspace(10.0, 20.0, len(index))}, index=index)
+    cfg = {
+        "features": {
+            "technical": {
+                "features": {
+                    "returns": True,
+                    "volatility": False,
+                    "rsi": False,
+                    "moving_averages": False,
+                    "ema": False,
+                    "roc": False,
+                    "bollinger": False,
+                    "fractional_memory": False,
+                }
+            },
+            "context": {"enabled": True},
+            "fundamentals": {"enabled": False},
+            "sentiment": {"enabled": False},
+            "preparation": {"stationarity": {"drop_raw_price": True}},
+        }
+    }
+
+    X, _all_y, _meta = feature_builder.build_dataset(cfg, prices, "PETR4.SA")
+
+    assert "ctx_late_ret_5" in X.columns
+    assert X["ctx_late_ret_5"].iloc[0] == pytest.approx(0.0)
+    assert X["ctx_late_ret_5"].iloc[-1] == pytest.approx(0.25)
+
+
 def test_preparation_defensively_drops_price_level_features():
     X = pd.DataFrame(
         {

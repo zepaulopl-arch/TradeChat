@@ -153,6 +153,7 @@ def load_sentiment_daily_series(
     else:
         daily = pd.DataFrame(index=base.index, columns=["score", "count"])
     fallback_zero = bool(sent_cfg.get("fallback_to_zero", True))
+    enabled_features = sent_cfg.get("features", {}) or {}
     score = (
         daily["score"].astype(float)
         if "score" in daily
@@ -168,9 +169,12 @@ def load_sentiment_daily_series(
         count = count.fillna(0.0)
     available = (count.fillna(0.0) >= int(sent_cfg.get("min_items_for_feature", 1))).astype(float)
     out = pd.DataFrame(index=index)
-    out["sent_score_daily"] = score.to_numpy()
-    out["sent_count_daily"] = count.to_numpy()
-    out["sent_available"] = available.to_numpy()
+    if bool(enabled_features.get("daily_score", True)):
+        out["sent_score_daily"] = score.to_numpy()
+    if bool(enabled_features.get("daily_count", True)):
+        out["sent_count_daily"] = count.to_numpy()
+    if bool(enabled_features.get("availability_flag", True)):
+        out["sent_available"] = available.to_numpy()
     window_groups = sent_cfg.get("window_groups", {}) or {}
     mean_windows = [
         int(w) for w in window_groups.get("mean", sent_cfg.get("windows", [1, 3, 7])) if int(w) >= 1
@@ -182,16 +186,20 @@ def load_sentiment_daily_series(
     ]
     delta_windows = [int(w) for w in window_groups.get("delta", [3]) if int(w) >= 1]
     std_windows = [int(w) for w in window_groups.get("std", [7]) if int(w) >= 2]
-    score_s = pd.Series(out["sent_score_daily"].to_numpy(), index=out.index)
-    count_s = pd.Series(out["sent_count_daily"].to_numpy(), index=out.index)
-    for w in mean_windows:
-        out[f"sent_mean_{w}d"] = score_s.rolling(w, min_periods=1).mean()
-    for w in count_windows:
-        out[f"sent_count_{w}d"] = count_s.rolling(w, min_periods=1).sum()
-    for w in delta_windows:
-        out[f"sent_delta_{w}d"] = score_s - score_s.shift(w).fillna(0.0)
-    for w in std_windows:
-        out[f"sent_std_{w}d"] = score_s.rolling(w, min_periods=2).std().fillna(0.0)
+    score_s = pd.Series(score.to_numpy(), index=out.index)
+    count_s = pd.Series(count.to_numpy(), index=out.index)
+    if bool(enabled_features.get("rolling_mean", True)):
+        for w in mean_windows:
+            out[f"sent_mean_{w}d"] = score_s.rolling(w, min_periods=1).mean()
+    if bool(enabled_features.get("rolling_count", True)):
+        for w in count_windows:
+            out[f"sent_count_{w}d"] = count_s.rolling(w, min_periods=1).sum()
+    if bool(enabled_features.get("delta", True)):
+        for w in delta_windows:
+            out[f"sent_delta_{w}d"] = score_s - score_s.shift(w).fillna(0.0)
+    if bool(enabled_features.get("std", True)):
+        for w in std_windows:
+            out[f"sent_std_{w}d"] = score_s.rolling(w, min_periods=2).std().fillna(0.0)
     meta = dict(update_meta)
     meta.update({"mode": sent_cfg.get("mode", "temporal_feature"), "columns": list(out.columns)})
     return out, meta

@@ -1,21 +1,5 @@
-# Unified requirements generated from nested requirements files.
-# Review before replacing requirements.txt.
-
-pandas
-numpy
-pyyaml
-yfinance
-pyarrow
-requests
-scikit-learn
-xgboost
-catboost
-scikit-optimize
-lib-pybroker
-feedparser
-nltk
-deep-translator
-pytest
-pytest-cov
-ruff
-black
+# Layered requirements.
+-r requirements-core.txt
+-r requirements-ml.txt
+-r requirements-sentiment.txt
+-r requirements-dev.txt

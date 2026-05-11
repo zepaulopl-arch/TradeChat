@@ -74,6 +74,11 @@ def build_dataset(
 
     fcfg = cfg.get("features", {})
     tech = fcfg.get("technical", {})
+    tech_features = tech.get("features", {}) or {}
+
+    def tech_enabled(name: str, default: bool = True) -> bool:
+        return bool(tech.get("enabled", True)) and bool(tech_features.get(name, default))
+
     df = prices.copy().ffill()
     px = df[ticker]
 
@@ -88,60 +93,73 @@ def build_dataset(
     dataset["target_return_d5"] = px.shift(-5) / px - 1
     dataset["target_return_d20"] = px.shift(-20) / px - 1
 
-    dataset["frac_mem"] = _frac_diff(px, float(tech.get("frac_diff_d", 0.5)))
-    dataset["ret_1"] = px.pct_change(1)
-    dataset["ret_5"] = px.pct_change(5)
-    dataset["ret_20"] = px.pct_change(20)
-    vol_windows = [
-        int(w) for w in tech.get("vol_windows", [tech.get("vol_window", 20)]) if int(w) > 1
-    ]
-    for w in sorted(set(vol_windows or [20])):
-        dataset[f"vol_{w}"] = dataset["ret_1"].rolling(w).std()
-    dataset["rsi"] = _rsi(px, int(tech.get("rsi_window", 14)))
+    if tech_enabled("fractional_memory"):
+        dataset["frac_mem"] = _frac_diff(px, float(tech.get("frac_diff_d", 0.5)))
+    if tech_enabled("returns"):
+        dataset["ret_1"] = px.pct_change(1)
+        dataset["ret_5"] = px.pct_change(5)
+        dataset["ret_20"] = px.pct_change(20)
+    if tech_enabled("volatility"):
+        ret_1 = dataset["ret_1"] if "ret_1" in dataset.columns else px.pct_change(1)
+        vol_windows = [
+            int(w) for w in tech.get("vol_windows", [tech.get("vol_window", 20)]) if int(w) > 1
+        ]
+        for w in sorted(set(vol_windows or [20])):
+            dataset[f"vol_{w}"] = ret_1.rolling(w).std()
+    if tech_enabled("rsi"):
+        dataset["rsi"] = _rsi(px, int(tech.get("rsi_window", 14)))
     sma_short_w = int(tech.get("sma_short", 10))
     sma_long_w = int(tech.get("sma_long", 50))
     ema_short_w = int(tech.get("ema_short", 20))
     ema_long_w = int(tech.get("ema_long", 100))
-    dataset["sma_10"] = px.rolling(sma_short_w).mean()
-    dataset["sma_50"] = px.rolling(sma_long_w).mean()
-    dataset["ema_20"] = px.ewm(span=ema_short_w, adjust=False).mean()
-    dataset["ema_100"] = px.ewm(span=ema_long_w, adjust=False).mean()
-    dataset["sma_ratio"] = dataset["sma_10"] / dataset["sma_50"] - 1
-    dataset["ema_ratio"] = dataset["ema_20"] / dataset["ema_100"] - 1
-    dataset["price_to_sma_10"] = px / dataset["sma_10"] - 1
-    dataset["price_to_sma_50"] = px / dataset["sma_50"] - 1
-    dataset["price_to_ema_20"] = px / dataset["ema_20"] - 1
-    dataset["price_to_ema_100"] = px / dataset["ema_100"] - 1
-    dataset["roc_10"] = px.pct_change(int(tech.get("roc_window", 10)))
-    dataset["bb_mid"] = px.rolling(20).mean()
-    dataset["bb_std"] = px.rolling(20).std()
-    dataset["bb_width"] = (4 * dataset["bb_std"]) / dataset["bb_mid"]
-    dataset["bb_pos"] = (px - (dataset["bb_mid"] - 2 * dataset["bb_std"])) / (4 * dataset["bb_std"])
-    roll_max_20 = px.rolling(20).max()
-    roll_min_20 = px.rolling(20).min()
-    dataset["drawdown_20"] = px / roll_max_20 - 1
-    dataset["range_pos_20"] = (px - roll_min_20) / (roll_max_20 - roll_min_20)
+    if tech_enabled("moving_averages"):
+        dataset["sma_10"] = px.rolling(sma_short_w).mean()
+        dataset["sma_50"] = px.rolling(sma_long_w).mean()
+        dataset["sma_ratio"] = dataset["sma_10"] / dataset["sma_50"] - 1
+        dataset["price_to_sma_10"] = px / dataset["sma_10"] - 1
+        dataset["price_to_sma_50"] = px / dataset["sma_50"] - 1
+    if tech_enabled("ema"):
+        dataset["ema_20"] = px.ewm(span=ema_short_w, adjust=False).mean()
+        dataset["ema_100"] = px.ewm(span=ema_long_w, adjust=False).mean()
+        dataset["ema_ratio"] = dataset["ema_20"] / dataset["ema_100"] - 1
+        dataset["price_to_ema_20"] = px / dataset["ema_20"] - 1
+        dataset["price_to_ema_100"] = px / dataset["ema_100"] - 1
+    if tech_enabled("roc"):
+        dataset["roc_10"] = px.pct_change(int(tech.get("roc_window", 10)))
+    if tech_enabled("bollinger"):
+        dataset["bb_mid"] = px.rolling(20).mean()
+        dataset["bb_std"] = px.rolling(20).std()
+        dataset["bb_width"] = (4 * dataset["bb_std"]) / dataset["bb_mid"]
+        dataset["bb_pos"] = (px - (dataset["bb_mid"] - 2 * dataset["bb_std"])) / (
+            4 * dataset["bb_std"]
+        )
+        roll_max_20 = px.rolling(20).max()
+        roll_min_20 = px.rolling(20).min()
+        dataset["drawdown_20"] = px / roll_max_20 - 1
+        dataset["range_pos_20"] = (px - roll_min_20) / (roll_max_20 - roll_min_20)
     if "vol_5" in dataset.columns and "vol_20" in dataset.columns:
         dataset["vol_ratio_5_20"] = dataset["vol_5"] / dataset["vol_20"] - 1
     if "vol_20" in dataset.columns:
-        ret_mean_20 = dataset["ret_1"].rolling(20).mean()
-        dataset["ret_z_20"] = (dataset["ret_1"] - ret_mean_20) / dataset["vol_20"].replace(
-            0, np.nan
-        )
+        ret_1 = dataset["ret_1"] if "ret_1" in dataset.columns else px.pct_change(1)
+        ret_mean_20 = ret_1.rolling(20).mean()
+        dataset["ret_z_20"] = (ret_1 - ret_mean_20) / dataset["vol_20"].replace(0, np.nan)
 
     # Advanced / Complex Features
-    dataset["hurst"] = _hurst_exponent(px, 100)
+    if tech_enabled("volatility"):
+        dataset["hurst"] = _hurst_exponent(px, 100)
 
     # RSI Divergence proxy: Slope of Price vs Slope of RSI
-    px_slope = px.pct_change(5).rolling(5).mean()
-    rsi_slope = dataset["rsi"].diff(5).rolling(5).mean()
-    dataset["rsi_div"] = rsi_slope - px_slope
+    if "rsi" in dataset.columns:
+        px_slope = px.pct_change(5).rolling(5).mean()
+        rsi_slope = dataset["rsi"].diff(5).rolling(5).mean()
+        dataset["rsi_div"] = rsi_slope - px_slope
 
     # Relative ATR (Proxy)
-    tr = pd.concat([px - px.shift(1), (px - px.shift(1)).abs(), px.rolling(2).std()], axis=1).max(
-        axis=1
-    )
-    dataset["atr_rel"] = tr.rolling(14).mean() / px
+    if tech_enabled("volatility"):
+        tr = pd.concat(
+            [px - px.shift(1), (px - px.shift(1)).abs(), px.rolling(2).std()], axis=1
+        ).max(axis=1)
+        dataset["atr_rel"] = tr.rolling(14).mean() / px
 
     dataset, context_meta = add_market_context_features(dataset, df, ticker, cfg)
     dataset, fundamental_meta = add_fundamental_features(dataset, ticker, cfg)
@@ -172,9 +190,8 @@ def build_dataset(
         c for c in dataset.columns if c.startswith(external_prefixes) or c in external_exact
     ]
     if external_cols:
-        dataset[external_cols] = (
-            dataset[external_cols].replace([np.inf, -np.inf], np.nan).ffill().bfill().fillna(0.0)
-        )
+        dataset[external_cols] = dataset[external_cols].replace([np.inf, -np.inf], np.nan)
+        dataset[external_cols] = dataset[external_cols].ffill().fillna(0.0)
 
     # We want to keep all targets but not as features
     target_cols = ["target_return_d1", "target_return_d5", "target_return_d20"]
