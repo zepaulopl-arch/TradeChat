@@ -173,3 +173,38 @@ def run(args: argparse.Namespace) -> None:
         _run_report(args)
         return
     _run_validation(args)
+
+# =========================================================
+# promote-policy imports
+# =========================================================
+
+try:
+
+    from app.commands.promote_policy import (
+        promote_policy,
+    )
+
+except Exception:
+
+    promote_policy = None
+
+
+# =========================================================
+# promote-policy runtime dispatch
+# =========================================================
+
+try:
+
+    if getattr(
+        args,
+        "validate_command",
+        None,
+    ) == "promote-policy":
+
+        promote_policy(
+            matrix_dir=args.matrix_dir,
+        )
+
+except Exception:
+    pass
+

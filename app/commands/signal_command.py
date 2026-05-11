@@ -5,6 +5,7 @@ import argparse
 from ..config import load_config
 from ..pipeline_service import latest_signal_path, make_signal
 from ..policy import apply_policy_profile
+from ..runtime_policy import resolve_policy_profile
 from ..ranking_service import render_ranking
 from ..report import print_signal, write_txt_report
 from ..utils import read_json
@@ -13,7 +14,58 @@ from ._shared import resolve_cli_tickers
 
 def _policy_cfg(cfg: dict, args: argparse.Namespace) -> dict:
     profile = getattr(args, "policy_profile", None)
-    return apply_policy_profile(cfg, profile) if profile else cfg
+
+    # adaptive runtime fallback
+    if not profile:
+
+        tickers = []
+
+        if getattr(args, "tickers", None):
+
+            tickers = list(
+                args.tickers
+            )
+
+        elif getattr(
+            args,
+            "asset_list",
+            None,
+        ):
+
+            try:
+
+                from ..tickers import (
+                    load_asset_list,
+                )
+
+                tickers = (
+                    load_asset_list(
+                        cfg,
+                        args.asset_list,
+                    )
+                )
+
+            except Exception:
+
+                tickers = []
+
+        # auto resolve only for single ticker
+        if len(tickers) == 1:
+
+            profile = (
+                resolve_policy_profile(
+                    str(tickers[0]),
+                )
+            )
+
+    return (
+        apply_policy_profile(
+            cfg,
+            profile,
+        )
+        if profile
+        else cfg
+    )
 
 
 def _generate(cfg: dict, args: argparse.Namespace, *, print_output: bool = True) -> None:
@@ -67,3 +119,4 @@ def run(args: argparse.Namespace) -> None:
         _report(cfg, args)
     else:
         raise SystemExit(f"unknown signal action: {action}")
+

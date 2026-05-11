@@ -1,0 +1,23 @@
+promotion:
+
+  mode: by-asset
+
+  metric: sharpe
+
+  constraints:
+
+    max_drawdown_pct: 15.0
+
+    min_trades: 20
+
+    min_sharpe: 0.80
+
+    max_exposure_pct: 80.0
+
+  fallback_profile: balanced
+
+  tie_break:
+
+    - sharpe
+    - avg_return_pct
+    - drawdown_pct
