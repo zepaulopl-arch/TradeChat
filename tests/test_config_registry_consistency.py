@@ -55,3 +55,40 @@ def test_ibov_universe_does_not_disagree_with_registry_core_fields():
                     )
 
     assert not disagreements, f"Universe/registry disagreements: {disagreements}"
+
+
+def test_ibov_universe_does_not_duplicate_registry_metadata():
+    universe = load_yaml("config/universes/ibov.yaml")
+    components = universe.get("components") or universe.get("assets") or {}
+
+    if not isinstance(components, dict):
+        return
+
+    forbidden_fields = {
+        "name",
+        "asset_type",
+        "country",
+        "currency",
+        "group",
+        "subgroup",
+        "financial_class",
+        "cnpj",
+        "cnpj_status",
+        "registry_status",
+        "b3_name",
+        "share_class",
+        "b3_type_raw",
+        "b3_listing_segment",
+    }
+
+    duplicated = []
+
+    for ticker, meta in components.items():
+        if not isinstance(meta, dict):
+            continue
+
+        repeated = sorted(forbidden_fields.intersection(meta.keys()))
+        if repeated:
+            duplicated.append({"ticker": ticker, "fields": repeated})
+
+    assert not duplicated, f"Universe duplicates registry metadata: {duplicated}"

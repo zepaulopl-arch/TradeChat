@@ -125,11 +125,6 @@ def _load_split_universes(config_dir: Path, assets: dict[str, Any]) -> dict[str,
             if component.get("use_in_reference_sample") is not None:
                 profile["use_in_reference_sample"] = bool(component.get("use_in_reference_sample"))
             for key in (
-                "b3_code",
-                "name",
-                "share_class",
-                "b3_type_raw",
-                "b3_listing_segment",
                 "composition_date",
                 "source_file",
                 "theoretical_quantity",

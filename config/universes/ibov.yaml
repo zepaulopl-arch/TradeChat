@@ -45,9 +45,6 @@ components:
   ALOS3.SA:
     ticker: ALOS3.SA
     b3_code: ALOS3
-    name: ALLOS
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IMOB
@@ -59,9 +56,6 @@ components:
   ABEV3.SA:
     ticker: ABEV3.SA
     b3_code: ABEV3
-    name: AMBEV
-    share_class: 'ON'
-    b3_type_raw: 'ON'
     linked_indices:
     - IBOV
     - ICON
@@ -73,9 +67,6 @@ components:
   ASAI3.SA:
     ticker: ASAI3.SA
     b3_code: ASAI3
-    name: ASSAI
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -87,9 +78,6 @@ components:
   AURE3.SA:
     ticker: AURE3.SA
     b3_code: AURE3
-    name: AUREN
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IEEX
@@ -101,9 +89,6 @@ components:
   AXIA3.SA:
     ticker: AXIA3.SA
     b3_code: AXIA3
-    name: AXIA ENERGIA
-    share_class: 'ON'
-    b3_type_raw: ON      N1
     linked_indices:
     - IBOV
     - IEEX
@@ -116,9 +101,6 @@ components:
   AXIA6.SA:
     ticker: AXIA6.SA
     b3_code: AXIA6
-    name: AXIA ENERGIA
-    share_class: PNB
-    b3_type_raw: PNB     N1
     linked_indices:
     - IBOV
     - IEEX
@@ -131,9 +113,6 @@ components:
   AZZA3.SA:
     ticker: AZZA3.SA
     b3_code: AZZA3
-    name: AZZAS 2154
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -145,9 +124,6 @@ components:
   B3SA3.SA:
     ticker: B3SA3.SA
     b3_code: B3SA3
-    name: B3
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IFNC
@@ -159,9 +135,6 @@ components:
   BBSE3.SA:
     ticker: BBSE3.SA
     b3_code: BBSE3
-    name: BB SEGURIDADE
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IFNC
@@ -173,9 +146,6 @@ components:
   BBDC3.SA:
     ticker: BBDC3.SA
     b3_code: BBDC3
-    name: BRADESCO
-    share_class: 'ON'
-    b3_type_raw: ON  EJ  N1
     linked_indices:
     - IBOV
     - IFNC
@@ -188,9 +158,6 @@ components:
   BBDC4.SA:
     ticker: BBDC4.SA
     b3_code: BBDC4
-    name: BRADESCO
-    share_class: PN
-    b3_type_raw: PN  EJ  N1
     linked_indices:
     - IBOV
     - IFNC
@@ -203,9 +170,6 @@ components:
   BRAP4.SA:
     ticker: BRAP4.SA
     b3_code: BRAP4
-    name: BRADESPAR
-    share_class: PN
-    b3_type_raw: PN      N1
     linked_indices:
     - IBOV
     - IMAT
@@ -217,9 +181,6 @@ components:
   BBAS3.SA:
     ticker: BBAS3.SA
     b3_code: BBAS3
-    name: BANCO DO BRASIL
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IFNC
@@ -232,9 +193,6 @@ components:
   BRKM5.SA:
     ticker: BRKM5.SA
     b3_code: BRKM5
-    name: BRASKEM
-    share_class: PNA
-    b3_type_raw: PNA     N1
     linked_indices:
     - IBOV
     - IMAT
@@ -246,9 +204,6 @@ components:
   BRAV3.SA:
     ticker: BRAV3.SA
     b3_code: BRAV3
-    name: BRAVA ENERGIA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -259,9 +214,6 @@ components:
   BPAC11.SA:
     ticker: BPAC11.SA
     b3_code: BPAC11
-    name: BTG PACTUAL
-    share_class: UNT
-    b3_type_raw: UNT     N2
     linked_indices:
     - IBOV
     - IFNC
@@ -273,9 +225,6 @@ components:
   CXSE3.SA:
     ticker: CXSE3.SA
     b3_code: CXSE3
-    name: CAIXA SEGURI
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - IFNC
@@ -287,9 +236,6 @@ components:
   CEAB3.SA:
     ticker: CEAB3.SA
     b3_code: CEAB3
-    name: CEA MODAS
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -301,9 +247,6 @@ components:
   CMIG4.SA:
     ticker: CMIG4.SA
     b3_code: CMIG4
-    name: CEMIG
-    share_class: PN
-    b3_type_raw: PN  ED  N1
     linked_indices:
     - IBOV
     - IEEX
@@ -315,9 +258,6 @@ components:
   COGN3.SA:
     ticker: COGN3.SA
     b3_code: COGN3
-    name: COGNA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -329,9 +269,6 @@ components:
   CSMG3.SA:
     ticker: CSMG3.SA
     b3_code: CSMG3
-    name: COPASA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - UTIL
@@ -343,9 +280,6 @@ components:
   CPLE3.SA:
     ticker: CPLE3.SA
     b3_code: CPLE3
-    name: COPEL
-    share_class: 'ON'
-    b3_type_raw: ON  EJ  NM
     linked_indices:
     - IBOV
     - IEEX
@@ -357,9 +291,6 @@ components:
   CSAN3.SA:
     ticker: CSAN3.SA
     b3_code: CSAN3
-    name: COSAN
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -370,9 +301,6 @@ components:
   CPFE3.SA:
     ticker: CPFE3.SA
     b3_code: CPFE3
-    name: CPFL ENERGIA
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - IEEX
@@ -384,9 +312,6 @@ components:
   CMIN3.SA:
     ticker: CMIN3.SA
     b3_code: CMIN3
-    name: CSN MINERACAO
-    share_class: 'ON'
-    b3_type_raw: ON      N2
     linked_indices:
     - IBOV
     - IMAT
@@ -398,9 +323,6 @@ components:
   CURY3.SA:
     ticker: CURY3.SA
     b3_code: CURY3
-    name: CURY S/A
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IMOB
@@ -412,9 +334,6 @@ components:
   CYRE3.SA:
     ticker: CYRE3.SA
     b3_code: CYRE3
-    name: CYRELA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IMOB
@@ -426,9 +345,6 @@ components:
   DIRR3.SA:
     ticker: DIRR3.SA
     b3_code: DIRR3
-    name: DIRECIONAL
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IMOB
@@ -440,9 +356,6 @@ components:
   EMBJ3.SA:
     ticker: EMBJ3.SA
     b3_code: EMBJ3
-    name: EMBRAER
-    share_class: 'ON'
-    b3_type_raw: ON  ATZ NM
     linked_indices:
     - IBOV
     - INDX
@@ -454,9 +367,6 @@ components:
   ENGI11.SA:
     ticker: ENGI11.SA
     b3_code: ENGI11
-    name: ENERGISA
-    share_class: UNT
-    b3_type_raw: UNT     N2
     linked_indices:
     - IBOV
     - IEEX
@@ -468,9 +378,6 @@ components:
   ENEV3.SA:
     ticker: ENEV3.SA
     b3_code: ENEV3
-    name: ENEVA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IEEX
@@ -482,9 +389,6 @@ components:
   EGIE3.SA:
     ticker: EGIE3.SA
     b3_code: EGIE3
-    name: ENGIE BRASIL
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - IEEX
@@ -496,9 +400,6 @@ components:
   EQTL3.SA:
     ticker: EQTL3.SA
     b3_code: EQTL3
-    name: EQUATORIAL
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IEEX
@@ -510,9 +411,6 @@ components:
   FLRY3.SA:
     ticker: FLRY3.SA
     b3_code: FLRY3
-    name: FLEURY
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -523,9 +421,6 @@ components:
   GGBR4.SA:
     ticker: GGBR4.SA
     b3_code: GGBR4
-    name: GERDAU
-    share_class: PN
-    b3_type_raw: PN      N1
     linked_indices:
     - IBOV
     - IMAT
@@ -537,9 +432,6 @@ components:
   GOAU4.SA:
     ticker: GOAU4.SA
     b3_code: GOAU4
-    name: GERDAU MET
-    share_class: PN
-    b3_type_raw: PN      N1
     linked_indices:
     - IBOV
     - IMAT
@@ -551,9 +443,6 @@ components:
   HAPV3.SA:
     ticker: HAPV3.SA
     b3_code: HAPV3
-    name: HAPVIDA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -564,9 +453,6 @@ components:
   HYPE3.SA:
     ticker: HYPE3.SA
     b3_code: HYPE3
-    name: HYPERA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -577,9 +463,6 @@ components:
   IGTI11.SA:
     ticker: IGTI11.SA
     b3_code: IGTI11
-    name: IGUATEMI
-    share_class: UNT
-    b3_type_raw: UNT     N1
     linked_indices:
     - IBOV
     - IMOB
@@ -591,9 +474,6 @@ components:
   ISAE4.SA:
     ticker: ISAE4.SA
     b3_code: ISAE4
-    name: ISA ENERGIA
-    share_class: PN
-    b3_type_raw: PN      N1
     linked_indices:
     - IBOV
     - IEEX
@@ -605,9 +485,6 @@ components:
   ITSA4.SA:
     ticker: ITSA4.SA
     b3_code: ITSA4
-    name: ITAUSA
-    share_class: PN
-    b3_type_raw: PN      N1
     linked_indices:
     - IBOV
     - IFNC
@@ -619,9 +496,6 @@ components:
   ITUB4.SA:
     ticker: ITUB4.SA
     b3_code: ITUB4
-    name: ITAU UNIBANCO
-    share_class: PN
-    b3_type_raw: PN  EJ  N1
     linked_indices:
     - IBOV
     - IFNC
@@ -634,9 +508,6 @@ components:
   KLBN11.SA:
     ticker: KLBN11.SA
     b3_code: KLBN11
-    name: KLABIN
-    share_class: UNT
-    b3_type_raw: UNT     N2
     linked_indices:
     - IBOV
     - IMAT
@@ -648,9 +519,6 @@ components:
   RENT3.SA:
     ticker: RENT3.SA
     b3_code: RENT3
-    name: LOCALIZA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -662,9 +530,6 @@ components:
   LREN3.SA:
     ticker: LREN3.SA
     b3_code: LREN3
-    name: LOJAS RENNER
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -676,9 +541,6 @@ components:
   MGLU3.SA:
     ticker: MGLU3.SA
     b3_code: MGLU3
-    name: MAGAZINE LUIZA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -690,9 +552,6 @@ components:
   POMO4.SA:
     ticker: POMO4.SA
     b3_code: POMO4
-    name: MARCOPOLO
-    share_class: PN
-    b3_type_raw: PN      N2
     linked_indices:
     - IBOV
     - INDX
@@ -704,9 +563,6 @@ components:
   MBRF3.SA:
     ticker: MBRF3.SA
     b3_code: MBRF3
-    name: MBRF
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -718,9 +574,6 @@ components:
   BEEF3.SA:
     ticker: BEEF3.SA
     b3_code: BEEF3
-    name: MINERVA
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - ICON
@@ -732,9 +585,6 @@ components:
   MOTV3.SA:
     ticker: MOTV3.SA
     b3_code: MOTV3
-    name: MOTIVA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - INDX
@@ -746,9 +596,6 @@ components:
   MRVE3.SA:
     ticker: MRVE3.SA
     b3_code: MRVE3
-    name: MRV
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IMOB
@@ -760,9 +607,6 @@ components:
   MULT3.SA:
     ticker: MULT3.SA
     b3_code: MULT3
-    name: MULTIPLAN
-    share_class: 'ON'
-    b3_type_raw: ON      N2
     linked_indices:
     - IBOV
     - IMOB
@@ -774,9 +618,6 @@ components:
   NATU3.SA:
     ticker: NATU3.SA
     b3_code: NATU3
-    name: NATURA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -788,9 +629,6 @@ components:
   PETR3.SA:
     ticker: PETR3.SA
     b3_code: PETR3
-    name: PETROBRAS
-    share_class: 'ON'
-    b3_type_raw: ON      N2
     linked_indices:
     - IBOV
     - IBRX50
@@ -802,9 +640,6 @@ components:
   PETR4.SA:
     ticker: PETR4.SA
     b3_code: PETR4
-    name: PETROBRAS
-    share_class: PN
-    b3_type_raw: PN      N2
     linked_indices:
     - IBOV
     - IBRX50
@@ -816,9 +651,6 @@ components:
   RECV3.SA:
     ticker: RECV3.SA
     b3_code: RECV3
-    name: PETRORECSA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -829,9 +661,6 @@ components:
   PSSA3.SA:
     ticker: PSSA3.SA
     b3_code: PSSA3
-    name: PORTO SEGURO
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - IFNC
@@ -843,9 +672,6 @@ components:
   PRIO3.SA:
     ticker: PRIO3.SA
     b3_code: PRIO3
-    name: PRIO
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -856,9 +682,6 @@ components:
   RADL3.SA:
     ticker: RADL3.SA
     b3_code: RADL3
-    name: RAIA DROGASIL
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -870,9 +693,6 @@ components:
   RDOR3.SA:
     ticker: RDOR3.SA
     b3_code: RDOR3
-    name: REDE D OR
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -883,9 +703,6 @@ components:
   RAIL3.SA:
     ticker: RAIL3.SA
     b3_code: RAIL3
-    name: RUMO
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - INDX
@@ -897,9 +714,6 @@ components:
   SBSP3.SA:
     ticker: SBSP3.SA
     b3_code: SBSP3
-    name: SABESP
-    share_class: 'ON'
-    b3_type_raw: ON  EB  NM
     linked_indices:
     - IBOV
     - UTIL
@@ -911,9 +725,6 @@ components:
   SANB11.SA:
     ticker: SANB11.SA
     b3_code: SANB11
-    name: SANTANDER BRASIL
-    share_class: UNT
-    b3_type_raw: UNT
     linked_indices:
     - IBOV
     - IFNC
@@ -925,9 +736,6 @@ components:
   CSNA3.SA:
     ticker: CSNA3.SA
     b3_code: CSNA3
-    name: CSN
-    share_class: 'ON'
-    b3_type_raw: 'ON'
     linked_indices:
     - IBOV
     - IMAT
@@ -939,9 +747,6 @@ components:
   SLCE3.SA:
     ticker: SLCE3.SA
     b3_code: SLCE3
-    name: SLC AGRICOLA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -953,9 +758,6 @@ components:
   SMFT3.SA:
     ticker: SMFT3.SA
     b3_code: SMFT3
-    name: SMART FIT
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -967,9 +769,6 @@ components:
   SUZB3.SA:
     ticker: SUZB3.SA
     b3_code: SUZB3
-    name: SUZANO
-    share_class: 'ON'
-    b3_type_raw: ON  ED  NM
     linked_indices:
     - IBOV
     - IMAT
@@ -981,9 +780,6 @@ components:
   TAEE11.SA:
     ticker: TAEE11.SA
     b3_code: TAEE11
-    name: TAESA
-    share_class: UNT
-    b3_type_raw: UNT ED  N2
     linked_indices:
     - IBOV
     - IEEX
@@ -995,9 +791,6 @@ components:
   VIVT3.SA:
     ticker: VIVT3.SA
     b3_code: VIVT3
-    name: TELEFONICA BRASIL
-    share_class: 'ON'
-    b3_type_raw: 'ON'
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -1008,9 +801,6 @@ components:
   TIMS3.SA:
     ticker: TIMS3.SA
     b3_code: TIMS3
-    name: TIM
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -1021,9 +811,6 @@ components:
   TOTS3.SA:
     ticker: TOTS3.SA
     b3_code: TOTS3
-    name: TOTVS
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -1034,9 +821,6 @@ components:
   UGPA3.SA:
     ticker: UGPA3.SA
     b3_code: UGPA3
-    name: ULTRAPAR
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -1047,9 +831,6 @@ components:
   USIM5.SA:
     ticker: USIM5.SA
     b3_code: USIM5
-    name: USIMINAS
-    share_class: PNA
-    b3_type_raw: PNA     N1
     linked_indices:
     - IBOV
     - IMAT
@@ -1061,9 +842,6 @@ components:
   VALE3.SA:
     ticker: VALE3.SA
     b3_code: VALE3
-    name: VALE
-    share_class: 'ON'
-    b3_type_raw: ON  ATZ NM
     linked_indices:
     - IBOV
     - IMAT
@@ -1076,9 +854,6 @@ components:
   VAMO3.SA:
     ticker: VAMO3.SA
     b3_code: VAMO3
-    name: VAMOS
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -1090,9 +865,6 @@ components:
   VBBR3.SA:
     ticker: VBBR3.SA
     b3_code: VBBR3
-    name: VIBRA
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     use_in_reference_sample: true
@@ -1103,9 +875,6 @@ components:
   VIVA3.SA:
     ticker: VIVA3.SA
     b3_code: VIVA3
-    name: VIVARA S.A.
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
@@ -1117,9 +886,6 @@ components:
   WEGE3.SA:
     ticker: WEGE3.SA
     b3_code: WEGE3
-    name: WEG
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - INDX
@@ -1131,9 +897,6 @@ components:
   YDUQ3.SA:
     ticker: YDUQ3.SA
     b3_code: YDUQ3
-    name: YDUQS
-    share_class: 'ON'
-    b3_type_raw: ON      NM
     linked_indices:
     - IBOV
     - ICON
