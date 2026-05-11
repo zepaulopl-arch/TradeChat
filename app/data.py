@@ -109,7 +109,9 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         return None
 
     key = lookup_key(requested)
-    canonical = normalize_ticker(canonical_asset_ticker(cfg, key or requested))
+    canonical = normalize_ticker(
+        canonical_asset_ticker({"assets_registry": registry}, key or requested)
+    )
     profile = dict(assets.get(canonical, {}) or {})
     if not profile and canonical.split(".")[0] in assets:
         profile = dict(assets.get(canonical.split(".")[0], {}) or {})
