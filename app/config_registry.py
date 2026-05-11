@@ -130,7 +130,7 @@ def _load_split_universes(config_dir: Path, assets: dict[str, Any]) -> dict[str,
                 "theoretical_quantity",
                 "weight_pct",
             ):
-                if key in component and key not in profile:
+                if key in component:
                     profile[key] = component[key]
             if "composition_date" in component or "weight_pct" in component:
                 profile[name] = {
