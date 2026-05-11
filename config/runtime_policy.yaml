@@ -2,7 +2,7 @@ promotion:
 
   mode: by-asset
 
-  metric: sharpe
+  metric: profit_factor
 
   constraints:
 
@@ -21,3 +21,4 @@ promotion:
     - sharpe
     - avg_return_pct
     - drawdown_pct
+
