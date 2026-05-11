@@ -1,6 +1,9 @@
+# app/feature_audit.py
+
 from __future__ import annotations
 
 from typing import Any
+import math
 
 
 def feature_family(feature: str) -> str:
@@ -48,38 +51,75 @@ def selected_feature_scores(
     prep_meta: dict[str, Any], features: list[str] | None = None
 ) -> dict[str, float]:
     sel = (prep_meta or {}).get("selection", {}) or {}
-    rel = sel.get("relevance", {}) or {}
+    rel = (
+        sel.get("model_relevance")
+        or sel.get("relevance")
+        or {}
+    )
+
     out: dict[str, float] = {}
+
     source = features or list(rel.keys())
+
     for feature in source:
+        value = rel.get(feature)
+
         try:
-            out[str(feature)] = float(rel.get(feature, 0.0) or 0.0)
+            if value is None:
+                out[str(feature)] = math.nan
+            else:
+                out[str(feature)] = float(value)
         except Exception:
-            out[str(feature)] = 0.0
+            out[str(feature)] = math.nan
+
     return out
 
 
 def top_selected_features(
     prep_meta: dict[str, Any], features: list[str], n: int = 5
 ) -> list[dict[str, Any]]:
+
     scores = selected_feature_scores(prep_meta, features)
-    ordered = sorted([str(f) for f in features], key=lambda f: scores.get(f, 0.0), reverse=True)
+
+    ordered = sorted(
+        [str(f) for f in features],
+        key=lambda f: (
+            scores.get(f, float("-inf"))
+            if not math.isnan(scores.get(f, math.nan))
+            else float("-inf")
+        ),
+        reverse=True,
+    )
+
     result: list[dict[str, Any]] = []
+
     for feature in ordered[: max(0, int(n))]:
+
+        score = scores.get(feature, math.nan)
+
         result.append(
             {
                 "name": feature,
                 "short": abbreviate_feature_name(feature),
                 "family": feature_family(feature),
-                "score": float(scores.get(feature, 0.0)),
+                "score": score,
             }
         )
+
     return result
 
 
 def feature_family_profile(features: list[str]) -> dict[str, int]:
-    profile = {"technical": 0, "context": 0, "fundamentals": 0, "sentiment": 0}
+    profile = {
+        "technical": 0,
+        "context": 0,
+        "fundamentals": 0,
+        "sentiment": 0,
+    }
+
     for feature in features:
         fam = feature_family(str(feature))
         profile[fam] = profile.get(fam, 0) + 1
+
     return profile
+

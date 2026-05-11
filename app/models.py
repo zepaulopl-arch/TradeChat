@@ -790,6 +790,29 @@ def train_models(
         pickle.dump(payload, fh)
 
     prep_meta = (dataset_meta or {}).get("preparation", {}) or {}
+
+    # populate feature relevance from trained ExtraTrees
+
+    try:
+        et_model = fitted.get("extratrees")
+
+        if et_model is not None and hasattr(et_model, "feature_importances_"):
+
+            relevance = {
+                str(feature): float(score)
+                for feature, score in zip(
+                    selected_features,
+                    et_model.feature_importances_,
+                )
+            }
+
+            prep_meta.setdefault("selection", {})
+            prep_meta.setdefault("selection", {})
+        prep_meta["selection"]["model_relevance"] = relevance
+
+    except Exception:
+        pass
+
     top_features = top_selected_features(prep_meta, selected_features, n=5)
     family_profile = feature_family_profile(selected_features)
 
@@ -954,3 +977,4 @@ def predict_multi_horizon(
         except Exception as exc:
             results[h] = {"error": str(exc)}
     return results
+
