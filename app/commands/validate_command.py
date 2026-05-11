@@ -29,21 +29,11 @@ _MATRIX_ACTIONS = {"matrix", "report"}
 def _validate_action(args: argparse.Namespace) -> str | None:
     tickers = list(getattr(args, "tickers", []) or [])
 
-    excluded = {
-        str(x).strip().upper()
-        for x in (
-            getattr(args, "exclude", [])
-            or []
-        )
-    }
+    excluded = {str(x).strip().upper() for x in (getattr(args, "exclude", []) or [])}
 
     if excluded:
 
-        tickers = [
-            t
-            for t in tickers
-            if str(t).upper() not in excluded
-        ]
+        tickers = [t for t in tickers if str(t).upper() not in excluded]
     if tickers and str(tickers[0]).lower() in _MATRIX_ACTIONS:
         return str(tickers[0]).lower()
     return None
@@ -77,26 +67,16 @@ def _latest_matrix_run(base: Path = Path("logs") / "policy_matrix") -> Path:
 def _run_matrix(args: argparse.Namespace) -> None:
     from tools import run_policy_matrix
 
-from app.commands.promote_policy import promote_policy
+    from app.commands.promote_policy import promote_policy
 
     mode = str(args.mode or "replay")
     tickers = list(getattr(args, "tickers", []) or [])[1:]
 
-    excluded = {
-        str(x).strip().upper()
-        for x in (
-            getattr(args, "exclude", [])
-            or []
-        )
-    }
+    excluded = {str(x).strip().upper() for x in (getattr(args, "exclude", []) or [])}
 
     if excluded:
 
-        tickers = [
-            t
-            for t in tickers
-            if str(t).upper() not in excluded
-        ]
+        tickers = [t for t in tickers if str(t).upper() not in excluded]
     argv: list[str] = ["--mode", mode]
 
     if args.config:
@@ -155,25 +135,15 @@ from app.commands.promote_policy import promote_policy
 def _run_report(args: argparse.Namespace) -> None:
     from tools import analyze_policy_matrix
 
-from app.commands.promote_policy import promote_policy
+    from app.commands.promote_policy import promote_policy
 
     tickers = list(getattr(args, "tickers", []) or [])
 
-    excluded = {
-        str(x).strip().upper()
-        for x in (
-            getattr(args, "exclude", [])
-            or []
-        )
-    }
+    excluded = {str(x).strip().upper() for x in (getattr(args, "exclude", []) or [])}
 
     if excluded:
 
-        tickers = [
-            t
-            for t in tickers
-            if str(t).upper() not in excluded
-        ]
+        tickers = [t for t in tickers if str(t).upper() not in excluded]
     requested_path = tickers[1] if len(tickers) > 1 else None
     log_dir = Path(requested_path) if requested_path else _latest_matrix_run()
 
@@ -198,21 +168,11 @@ def _run_validation(args: argparse.Namespace) -> None:
         cfg = apply_policy_profile(cfg, policy_profile)
     tickers = resolve_cli_tickers(cfg, args)
 
-    excluded = {
-        str(x).strip().upper()
-        for x in (
-            getattr(args, "exclude", [])
-            or []
-        )
-    }
+    excluded = {str(x).strip().upper() for x in (getattr(args, "exclude", []) or [])}
 
     if excluded:
 
-        tickers = [
-            t
-            for t in tickers
-            if str(t).upper() not in excluded
-        ]
+        tickers = [t for t in tickers if str(t).upper() not in excluded]
     sim_cfg = cfg.get("simulation", {}) or {}
     mode = str(args.mode or sim_cfg.get("mode", "replay") or "replay").lower()
     summary = run_pybroker_replay(
@@ -255,4 +215,3 @@ def run(args: argparse.Namespace) -> None:
         _run_report(args)
         return
     _run_validation(args)
-
