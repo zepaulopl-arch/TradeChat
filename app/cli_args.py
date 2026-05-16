@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 
-
 ROOT_COMMANDS = ("data", "train", "signal", "validate", "refine", "portfolio")
 
 
@@ -78,17 +77,31 @@ def add_refine_args(parser: argparse.ArgumentParser) -> None:
 
 def add_signal_subcommands(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="signal_action", required=True)
-    for action in ("generate", "rank", "report"):
+
+    for action in ("generate", "smart", "rank", "report"):
         item = sub.add_parser(action)
-        add_ticker_list_args(item, nargs="*" if action == "rank" else "*")
-        if action in {"generate", "rank"}:
+
+        add_ticker_list_args(
+            item,
+            nargs="*" if action == "rank" else "*",
+        )
+
+        if action in {"generate", "smart", "rank"}:
             item.add_argument("--update", action="store_true")
             item.add_argument("--diagnostic", action="store_true")
             item.add_argument("--policy-profile", default=None)
-        if action == "generate":
+
+        if action in {"generate", "smart"}:
             item.add_argument("--verbose", action="store_true")
+
         if action == "rank":
             item.add_argument("--rank-limit", type=int, default=40)
+            item.add_argument(
+                "--smart",
+                action="store_true",
+                help="rank assets using Matrix/runtime-policy smart signal flow",
+            )
+
         if action == "report":
             item.add_argument("--refresh", action="store_true")
             item.add_argument("--update", action="store_true")
@@ -109,8 +122,11 @@ def add_portfolio_subcommands(parser: argparse.ArgumentParser) -> None:
 def validate_normal_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if getattr(args, "command", None) != "validate":
         return
+
     tickers = list(getattr(args, "tickers", []) or [])
+
     if tickers and str(tickers[0]).lower() in {"matrix", "report"}:
         return
+
     if not getattr(args, "mode", None):
         parser.error("validate requires --mode replay|walkforward")

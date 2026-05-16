@@ -8,7 +8,7 @@ promotion:
 
     max_drawdown_pct: 15.0
 
-    min_trades: 20
+    min_trades: 15
 
     min_sharpe: 0.80
 
@@ -18,7 +18,102 @@ promotion:
 
   tie_break:
 
-    - sharpe
-    - avg_return_pct
+    - hit_pct
+    - avg_trade_pct
     - drawdown_pct
 
+  runtime_decision_guard:
+
+    enabled: true
+
+    decisions:
+
+      REJECT:
+
+        max_signal: NEUTRAL
+
+        posture: wait_matrix_reject
+
+        reason: "signal blocked: Matrix decision is REJECT"
+
+      INCONCLUSIVE:
+
+        max_signal: NEUTRAL
+
+        posture: wait_matrix_inconclusive
+
+        reason: "signal blocked: Matrix decision is INCONCLUSIVE"
+
+      OBSERVE:
+
+        max_signal: NEUTRAL
+
+        posture: wait_matrix_observe
+
+        reason: "signal blocked: Matrix decision is OBSERVE"
+
+      APPROVE:
+
+        max_signal: ACTIONABLE
+
+  runtime_overrides:
+
+    enabled: true
+
+    profiles:
+
+      strict:
+
+        buy_return_pct: 0.18
+
+        sell_return_pct: -0.18
+
+        min_confidence_pct: 0.45
+
+        mae_threshold_multiplier: 0.15
+
+        risk_management:
+
+          min_rr_threshold: 0.60
+
+      balanced:
+
+        buy_return_pct: 0.12
+
+        sell_return_pct: -0.12
+
+        min_confidence_pct: 0.38
+
+        mae_threshold_multiplier: 0.10
+
+        risk_management:
+
+          min_rr_threshold: 0.30
+
+      active:
+
+        buy_return_pct: 0.08
+
+        sell_return_pct: -0.08
+
+        min_confidence_pct: 0.35
+
+        mae_threshold_multiplier: 0.08
+
+        risk_management:
+
+          min_rr_threshold: 0.15
+
+      relaxed:
+
+        buy_return_pct: 0.06
+
+        sell_return_pct: -0.06
+
+        min_confidence_pct: 0.32
+
+        mae_threshold_multiplier: 0.06
+
+        risk_management:
+
+          min_rr_threshold: 0.20
