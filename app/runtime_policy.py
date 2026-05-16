@@ -61,13 +61,6 @@ def _deep_merge(
 def runtime_policy_overrides_for_profile(
     profile: str | None,
 ) -> dict[str, Any]:
-    """
-    Lê config/runtime_policy.yaml em tempo real.
-
-    O runtime JSON escolhe o profile e guarda evidência.
-    O YAML manda nos parâmetros vivos.
-    """
-
     if not profile:
         return {}
 
@@ -93,10 +86,6 @@ def runtime_policy_overrides_for_profile(
 
 
 def runtime_decision_guard_config() -> dict[str, Any]:
-    """
-    Lê a trava de decisão da Matrix em tempo real.
-    """
-
     cfg = load_runtime_policy_config()
 
     promotion = cfg.get("promotion", {}) or {}
@@ -110,13 +99,6 @@ def merge_runtime_overrides(
     stored_overrides: dict[str, Any] | None,
     live_overrides: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """
-    Combina overrides gravados no runtime_policy.json com overrides vivos do YAML.
-
-    Prioridade:
-        live YAML > runtime JSON
-    """
-
     return _deep_merge(
         stored_overrides or {},
         live_overrides or {},
@@ -131,6 +113,9 @@ def _normalize_asset_selection(
         return {
             "profile": value,
             "source": "runtime_policy_legacy",
+            "promoted": True,
+            "promotion_status": "legacy",
+            "rejection_reasons": [],
             "overrides": {},
             "evidence": {},
             "selection": {},
@@ -152,6 +137,25 @@ def _normalize_asset_selection(
                     "runtime_policy",
                 )
             ),
+            "promoted": bool(
+                value.get(
+                    "promoted",
+                    True,
+                )
+            ),
+            "promotion_status": str(
+                value.get(
+                    "promotion_status",
+                    "promoted",
+                )
+            ),
+            "rejection_reasons": list(
+                value.get(
+                    "rejection_reasons",
+                    [],
+                )
+                or []
+            ),
             "overrides": (value.get("overrides", {}) or {}),
             "evidence": (value.get("evidence", {}) or {}),
             "selection": (value.get("selection", {}) or {}),
@@ -160,6 +164,9 @@ def _normalize_asset_selection(
     return {
         "profile": fallback,
         "source": "fallback",
+        "promoted": False,
+        "promotion_status": "fallback",
+        "rejection_reasons": [],
         "overrides": {},
         "evidence": {},
         "selection": {},
@@ -281,21 +288,6 @@ def apply_matrix_decision_guard(
     evidence: dict[str, Any] | None,
     guard_cfg: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """
-    Aplica a trava da decisão estatística da Matrix.
-
-    Caso 1:
-        Matrix OBSERVE + sinal BUY
-        => bloqueia BUY para NEUTRAL.
-
-    Caso 2:
-        Matrix OBSERVE + sinal já NEUTRAL porque R/R bloqueou BUY
-        => marca guard como blocked=True também,
-           preservando o bloqueio anterior e adicionando a razão da Matrix.
-
-    Não muta o sinal original.
-    """
-
     result = deepcopy(signal)
 
     guard_cfg = guard_cfg or {}

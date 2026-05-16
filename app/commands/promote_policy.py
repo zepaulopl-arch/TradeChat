@@ -11,26 +11,17 @@ from app.runtime_policy_config import (
 )
 
 
-def _safe_value(
-    value: Any,
-) -> Any:
-
+def _safe_value(value: Any) -> Any:
     if pd.isna(value):
         return None
 
-    if hasattr(
-        value,
-        "item",
-    ):
+    if hasattr(value, "item"):
         return value.item()
 
     return value
 
 
-def _extract_evidence(
-    row: pd.Series,
-) -> dict[str, Any]:
-
+def _extract_evidence(row: pd.Series) -> dict[str, Any]:
     preferred_columns = [
         "phase",
         "ticker",
@@ -80,123 +71,128 @@ def _profile_overrides_from_config(
     promotion_cfg: dict[str, Any],
     profile: str,
 ) -> dict[str, Any]:
-    runtime_overrides = (
-        promotion_cfg.get(
-            "runtime_overrides",
-            {},
-        )
-        or {}
-    )
+    runtime_overrides = promotion_cfg.get("runtime_overrides", {}) or {}
 
-    if not bool(
-        runtime_overrides.get(
-            "enabled",
-            False,
-        )
-    ):
+    if not bool(runtime_overrides.get("enabled", False)):
         return {}
 
-    profiles = (
-        runtime_overrides.get(
-            "profiles",
-            {},
-        )
-        or {}
+    profiles = runtime_overrides.get("profiles", {}) or {}
+
+    return profiles.get(str(profile), {}) or {}
+
+
+def _passes_constraints(
+    row: pd.Series,
+    *,
+    max_drawdown: float,
+    min_trades: int,
+    min_sharpe: float,
+    max_exposure: float,
+) -> tuple[bool, list[str]]:
+    reasons: list[str] = []
+
+    if "drawdown_pct" in row.index:
+        drawdown = _safe_value(row["drawdown_pct"])
+
+        if drawdown is not None and float(drawdown) > max_drawdown:
+            reasons.append(f"drawdown_pct {float(drawdown):.2f} > {max_drawdown:.2f}")
+
+    if "trades" in row.index:
+        trades = _safe_value(row["trades"])
+
+        if trades is not None and int(trades) < min_trades:
+            reasons.append(f"trades {int(trades)} < {min_trades}")
+
+    if "sharpe" in row.index:
+        sharpe = _safe_value(row["sharpe"])
+
+        if sharpe is not None and float(sharpe) < min_sharpe:
+            reasons.append(f"sharpe {float(sharpe):.2f} < {min_sharpe:.2f}")
+
+    if "exposure_pct" in row.index:
+        exposure = _safe_value(row["exposure_pct"])
+
+        if exposure is not None and float(exposure) > max_exposure:
+            reasons.append(f"exposure_pct {float(exposure):.2f} > {max_exposure:.2f}")
+
+    return len(reasons) == 0, reasons
+
+
+def _sort_candidates(
+    df: pd.DataFrame,
+    *,
+    metric: str,
+    tie_break: list[str],
+) -> pd.DataFrame:
+    sort_columns = [metric]
+
+    for column in tie_break:
+        if column in df.columns and column not in sort_columns:
+            sort_columns.append(column)
+
+    ascending: list[bool] = []
+
+    for column in sort_columns:
+        if column in {
+            "drawdown_pct",
+            "max_drawdown",
+        }:
+            ascending.append(True)
+        else:
+            ascending.append(False)
+
+    return df.sort_values(
+        sort_columns,
+        ascending=ascending,
     )
 
-    return (
-        profiles.get(
-            str(profile),
-            {},
-        )
-        or {}
-    )
+
+def _sort_columns(
+    df: pd.DataFrame,
+    *,
+    metric: str,
+    tie_break: list[str],
+) -> list[str]:
+    columns = [metric]
+
+    for column in tie_break:
+        if column in df.columns and column not in columns:
+            columns.append(column)
+
+    return columns
 
 
-def promote_policy(
-    matrix_dir: str,
-):
-
+def promote_policy(matrix_dir: str) -> None:
     runtime_cfg = load_runtime_policy_config()
 
-    promotion_cfg = (
-        runtime_cfg.get(
-            "promotion",
-            {},
-        )
-        or {}
-    )
+    promotion_cfg = runtime_cfg.get("promotion", {}) or {}
 
-    constraints = (
-        promotion_cfg.get(
-            "constraints",
-            {},
-        )
-        or {}
-    )
+    constraints = promotion_cfg.get("constraints", {}) or {}
 
-    tie_break = list(
-        promotion_cfg.get(
-            "tie_break",
-            [],
-        )
-        or []
-    )
+    tie_break = list(promotion_cfg.get("tie_break", []) or [])
 
-    metric = str(
-        promotion_cfg.get(
-            "metric",
-            "sharpe",
-        )
-    )
+    metric = str(promotion_cfg.get("metric", "sharpe"))
 
-    mode = str(
-        promotion_cfg.get(
-            "mode",
-            "by-asset",
-        )
-    )
+    mode = str(promotion_cfg.get("mode", "by-asset"))
 
-    max_drawdown = float(
-        constraints.get(
-            "max_drawdown_pct",
-            15.0,
-        )
-    )
+    max_drawdown = float(constraints.get("max_drawdown_pct", 15.0))
 
-    min_trades = int(
-        constraints.get(
-            "min_trades",
-            20,
-        )
-    )
+    min_trades = int(constraints.get("min_trades", 20))
 
-    min_sharpe = float(
-        constraints.get(
-            "min_sharpe",
-            0.80,
-        )
-    )
+    min_sharpe = float(constraints.get("min_sharpe", 0.80))
 
-    max_exposure = float(
-        constraints.get(
-            "max_exposure_pct",
-            100.0,
-        )
-    )
+    max_exposure = float(constraints.get("max_exposure_pct", 100.0))
 
     matrix_path = Path(matrix_dir)
 
     summary_path = matrix_path / "validation_summary.csv"
 
     if not summary_path.exists():
-
         raise FileNotFoundError(f"validation_summary.csv not found: {summary_path}")
 
     df = pd.read_csv(summary_path)
 
     if mode != "by-asset":
-
         raise NotImplementedError("only by-asset mode implemented")
 
     if "ticker" not in df.columns:
@@ -213,60 +209,61 @@ def promote_policy(
     grouped = df.groupby("ticker")
 
     for ticker, group in grouped:
-
         local = group.copy()
 
-        if "drawdown_pct" in local.columns:
-
-            local = local[local["drawdown_pct"] <= max_drawdown]
-
-        if "trades" in local.columns:
-
-            local = local[local["trades"] >= min_trades]
-
-        if "sharpe" in local.columns:
-
-            local = local[local["sharpe"] >= min_sharpe]
-
-        if "exposure_pct" in local.columns:
-
-            local = local[local["exposure_pct"] <= max_exposure]
-
-        if local.empty:
-            continue
-
-        sort_columns = [metric]
-
-        for column in tie_break:
-            if column in local.columns and column not in sort_columns:
-                sort_columns.append(column)
-
-        ascending = []
-
-        for column in sort_columns:
-            if column in {
-                "drawdown_pct",
-                "max_drawdown",
-            }:
-                ascending.append(True)
-            else:
-                ascending.append(False)
-
-        local = local.sort_values(
-            sort_columns,
-            ascending=ascending,
+        local_sorted = _sort_candidates(
+            local,
+            metric=metric,
+            tie_break=tie_break,
         )
 
-        best = local.iloc[0]
+        sort_columns = _sort_columns(
+            local,
+            metric=metric,
+            tie_break=tie_break,
+        )
+
+        valid_rows: list[tuple[int, pd.Series, list[str]]] = []
+        rejected_rows: list[tuple[int, pd.Series, list[str]]] = []
+
+        for index, row in local_sorted.iterrows():
+            passed, rejection_reasons = _passes_constraints(
+                row,
+                max_drawdown=max_drawdown,
+                min_trades=min_trades,
+                min_sharpe=min_sharpe,
+                max_exposure=max_exposure,
+            )
+
+            if passed:
+                valid_rows.append((index, row, rejection_reasons))
+            else:
+                rejected_rows.append((index, row, rejection_reasons))
+
+        if valid_rows:
+            _, best, rejection_reasons = valid_rows[0]
+            promoted = True
+            promotion_status = "promoted"
+        else:
+            _, best, rejection_reasons = rejected_rows[0]
+            promoted = False
+            promotion_status = "rejected_by_constraints"
 
         profile = str(best["profile"])
 
         assets[str(ticker)] = {
             "profile": profile,
             "source": "policy_matrix",
-            "overrides": _profile_overrides_from_config(
-                promotion_cfg,
-                profile,
+            "promoted": promoted,
+            "promotion_status": promotion_status,
+            "rejection_reasons": rejection_reasons,
+            "overrides": (
+                _profile_overrides_from_config(
+                    promotion_cfg,
+                    profile,
+                )
+                if promoted
+                else {}
             ),
             "selection": {
                 "metric": metric,
@@ -276,28 +273,25 @@ def promote_policy(
             "evidence": _extract_evidence(best),
         }
 
+    promoted_count = sum(1 for item in assets.values() if bool(item.get("promoted", False)))
+
+    rejected_count = sum(1 for item in assets.values() if not bool(item.get("promoted", False)))
+
     output = {
         "selection_mode": mode,
         "metric": metric,
         "constraints": constraints,
         "tie_break": tie_break,
         "runtime_overrides_enabled": bool(
-            (
-                promotion_cfg.get(
-                    "runtime_overrides",
-                    {},
-                )
-                or {}
-            ).get(
-                "enabled",
-                False,
-            )
+            (promotion_cfg.get("runtime_overrides", {}) or {}).get("enabled", False)
         ),
+        "assets_total": len(assets),
+        "assets_promoted": promoted_count,
+        "assets_rejected": rejected_count,
         "assets": assets,
     }
 
     runtime_dir = Path("runtime")
-
     runtime_dir.mkdir(
         parents=True,
         exist_ok=True,
@@ -317,5 +311,7 @@ def promote_policy(
     print()
     print("Runtime policy generated:")
     print(out_path)
-    print(f"Assets promoted: {len(assets)}")
+    print(f"Assets total: {len(assets)}")
+    print(f"Assets promoted: {promoted_count}")
+    print(f"Assets rejected: {rejected_count}")
     print()
