@@ -96,7 +96,8 @@ def build_smart_signal(
         fallback=getattr(args, "policy_profile", None),
     )
 
-    profile = str(selection.get("profile", ""))
+    policy_type = str(selection.get("policy_type", "asset_specific_active"))
+    profile = "active" if policy_type == "asset_specific_active" else str(selection.get("profile", ""))
 
     if not profile:
         raise SystemExit(f"no runtime policy profile available for {ticker}")
@@ -142,9 +143,14 @@ def build_smart_signal(
         "enabled": True,
         "source": selection.get("source", "runtime_policy"),
         "profile": profile,
+        "policy_type": policy_type,
+        "evaluated": selection.get("evaluated", True),
+        "ineligible_data": selection.get("ineligible_data", False),
         "promoted": selection.get("promoted", True),
+        "actionable_candidate": selection.get("actionable_candidate", True),
         "promotion_status": selection.get("promotion_status", "promoted"),
         "rejection_reasons": selection.get("rejection_reasons", []) or [],
+        "blocker": selection.get("blocker"),
         "overrides": overrides,
         "stored_overrides": stored_overrides,
         "live_overrides": live_overrides,

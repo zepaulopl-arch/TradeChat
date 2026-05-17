@@ -49,7 +49,8 @@ def test_resolve_policy_selection_returns_overrides(
             {
                 "assets": {
                     "PETR4.SA": {
-                        "profile": "relaxed",
+                        "profile": "active",
+                        "policy_type": "asset_specific_active",
                         "source": "policy_matrix",
                         "overrides": {
                             "buy_return_pct": 0.06,
@@ -75,14 +76,15 @@ def test_resolve_policy_selection_returns_overrides(
         "PETR4.SA",
     )
 
-    assert selection["profile"] == "relaxed"
+    assert selection["profile"] == "active"
+    assert selection["policy_type"] == "asset_specific_active"
     assert selection["source"] == "policy_matrix"
     assert selection["overrides"]["buy_return_pct"] == 0.06
     assert selection["overrides"]["min_confidence_pct"] == 0.32
     assert selection["evidence"]["profit_factor"] == 1.16
 
 
-def test_merge_runtime_overrides_prefers_live_yaml():
+def test_merge_runtime_overrides_prefers_asset_specific_runtime():
     stored = {
         "buy_return_pct": 0.06,
         "min_confidence_pct": 0.32,
@@ -105,7 +107,7 @@ def test_merge_runtime_overrides_prefers_live_yaml():
 
     assert result["buy_return_pct"] == 0.06
     assert result["min_confidence_pct"] == 0.32
-    assert result["risk_management"]["min_rr_threshold"] == 0.20
+    assert result["risk_management"]["min_rr_threshold"] == 0.0
     assert result["risk_management"]["aggressive_multiplier"] == 1.2
 
 
@@ -118,7 +120,7 @@ def test_runtime_policy_overrides_for_profile_reads_live_yaml(
                 "runtime_overrides": {
                     "enabled": True,
                     "profiles": {
-                        "relaxed": {
+                        "active": {
                             "buy_return_pct": 0.06,
                             "risk_management": {
                                 "min_rr_threshold": 0.20,
@@ -136,14 +138,14 @@ def test_runtime_policy_overrides_for_profile_reads_live_yaml(
     )
 
     result = runtime_policy.runtime_policy_overrides_for_profile(
-        "relaxed",
+        "active",
     )
 
     assert result["buy_return_pct"] == 0.06
     assert result["risk_management"]["min_rr_threshold"] == 0.20
 
 
-def test_smart_signal_prefers_live_yaml_over_stored_runtime_overrides(
+def test_smart_signal_prefers_asset_specific_runtime_over_live_yaml(
     tmp_path,
     monkeypatch,
 ):
@@ -163,7 +165,8 @@ def test_smart_signal_prefers_live_yaml_over_stored_runtime_overrides(
         fallback=None,
     ):
         return {
-            "profile": "relaxed",
+            "profile": "active",
+            "policy_type": "asset_specific_active",
             "source": "policy_matrix",
             "overrides": {
                 "buy_return_pct": 0.06,
@@ -310,10 +313,10 @@ def test_smart_signal_prefers_live_yaml_over_stored_runtime_overrides(
         args,
     )
 
-    assert calls["live_profile"] == "relaxed"
+    assert calls["live_profile"] == "active"
     assert calls["cfg"]["policy"]["buy_return_pct"] == 0.06
     assert calls["cfg"]["policy"]["min_confidence_pct"] == 0.32
-    assert calls["cfg"]["policy"]["risk_management"]["min_rr_threshold"] == 0.20
+    assert calls["cfg"]["policy"]["risk_management"]["min_rr_threshold"] == 0.0
     assert calls["cfg"]["policy"]["risk_management"]["aggressive_multiplier"] == 1.2
     assert calls["ticker"] == "PETR4.SA"
     assert calls["update"] is True
@@ -329,4 +332,4 @@ def test_smart_signal_prefers_live_yaml_over_stored_runtime_overrides(
 
     assert '"stored_overrides"' in written
     assert '"live_overrides"' in written
-    assert '"min_rr_threshold": 0.2' in written
+    assert '"min_rr_threshold": 0.0' in written

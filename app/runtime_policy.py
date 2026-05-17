@@ -35,7 +35,7 @@ def default_policy_profile() -> str:
     return str(
         promotion.get(
             "fallback_profile",
-            "balanced",
+            "active",
         )
     )
 
@@ -99,9 +99,14 @@ def merge_runtime_overrides(
     stored_overrides: dict[str, Any] | None,
     live_overrides: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Merge live active defaults with stored asset-specific calibration.
+
+    The YAML profile is the operational base. The Matrix/autotune runtime entry
+    is ticker-specific and therefore has final precedence.
+    """
     return _deep_merge(
-        stored_overrides or {},
         live_overrides or {},
+        stored_overrides or {},
     )
 
 
@@ -124,6 +129,8 @@ def _promoted_from_status(value: dict[str, Any], promotion_status: str) -> bool:
 
     return promotion_status.lower() not in {
         "rejected_by_constraints",
+        "ineligible_data",
+        "skip_data",
         "rejected",
         "no_matrix",
         "fallback",
@@ -134,25 +141,8 @@ def _normalize_asset_selection(
     value: Any,
     fallback: str,
 ) -> dict[str, Any]:
-    if isinstance(value, str):
-        return {
-            "profile": value,
-            "source": "runtime_policy_legacy",
-            "promoted": True,
-            "promotion_status": "legacy",
-            "rejection_reasons": [],
-            "overrides": {},
-            "evidence": {},
-            "selection": {},
-        }
-
     if isinstance(value, dict):
-        profile = str(
-            value.get(
-                "profile",
-                fallback,
-            )
-        )
+        profile = "active"
 
         promotion_status = str(
             value.get(
@@ -163,15 +153,29 @@ def _normalize_asset_selection(
 
         return {
             "profile": profile,
+            "policy_type": str(
+                value.get(
+                    "policy_type",
+                    "asset_specific_active",
+                )
+            ),
             "source": str(
                 value.get(
                     "source",
                     "runtime_policy",
                 )
             ),
+            "evaluated": bool(value.get("evaluated", True)),
+            "ineligible_data": bool(value.get("ineligible_data", False)),
             "promoted": _promoted_from_status(
                 value,
                 promotion_status,
+            ),
+            "actionable_candidate": bool(
+                value.get(
+                    "actionable_candidate",
+                    bool(value.get("promoted", False)),
+                )
             ),
             "promotion_status": promotion_status,
             "rejection_reasons": _as_list(
@@ -180,17 +184,23 @@ def _normalize_asset_selection(
                     [],
                 )
             ),
+            "blocker": deepcopy(value.get("blocker")),
             "overrides": deepcopy(value.get("overrides", {}) or {}),
             "evidence": deepcopy(value.get("evidence", {}) or {}),
             "selection": deepcopy(value.get("selection", {}) or {}),
         }
 
     return {
-        "profile": fallback,
+        "profile": "active",
+        "policy_type": "asset_specific_active",
         "source": "fallback",
+        "evaluated": False,
+        "ineligible_data": False,
         "promoted": False,
+        "actionable_candidate": False,
         "promotion_status": "fallback",
         "rejection_reasons": [],
+        "blocker": None,
         "overrides": {},
         "evidence": {},
         "selection": {},

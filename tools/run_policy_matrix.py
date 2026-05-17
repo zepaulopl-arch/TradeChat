@@ -22,7 +22,7 @@ STATUS_LOCK = Lock()
 SUMMARY_LOCK = Lock()
 PRINT_LOCK = Lock()
 
-DEFAULT_PROFILES = ("strict", "balanced", "active", "relaxed")
+DEFAULT_PROFILES = ("active",)
 DEFAULT_LIGHT_TESTS = (
     "tests/test_cli_contract.py",
     "tests/test_no_legacy.py",
@@ -448,7 +448,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tickers", nargs="*", default=None, help="explicit tickers; overrides --asset-list"
     )
-    parser.add_argument("--profiles", nargs="+", default=list(DEFAULT_PROFILES))
     parser.add_argument(
         "--jobs", type=int, default=1, help="parallel jobs for independent tasks; default 1"
     )
@@ -518,6 +517,7 @@ def _validate_base_cmd(
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    profiles = list(DEFAULT_PROFILES)
     root = _repo_root()
     if not (root / "trade.py").exists():
         raise SystemExit("Run this tool from the TradeChat repository root, where trade.py exists.")
@@ -538,7 +538,7 @@ def main(argv: list[str] | None = None) -> int:
         "repo_root": str(root),
         "mode": args.mode,
         "asset_list": args.asset_list,
-        "profiles": list(args.profiles),
+        "profiles": profiles,
         "tickers": tickers,
         "ticker_count": len(tickers),
         "options": {
@@ -558,7 +558,7 @@ def main(argv: list[str] | None = None) -> int:
     _write_manifest(run_dir / "manifest.json", manifest)
     print(f"Policy matrix run directory: {run_dir}")
     print(
-        f"Tickers: {len(tickers)} | Profiles: {', '.join(args.profiles)} | Mode: {args.mode} | Jobs: {max(1, int(args.jobs or 1))}"
+        f"Tickers: {len(tickers)} | Profile: {', '.join(profiles)} | Mode: {args.mode} | Jobs: {max(1, int(args.jobs or 1))}"
     )
 
     _run_artifact_preflight(run_dir, tickers, args)
@@ -589,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
         _run_tasks(run_dir, data_tasks, args, parallel=not args.serial_data_audit)
 
     if not args.skip_signal_rank:
-        for profile in args.profiles:
+        for profile in profiles:
             _run_step(
                 run_dir=run_dir,
                 phase="02_signal_rank",
@@ -612,7 +612,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     if not args.skip_full_universe:
-        for profile in args.profiles:
+        for profile in profiles:
             log_path = run_dir / "03_validate_full_universe" / f"{_sanitize(profile)}.log"
             result = _run_step(
                 run_dir=run_dir,
@@ -628,7 +628,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.skip_per_asset:
         validate_tasks: list[MatrixTask] = []
-        for profile in args.profiles:
+        for profile in profiles:
             for i, ticker in enumerate(tickers, start=1):
                 log_path = (
                     run_dir

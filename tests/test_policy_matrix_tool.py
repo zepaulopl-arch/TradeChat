@@ -8,7 +8,6 @@ def test_policy_matrix_tool_exists_and_documents_outputs():
     assert "status.csv" in text
     assert "validation_summary.csv" in text
     assert "rebuild_validation_summary" in text
-    assert "--profiles" in text
     assert "--asset-list" in text
     assert "--resume" in text
     assert "--jobs" in text

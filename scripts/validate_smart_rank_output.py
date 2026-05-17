@@ -11,12 +11,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RUNTIME_PATH = PROJECT_ROOT / "runtime" / "runtime_policy.json"
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-SUMMARY_RE = re.compile(
-    r"Rows:\s+(?P<shown>\d+)\s+of\s+(?P<total>\d+)\s+\|\s+"
-    r"OK=(?P<ok>\d+)\s+\|\s+"
-    r"BLOCK=(?P<block>\d+)\s+\|\s+"
+ROWS_RE = re.compile(r"Rows:\s+(?P<shown>\d+)\s+of\s+(?P<total>\d+)")
+COUNTS_RE = re.compile(
+    r"ACTIONABLE=(?P<actionable>\d+)\s+\|\s+"
+    r"WATCH=(?P<watch>\d+)\s+\|\s+"
+    r"BLOCKED=(?P<blocked>\d+)\s+\|\s+"
     r"REJECTED=(?P<rejected>\d+)\s+\|\s+"
-    r"SKIP=(?P<skip>\d+)\s+\|\s+"
+    r"INELIGIBLE=(?P<ineligible>\d+)\s+\|\s+"
     r"ERROR=(?P<error>\d+)"
 )
 
@@ -34,7 +35,7 @@ def _plain(text: str) -> str:
 
 def _load_runtime_assets(runtime_path: Path) -> tuple[dict[str, Any], str | None]:
     if not runtime_path.exists():
-        return {}, f"{runtime_path.as_posix()} not found; NO_MATRIX cross-check skipped."
+        return {}, f"{runtime_path.as_posix()} not found; runtime coverage cross-check skipped."
 
     try:
         data = json.loads(runtime_path.read_text(encoding="utf-8"))
@@ -44,9 +45,62 @@ def _load_runtime_assets(runtime_path: Path) -> tuple[dict[str, Any], str | None
     assets = data.get("assets", {}) or {}
 
     if not isinstance(assets, dict):
-        return {}, "runtime policy assets entry is not an object; NO_MATRIX cross-check skipped."
+        return {}, "runtime policy assets entry is not an object; coverage cross-check skipped."
 
     return assets, None
+
+
+def _parse_fixed_width_row(line: str) -> dict[str, str] | None:
+    if len(line) < 78:
+        return None
+
+    index = line[0:3].strip()
+
+    if not index.isdigit():
+        return None
+
+    return {
+        "index": index,
+        "ticker": line[4:15].strip(),
+        "action": line[16:27].strip(),
+        "signal": line[28:38].strip(),
+        "matrix": line[39:50].strip(),
+        "pf": line[51:57].strip(),
+        "trades": line[58:63].strip(),
+        "rr": line[64:70].strip(),
+        "guard": line[71:77].strip(),
+        "reason": line[78:].strip(),
+    }
+
+
+def _parse_split_row(line: str) -> dict[str, str] | None:
+    parts = line.split(maxsplit=10)
+
+    if len(parts) < 9 or not parts[0].isdigit():
+        return None
+
+    signal_offset = 0
+    signal = parts[3]
+
+    if len(parts) >= 11 and parts[3].upper() == "STRONG" and parts[4].upper() in {"BUY", "SELL"}:
+        signal = f"{parts[3]} {parts[4]}"
+        signal_offset = 1
+
+    try:
+        return {
+            "index": parts[0],
+            "ticker": parts[1],
+            "action": parts[2],
+            "signal": signal,
+            "matrix": parts[4 + signal_offset],
+            "pf": parts[5 + signal_offset],
+            "trades": parts[6 + signal_offset],
+            "rr": parts[7 + signal_offset],
+            "guard": parts[8 + signal_offset],
+            "reason": parts[9 + signal_offset] if len(parts) > 9 + signal_offset else "",
+        }
+    except IndexError:
+        return None
 
 
 def parse_smart_rank_rows(text: str) -> list[dict[str, str]]:
@@ -58,7 +112,7 @@ def parse_smart_rank_rows(text: str) -> list[dict[str, str]]:
         line = _plain(raw_line).rstrip()
 
         if not seen_header:
-            if line.startswith("TICKER") and "SIGNAL" in line and "GUARD" in line:
+            if line.startswith("#") and "ACTION" in line and "REASON" in line:
                 seen_header = True
             continue
 
@@ -71,58 +125,38 @@ def parse_smart_rank_rows(text: str) -> list[dict[str, str]]:
         if not in_body or not line.strip():
             continue
 
-        if len(line) >= 70:
-            rows.append(
-                {
-                    "ticker": line[0:11].strip(),
-                    "signal": line[12:22].strip(),
-                    "profile": line[23:32].strip(),
-                    "matrix": line[33:44].strip(),
-                    "pf": line[45:51].strip(),
-                    "trades": line[52:57].strip(),
-                    "rr": line[58:63].strip(),
-                    "guard": line[64:70].strip(),
-                    "blocker": line[71:].strip(),
-                }
-            )
-            continue
+        row = _parse_fixed_width_row(line) or _parse_split_row(line)
 
-        parts = line.split(maxsplit=8)
-
-        if len(parts) >= 8:
-            rows.append(
-                {
-                    "ticker": parts[0],
-                    "signal": parts[1],
-                    "profile": parts[2],
-                    "matrix": parts[3],
-                    "pf": parts[4],
-                    "trades": parts[5],
-                    "rr": parts[6],
-                    "guard": parts[7],
-                    "blocker": parts[8] if len(parts) > 8 else "",
-                }
-            )
+        if row:
+            rows.append(row)
 
     return rows
 
 
 def parse_smart_rank_summary(text: str) -> dict[str, int] | None:
-    match = SUMMARY_RE.search(_plain(text))
+    plain = _plain(text)
+    rows_match = ROWS_RE.search(plain)
+    counts_match = COUNTS_RE.search(plain)
 
-    if not match:
+    if not rows_match:
         return None
 
-    return {key: int(value) for key, value in match.groupdict().items()}
+    summary = {key: int(value) for key, value in rows_match.groupdict().items()}
+
+    if counts_match:
+        summary.update({key: int(value) for key, value in counts_match.groupdict().items()})
+
+    return summary
 
 
 def _count_rows(rows: list[dict[str, str]]) -> dict[str, int]:
     return {
-        "ok": sum(1 for row in rows if row["guard"].upper() == "OK"),
-        "block": sum(1 for row in rows if row["guard"].upper() == "BLOCK"),
-        "rejected": sum(1 for row in rows if row["signal"].upper() == "REJECTED"),
-        "skip": sum(1 for row in rows if row["guard"].upper() == "SKIP"),
-        "error": sum(1 for row in rows if row["guard"].upper() == "ERROR"),
+        "actionable": sum(1 for row in rows if row["action"].upper() == "ACTIONABLE"),
+        "watch": sum(1 for row in rows if row["action"].upper() == "WATCH"),
+        "blocked": sum(1 for row in rows if row["action"].upper() == "BLOCKED"),
+        "rejected": sum(1 for row in rows if row["action"].upper() == "REJECTED"),
+        "ineligible": sum(1 for row in rows if row["action"].upper() == "INELIGIBLE"),
+        "error": sum(1 for row in rows if row["action"].upper() == "ERROR"),
     }
 
 
@@ -151,47 +185,49 @@ def validate_smart_rank_output(
         errors.append("SMART RANK footer with row counts not found.")
     else:
         if expected_rows is not None:
-            if summary["shown"] != expected_rows or summary["total"] != expected_rows:
+            expected_shown = min(expected_rows, summary["total"])
+            if summary["shown"] != expected_shown:
                 errors.append(
-                    "rank-limit mismatch: "
-                    f"expected Rows: {expected_rows} of {expected_rows}, "
+                    "rank-limit display mismatch: "
+                    f"expected Rows: {expected_shown} of {summary['total']}, "
                     f"got Rows: {summary['shown']} of {summary['total']}."
                 )
 
-        if summary["total"] != len(rows):
+        if summary["shown"] != len(rows):
             errors.append(
-                f"footer total={summary['total']} but parsed table has {len(rows)} rows."
+                f"footer shown={summary['shown']} but parsed table has {len(rows)} rows."
             )
 
-        row_counts = _count_rows(rows)
+        if "actionable" in summary:
+            row_counts = _count_rows(rows)
 
-        for key, value in row_counts.items():
-            if summary[key] != value:
-                errors.append(
-                    f"footer {key.upper()}={summary[key]} but parsed table has {value}."
-                )
+            for key, value in row_counts.items():
+                if summary[key] < value:
+                    errors.append(
+                        f"footer {key.upper()}={summary[key]} but displayed table has {value}."
+                    )
 
     for row in rows:
         ticker = row["ticker"]
+        action = row["action"].upper()
         signal = row["signal"].upper()
-        profile = row["profile"].lower()
         matrix = row["matrix"].lower()
         guard = row["guard"].upper()
 
-        if signal == "REJECTED" and guard != "BLOCK":
-            errors.append(f"{ticker}: REJECTED row must use guard BLOCK.")
+        if action == "REJECTED" and (signal != "REJECTED" or guard != "BLOCK"):
+            errors.append(f"{ticker}: REJECTED row must use signal REJECTED and guard BLOCK.")
 
-        if signal == "NO_MATRIX" and guard != "SKIP":
-            errors.append(f"{ticker}: NO_MATRIX row must use guard SKIP.")
+        if action == "INELIGIBLE" and guard != "SKIP":
+            errors.append(f"{ticker}: INELIGIBLE row must use guard SKIP.")
 
-        if signal == "ERROR" and guard != "ERROR":
-            errors.append(f"{ticker}: ERROR row must use guard ERROR.")
+        if action == "ERROR" and (signal != "ERROR" or guard != "ERROR"):
+            errors.append(f"{ticker}: ERROR row must use signal ERROR and guard ERROR.")
 
-        if signal in ACTIONABLE_SIGNALS and profile == "balanced" and matrix == "n/a":
-            errors.append(f"{ticker}: actionable balanced n/a signal found in smart rank.")
+        if action == "ACTIONABLE" and signal in ACTIONABLE_SIGNALS and matrix == "n/a":
+            errors.append(f"{ticker}: actionable signal without Matrix decision found.")
 
-        if signal == "NO_MATRIX" and ticker in runtime_assets:
-            errors.append(f"{ticker}: NO_MATRIX row exists but ticker is present in runtime.")
+        if action == "ERROR" and ticker in runtime_assets and "missing Matrix" in row.get("reason", ""):
+            errors.append(f"{ticker}: missing Matrix row reported but ticker is present in runtime.")
 
     result = {
         "rows": rows,
@@ -231,14 +267,16 @@ def main(argv: list[str] | None = None) -> int:
     print("-" * 80)
 
     if summary:
-        print(
-            f"Rows: {summary.get('shown', 0)} of {summary.get('total', 0)} | "
-            f"OK={summary.get('ok', 0)} | "
-            f"BLOCK={summary.get('block', 0)} | "
-            f"REJECTED={summary.get('rejected', 0)} | "
-            f"SKIP={summary.get('skip', 0)} | "
-            f"ERROR={summary.get('error', 0)}"
-        )
+        print(f"Rows: {summary.get('shown', 0)} of {summary.get('total', 0)}")
+        if "actionable" in summary:
+            print(
+                f"ACTIONABLE={summary.get('actionable', 0)} | "
+                f"WATCH={summary.get('watch', 0)} | "
+                f"BLOCKED={summary.get('blocked', 0)} | "
+                f"REJECTED={summary.get('rejected', 0)} | "
+                f"INELIGIBLE={summary.get('ineligible', 0)} | "
+                f"ERROR={summary.get('error', 0)}"
+            )
     else:
         print("Rows: n/a")
 

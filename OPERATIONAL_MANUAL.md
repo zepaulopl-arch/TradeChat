@@ -57,6 +57,10 @@ TradeChat has six public root commands:
 
    `python trade.py portfolio rebalance`
 
+One-line operational refresh:
+
+`python scripts/run_operational_matrix.py --universe ibov --jobs 4 --rank-limit 20`
+
 ## 3. Command Notes
 
 - `data load PETR4.SA` updates the local price cache.
@@ -65,10 +69,11 @@ TradeChat has six public root commands:
 - `validate --mode replay` is a replay sanity check over saved operational models.
 - `validate --mode walkforward` is the methodological validation path.
 - `validate matrix --universe ibov` runs the Matrix over `config/universes/ibov.yaml`.
+- Matrix operational uses only the `active` profile.
 - `validate report --latest` analyzes the latest Matrix run and rebuilds `validation_summary.csv` if needed.
 - `promote_policy` reads a Matrix run and writes `runtime/runtime_policy.json`.
-- `signal smart TICKER` applies the runtime-selected policy profile, live YAML overrides and Matrix guard.
-- `signal rank --list ibov --smart --rank-limit 20` processes and displays only the first 20 IBOV assets.
+- `signal smart TICKER` applies the asset-specific active runtime policy, live YAML active defaults and Matrix guard.
+- `signal rank --list ibov --smart --rank-limit 20` processes all IBOV assets, sorts the complete queue, and displays the top 20 rows.
 - `signal report TICKER` prefers `latest_smart_signal.json` when available and writes a decision-path audit report.
 - `refine --removal` means controlled removal; it recommends, but never changes defaults automatically.
 - `refine` writes shadow artifacts under `artifacts/refine/...`.
@@ -82,9 +87,9 @@ Morning or trading session:
 
 `python trade.py signal rank --list ibov --smart --rank-limit 20`
 
-or the deterministic daily wrapper:
+or the deterministic operational wrapper:
 
-`python scripts/run_daily_smart_rank.py --universe ibov --rank-limit 20`
+`python scripts/run_operational_matrix.py --universe ibov --jobs 4 --rank-limit 20`
 
 Use this as the main panel. It answers the daily triage questions:
 
@@ -98,15 +103,11 @@ After market close:
 
 `python trade.py signal rank --list ibov --smart --rank-limit 20`
 
-This refreshes the local cache and rebuilds the decision queue with a bounded workload.
+This refreshes the local cache and rebuilds the globally sorted decision queue.
 
 Overnight:
 
-`python trade.py validate matrix --universe ibov --jobs 1`
-
-`python trade.py validate report --latest`
-
-`python -c "from app.commands.promote_policy import promote_policy; promote_policy('logs/policy_matrix/<run_dir>')"`
+`python scripts/run_operational_matrix.py --universe ibov --jobs 1 --rank-limit 20`
 
 Use `--jobs 1` on a modest machine. Raise it only if CPU, RAM and disk stay comfortable.
 
@@ -114,9 +115,7 @@ Weekend:
 
 `python trade.py train --list ibov`
 
-`python trade.py validate matrix --universe ibov --jobs 1`
-
-`python trade.py validate report --latest`
+`python scripts/run_operational_matrix.py --universe ibov --jobs 1 --rank-limit 20`
 
 Weekend is the right window for full retraining and detailed Matrix refreshes. Keep trading-session work focused on reading the panel, not rebuilding the world.
 
@@ -126,13 +125,15 @@ These scripts are automation helpers, not new TradeChat commands. They sit above
 the deterministic core and do not decide buy/sell, change constraints or operate
 the portfolio.
 
-Daily lightweight routine:
+Operational routine:
 
-`python scripts/run_daily_smart_rank.py --universe ibov --rank-limit 20`
+`python scripts/run_operational_matrix.py --universe ibov --jobs 4 --rank-limit 20`
 
 This runs:
 
-- `data load --list ibov`;
+- Matrix with the `active` profile;
+- `validate report --latest`;
+- `promote_policy`;
 - `check_runtime_policy.py`;
 - `signal rank --list ibov --smart --rank-limit 20`;
 - `validate_smart_rank_output.py`.
@@ -150,17 +151,20 @@ Standalone audit commands:
 
 `python scripts/validate_smart_rank_output.py artifacts/operational/<run>/smart_rank.txt --expected-rows 20`
 
-After-hours Matrix refresh:
+After-hours Matrix refresh on a modest desktop:
 
-`python scripts/run_daily_smart_rank.py --universe ibov --rank-limit 20 --with-matrix --jobs 1`
+`python scripts/run_operational_matrix.py --universe ibov --jobs 1 --rank-limit 20`
 
-`--with-matrix` is intentionally explicit. It runs Matrix/report and promotes
-the latest Matrix run into `runtime/runtime_policy.json`, so it belongs in the
-nightly or weekend window on a simple desktop.
+This runs Matrix, report, promotes the Matrix run that was just created, checks
+`runtime/runtime_policy.json`, captures `smart_rank.txt` in UTF-8, and validates
+the captured table. It does not depend on PowerShell variables or `Tee-Object`.
+
+Use `--allow-untrained` only for smoke/dev runs. Operationally, assets with
+known insufficient history should become `INELIGIBLE_DATA` / `SKIP`.
 
 Use `--dry-run` to inspect the planned commands without executing them:
 
-`python scripts/run_daily_smart_rank.py --universe ibov --rank-limit 20 --dry-run`
+`python scripts/run_operational_matrix.py --universe ibov --rank-limit 20 --dry-run`
 
 ## 6. Matrix Runtime Policy
 
@@ -170,22 +174,31 @@ The operational smart flow is:
 
 The runtime JSON must retain every asset evaluated by Matrix:
 
+- `evaluated: true`: the asset entered the Matrix/promotion process.
+- `profile: active` and `policy_type: asset_specific_active`: the runtime policy is the final active policy calibrated for that ticker.
+- `overrides`: calibrated active parameters for that ticker, including buy/sell thresholds, minimum confidence, preferred horizon, minimum RR, minimum trades, drawdown/exposure limits, risk budget and maximum position cap.
 - `promoted: true` and `promotion_status: promoted`: the asset passed configured constraints.
+- `actionable_candidate: true`: the selected Matrix decision is operationally allowed, normally `APPROVE`; final action still depends on the signal and guard.
 - `promoted: false` and `promotion_status: rejected_by_constraints`: the asset was evaluated and rejected by constraints.
+- `promoted: false` and `promotion_status: ineligible_data`: the asset was skipped by data/model eligibility, for example insufficient history.
 - `rejection_reasons`: human-readable constraint failures, for example `trades 2 < 15`.
-- `source: policy_matrix`: confirms the selection comes from Matrix evidence.
+- `source: policy_matrix` or `source: data_eligibility`: confirms whether the row came from Matrix evidence or eligibility skip.
 - `evidence`: Matrix row used for selection, including decision, profit factor and trade count.
 
-An asset evaluated by Matrix must not disappear from runtime. If an asset is absent from runtime, smart rank treats it as `NO_MATRIX` / `SKIP`.
+An asset evaluated by Matrix must not disappear from runtime. If an asset from
+the requested universe is absent from runtime after the operational Matrix, smart
+rank treats it as `ERROR` because coverage failed.
 
 `config/runtime_policy.yaml` owns:
 
 - promotion constraints such as minimum trades, minimum Sharpe and maximum exposure;
 - the fallback profile;
-- live runtime overrides by profile;
+- live active defaults and calibration bounds;
 - Matrix decision guard rules such as `OBSERVE -> NEUTRAL/BLOCK`.
 
-Stored overrides in `runtime/runtime_policy.json` are merged with live YAML overrides. Live YAML wins, so policy tuning can be adjusted without regenerating the Matrix.
+The YAML active profile is the base. Stored `asset_specific_active` overrides in
+`runtime/runtime_policy.json` are ticker-specific and win over the YAML base.
+That is the handoff from Matrix/autotune to signal generation.
 
 ## 7. SMART RANK
 
@@ -196,32 +209,40 @@ Operational command:
 Rules:
 
 - promoted asset: generates or loads the smart signal flow and applies Matrix guard;
+- promoted is not the same as actionable; final `ACTIONABLE` requires an allowed Matrix decision, non-ineligible data, guard `OK`, and an operational final signal;
 - evaluated but rejected asset: renders `REJECTED` / `BLOCK` and does not call signal generation;
-- missing Matrix asset: renders `NO_MATRIX` / `SKIP`;
+- ineligible asset: renders `INELIGIBLE_DATA` / `SKIP` and does not call signal generation;
+- missing Matrix asset: renders `ERROR`;
 - technical error: renders `ERROR`;
-- smart rank must not render fake `BUY balanced n/a` rows.
+- smart rank must not render any actionable signal without Matrix evidence.
 
 Columns:
 
 | Column | Meaning |
 | --- | --- |
+| `#` | Display index after global sorting. |
 | `TICKER` | Asset ticker. |
-| `SIGNAL` | Final smart signal, `REJECTED`, `NO_MATRIX` or `ERROR`. |
-| `PROFILE` | Runtime policy profile selected by Matrix/runtime. |
+| `ACTION` | Operational state: `ACTIONABLE`, `WATCH`, `BLOCKED`, `REJECTED`, `INELIGIBLE` or `ERROR`. |
+| `SIGNAL` | Final smart signal, `REJECTED`, `INELIGIBLE_DATA` or `ERROR`. |
 | `MATRIX` | Matrix decision from evidence. |
 | `PF` | Matrix profit factor. |
 | `TRD` | Matrix trade count. |
-| `RR` | Runtime signal risk/reward after guards. |
+| `RR` | Signal RR when available; otherwise Matrix/evidence RR; otherwise `n/a`. |
 | `GUARD` | `OK`, `BLOCK`, `SKIP` or `ERROR`. |
-| `BLOCKER` | Reason for block, rejection, skip or error. |
+| `REASON` | Reason for block, rejection, skip or error. |
 
 The header prints a policy fingerprint with the YAML path, runtime path, universe and processed asset count. The table body is plain text without ANSI color codes so PowerShell alignment remains stable.
 
 The footer prints:
 
-- row counts by guard/state;
+- processed/displayed counts, for example `Processed: 79`, `Displayed: 20 of 79`, `Rows: 20 of 79`;
+- row counts by action: `ACTIONABLE`, `WATCH`, `BLOCKED`, `REJECTED`, `INELIGIBLE`, `ERROR`;
 - top actionable tickers, when any;
 - the main blocker across blocked/rejected/skipped/error rows.
+
+When there are no actionable rows, the footer prints a short reason breakdown,
+for example rejected by constraints, blocked by Matrix guard, ineligible data,
+coverage errors, and technical errors.
 
 ## 8. Interpretation
 

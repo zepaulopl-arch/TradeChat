@@ -26,7 +26,8 @@ def test_smart_rank_generates_compact_table(
     ):
         if ticker == "PETR4.SA":
             return {
-                "profile": "relaxed",
+                "profile": "active",
+                "policy_type": "asset_specific_active",
                 "source": "policy_matrix",
                 "overrides": {},
                 "evidence": {
@@ -225,7 +226,7 @@ def test_rank_dispatches_to_smart_rank_when_flag_is_set(
     assert calls["called"] is True
 
 
-def test_smart_rank_limit_limits_processing_and_display(
+def test_smart_rank_limit_limits_display_after_global_processing(
     monkeypatch,
     capsys,
 ):
@@ -253,7 +254,8 @@ def test_smart_rank_limit_limits_processing_and_display(
         calls["resolved"].append(ticker)
 
         return {
-            "profile": "relaxed",
+            "profile": "active",
+            "policy_type": "asset_specific_active",
             "source": "policy_matrix",
             "promoted": True,
             "promotion_status": "promoted",
@@ -282,7 +284,8 @@ def test_smart_rank_limit_limits_processing_and_display(
                     "risk_reward_ratio": 0.0,
                 },
                 "smart_signal": {
-                    "profile": "relaxed",
+                        "profile": "active",
+                        "policy_type": "asset_specific_active",
                     "promotion_status": "promoted",
                     "rejection_reasons": [],
                     "evidence": {
@@ -335,14 +338,151 @@ def test_smart_rank_limit_limits_processing_and_display(
     assert calls["resolved"] == [
         "PETR4.SA",
         "VALE3.SA",
+        "ITUB4.SA",
+        "BBDC4.SA",
     ]
     assert calls["built"] == [
         "PETR4.SA",
         "VALE3.SA",
+        "ITUB4.SA",
+        "BBDC4.SA",
     ]
-    assert "Rows: 2 of 2" in out
-    assert "ITUB4.SA" not in out
-    assert "BBDC4.SA" not in out
+    assert "Processed: 4" in out
+    assert "Displayed: 2 of 4" in out
+    assert "Rows: 2 of 4" in out
+    assert "  3 ITUB4.SA" not in out
+    assert "  4 BBDC4.SA" not in out
+
+
+def test_smart_rank_sorts_actionable_asset_before_display_cut(
+    monkeypatch,
+    capsys,
+):
+    tickers = [
+        "AAA1.SA",
+        "BBB2.SA",
+        "CCC3.SA",
+        "WINN3.SA",
+    ]
+
+    def fake_resolve_cli_tickers(
+        cfg,
+        args,
+        required,
+    ):
+        return tickers
+
+    def fake_resolve_policy_selection(
+        ticker,
+        fallback=None,
+    ):
+        if ticker == "WINN3.SA":
+            return {
+                "profile": "active",
+                "source": "policy_matrix",
+                "promoted": True,
+                "actionable_candidate": True,
+                "promotion_status": "promoted",
+                "rejection_reasons": [],
+                "evidence": {
+                    "ticker": ticker,
+                    "decision": "APPROVE",
+                    "profit_factor": 2.4,
+                    "trades": 33,
+                    "score": 99.0,
+                    "matrix_rr": 1.7,
+                },
+            }
+
+        return {
+            "profile": "active",
+            "source": "policy_matrix",
+            "promoted": False,
+            "promotion_status": "rejected_by_constraints",
+            "rejection_reasons": [
+                "trades 0 < 15",
+            ],
+            "evidence": {
+                "ticker": ticker,
+                "decision": "REJECT",
+                "profit_factor": 0.0,
+                "trades": 0,
+                "score": 1.0,
+            },
+        }
+
+    def fake_build_smart_signal(
+        cfg,
+        args,
+        ticker,
+    ):
+        return (
+            {
+                "ticker": ticker,
+                "policy": {
+                    "label": "BUY",
+                    "risk_reward_ratio": 1.9,
+                    "actionable": True,
+                },
+                "smart_signal": {
+                    "profile": "active",
+                    "promotion_status": "promoted",
+                    "rejection_reasons": [],
+                    "evidence": {
+                        "ticker": ticker,
+                        "decision": "APPROVE",
+                        "profit_factor": 2.4,
+                        "trades": 33,
+                        "score": 99.0,
+                        "matrix_rr": 1.7,
+                    },
+                    "matrix_decision_guard": {
+                        "blocked": False,
+                        "matrix_decision": "APPROVE",
+                    },
+                },
+            },
+            {},
+            None,
+        )
+
+    monkeypatch.setattr(
+        signal_command,
+        "resolve_cli_tickers",
+        fake_resolve_cli_tickers,
+    )
+    monkeypatch.setattr(
+        signal_command,
+        "resolve_policy_selection",
+        fake_resolve_policy_selection,
+    )
+    monkeypatch.setattr(
+        signal_command,
+        "_build_smart_signal",
+        fake_build_smart_signal,
+    )
+
+    args = argparse.Namespace(
+        tickers=[],
+        asset_list="ibov",
+        policy_profile=None,
+        update=False,
+        diagnostic=False,
+        smart=True,
+        rank_limit=2,
+    )
+
+    signal_command._smart_rank(
+        {},
+        args,
+    )
+
+    out = capsys.readouterr().out
+
+    assert "Processed: 4" in out
+    assert "Rows: 2 of 4" in out
+    assert "WINN3.SA" in out
+    assert "ACTIONABLE" in out
 
 
 def test_smart_rank_rejected_does_not_build_signal(
@@ -423,10 +563,11 @@ def test_smart_rank_rejected_does_not_build_signal(
     assert "REJECTED" in out
     assert "BLOCK" in out
     assert "trades 0 < 15" in out
-    assert "NO_MATRIX" not in out
+    assert "  1 ALOS3.SA" in out
+    assert "ERROR=0" in out
 
 
-def test_smart_rank_no_matrix_only_for_absent_runtime_assets(
+def test_smart_rank_missing_runtime_asset_is_error(
     monkeypatch,
     capsys,
 ):
@@ -463,7 +604,7 @@ def test_smart_rank_no_matrix_only_for_absent_runtime_assets(
             }
 
         return {
-            "profile": "balanced",
+            "profile": "active",
             "source": "fallback",
             "promoted": False,
             "promotion_status": "fallback",
@@ -499,9 +640,11 @@ def test_smart_rank_no_matrix_only_for_absent_runtime_assets(
 
     out = capsys.readouterr().out
 
-    assert "ALOS3.SA    REJECTED" in out
-    assert "MISSING.SA  NO_MATRIX" in out
-    assert "SKIP" in out
+    assert "ALOS3.SA" in out
+    assert "REJECTED" in out
+    assert "MISSING.SA" in out
+    assert "ERROR" in out
+    assert "missing Matrix runtime row" in out
 
 
 def test_smart_rank_table_body_strips_ansi_sequences(
@@ -511,12 +654,14 @@ def test_smart_rank_table_body_strips_ansi_sequences(
         [
             {
                 "ticker": "\x1b[31mPETR4.SA\x1b[0m",
+                "action": "ACTIONABLE",
                 "signal": "\x1b[32mBUY\x1b[0m",
-                "profile": "relaxed",
+                "profile": "active",
                 "matrix": "APPROVE",
                 "pf": "inf",
                 "trades": 18,
-                "rr": 0.3,
+                "matrix_rr": 1.1,
+                "signal_rr": 0.3,
                 "guard": "OK",
                 "blocker": "\x1b[33mnone\x1b[0m",
             }
@@ -529,7 +674,36 @@ def test_smart_rank_table_body_strips_ansi_sequences(
     assert "\x1b[" not in out
     assert "PETR4.SA" in out
     assert "BUY" in out
-    assert "Rows: 1 of 1 | OK=1 | BLOCK=0 | REJECTED=0 | SKIP=0 | ERROR=0" in out
+    assert "Rows: 1 of 1" in out
+    assert "ACTIONABLE=1" in out
+
+
+def test_smart_rank_prints_missing_rr_as_na(
+    capsys,
+):
+    print_smart_rank(
+        [
+            {
+                "ticker": "ALOS3.SA",
+                "action": "REJECTED",
+                "signal": "REJECTED",
+                "profile": "active",
+                "matrix": "REJECT",
+                "pf": 0.0,
+                "trades": 0,
+                "matrix_rr": None,
+                "signal_rr": None,
+                "guard": "BLOCK",
+                "blocker": "trades 0 < 15",
+            }
+        ],
+        limit=20,
+    )
+
+    out = capsys.readouterr().out
+
+    assert " n/a BLOCK" in out
+    assert "0.00     0    n/a" in out
 
 
 def test_smart_rank_prints_fingerprint_warnings_and_summary(
@@ -538,23 +712,27 @@ def test_smart_rank_prints_fingerprint_warnings_and_summary(
     rows = [
         {
             "ticker": "PETR4.SA",
+            "action": "ACTIONABLE",
             "signal": "BUY",
             "profile": "active",
             "matrix": "APPROVE",
             "pf": 2.10,
             "trades": 34,
-            "rr": 1.45,
+            "matrix_rr": 1.20,
+            "signal_rr": 1.45,
             "guard": "OK",
             "blocker": "none",
         },
         {
             "ticker": "ALOS3.SA",
+            "action": "REJECTED",
             "signal": "REJECTED",
             "profile": "active",
             "matrix": "REJECT",
             "pf": 0.0,
             "trades": 0,
-            "rr": 0.0,
+            "matrix_rr": None,
+            "signal_rr": None,
             "guard": "BLOCK",
             "blocker": "trades 0 < 15",
         },

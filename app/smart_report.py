@@ -121,6 +121,21 @@ def _fmt_num(value: Any, digits: int = 2) -> str:
         return "n/a"
 
 
+def _fmt_optional_num(value: Any, digits: int = 2) -> str:
+    if value is None:
+        return "n/a"
+
+    text = _plain(value).strip()
+
+    if not text or text.lower() in {"n/a", "na", "none", "nan"}:
+        return "n/a"
+
+    if text.lower() in {"inf", "+inf", "infinity"}:
+        return "inf"
+
+    return _fmt_num(value, digits=digits)
+
+
 def _fmt_inf(value: Any) -> str:
     text = _plain(value).lower()
 
@@ -147,7 +162,7 @@ def print_smart_rank(
     warnings: list[str] | None = None,
     summary: dict[str, Any] | None = None,
 ) -> None:
-    width = 112
+    width = 118
     display_limit = limit if limit > 0 else len(rows)
 
     print()
@@ -161,29 +176,31 @@ def print_smart_rank(
 
     print("-" * width)
     print(
+        f"{'#':>3} "
         f"{'TICKER':<11} "
+        f"{'ACTION':<11} "
         f"{'SIGNAL':<10} "
-        f"{'PROFILE':<9} "
         f"{'MATRIX':<11} "
         f"{'PF':>6} "
         f"{'TRD':>5} "
-        f"{'RR':>5} "
+        f"{'RR':>6} "
         f"{'GUARD':<6} "
-        f"BLOCKER"
+        f"REASON"
     )
     print("-" * width)
 
-    for row in rows[:display_limit]:
+    for index, row in enumerate(rows[:display_limit], start=1):
         print(
+            f"{index:>3} "
             f"{_clip(row['ticker'], 11):<11} "
+            f"{_clip(row.get('action', 'n/a'), 11):<11} "
             f"{_clip(row['signal'], 10):<10} "
-            f"{_clip(row['profile'], 9):<9} "
             f"{_clip(row['matrix'], 11):<11} "
             f"{_fmt_inf(row['pf']):>6} "
             f"{_plain(row['trades']):>5} "
-            f"{_fmt_num(row['rr']):>5} "
+            f"{_fmt_optional_num(row.get('rr')):>6} "
             f"{_clip(row['guard'], 6):<6} "
-            f"{_clip(row['blocker'], 45)}"
+            f"{_clip(row.get('reason', row.get('blocker', 'none')), 44)}"
         )
 
     print("-" * width)
@@ -191,19 +208,28 @@ def print_smart_rank(
     total = len(rows)
     shown = min(total, display_limit)
 
-    ok_count = sum(1 for row in rows if str(row.get("guard", "")).upper() == "OK")
-    block_count = sum(1 for row in rows if str(row.get("guard", "")).upper() == "BLOCK")
-    rejected_count = sum(1 for row in rows if str(row.get("signal", "")).upper() == "REJECTED")
-    skip_count = sum(1 for row in rows if str(row.get("guard", "")).upper() == "SKIP")
-    error_count = sum(1 for row in rows if str(row.get("guard", "")).upper() == "ERROR")
+    action_counts = (summary or {}).get("action_counts") or {}
 
+    if not action_counts:
+        action_counts = {
+            "ACTIONABLE": sum(1 for row in rows if str(row.get("action", "")).upper() == "ACTIONABLE"),
+            "WATCH": sum(1 for row in rows if str(row.get("action", "")).upper() == "WATCH"),
+            "BLOCKED": sum(1 for row in rows if str(row.get("action", "")).upper() == "BLOCKED"),
+            "REJECTED": sum(1 for row in rows if str(row.get("action", "")).upper() == "REJECTED"),
+            "INELIGIBLE": sum(1 for row in rows if str(row.get("action", "")).upper() == "INELIGIBLE"),
+            "ERROR": sum(1 for row in rows if str(row.get("action", "")).upper() == "ERROR"),
+        }
+
+    print(f"Processed: {total}")
+    print(f"Displayed: {shown} of {total}")
+    print(f"Rows: {shown} of {total}")
     print(
-        f"Rows: {shown} of {total} | "
-        f"OK={ok_count} | "
-        f"BLOCK={block_count} | "
-        f"REJECTED={rejected_count} | "
-        f"SKIP={skip_count} | "
-        f"ERROR={error_count}"
+        f"ACTIONABLE={action_counts.get('ACTIONABLE', 0)} | "
+        f"WATCH={action_counts.get('WATCH', 0)} | "
+        f"BLOCKED={action_counts.get('BLOCKED', 0)} | "
+        f"REJECTED={action_counts.get('REJECTED', 0)} | "
+        f"INELIGIBLE={action_counts.get('INELIGIBLE', 0)} | "
+        f"ERROR={action_counts.get('ERROR', 0)}"
     )
 
     if summary:
@@ -211,7 +237,14 @@ def print_smart_rank(
         if top_actionable:
             print(f"Top actionable: {', '.join(_plain(item) for item in top_actionable)}")
         else:
-            print("Top actionable: none")
+            print("No actionable assets found.")
+            reasons = summary.get("no_actionable_reasons") or []
+
+            if reasons:
+                print("Reasons:")
+
+                for reason in reasons:
+                    print(f"- {_plain(reason)}")
 
         print(f"Main blocker: {_plain(summary.get('main_blocker', 'none'))}")
 

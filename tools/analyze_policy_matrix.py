@@ -37,6 +37,9 @@ SUMMARY_FIELDS = [
     "beat_rate_pct",
     "sample",
     "n_assets",
+    "eligibility_status",
+    "ineligible_reason",
+    "data_rows",
     "log_path",
 ]
 
@@ -101,6 +104,58 @@ def _safe_name_from_log(log_path: str) -> str:
     stem = path.stem
     match = re.match(r"^\d+_(.+)$", stem)
     return match.group(1) if match else stem
+
+
+def _ineligible_from_log(text: str) -> tuple[str, str]:
+    lowered = text.lower()
+    patterns = [
+        (
+            "insufficient history",
+            (
+                "insufficient rows",
+                "insufficient train rows",
+                "insufficient prepared train rows",
+                "not enough rows",
+                "too few rows",
+                "historico insuficiente",
+                "histórico insuficiente",
+            ),
+        ),
+        (
+            "no market data",
+            (
+                "returned no bars",
+                "no bars returned",
+                "no market data",
+                "sem dados",
+            ),
+        ),
+        (
+            "missing model artifacts",
+            (
+                "no trained model",
+                "missing trained features",
+                "model artifacts not found",
+                "without model artifacts",
+            ),
+        ),
+    ]
+
+    for reason, needles in patterns:
+        if any(needle in lowered for needle in needles):
+            rows_match = re.search(
+                r"(?P<rows>\d+)\s*(?:rows|linhas)?\s*<\s*(?P<minimum>\d+)",
+                lowered,
+            )
+            detail = reason
+            if rows_match:
+                detail = (
+                    f"{reason}: rows {rows_match.group('rows')} "
+                    f"< {rows_match.group('minimum')}"
+                )
+            return "ineligible_data", detail
+
+    return "", ""
 
 
 def _parse_validation_log(
@@ -181,6 +236,20 @@ def _parse_validation_log(
     if match:
         row["beat_rate_pct"] = _to_float(match.group(1))
 
+    eligibility_status, ineligible_reason = _ineligible_from_log(txt)
+    if eligibility_status:
+        row["eligibility_status"] = eligibility_status
+        row["ineligible_reason"] = ineligible_reason
+        row.setdefault("decision", "INELIGIBLE_DATA")
+        row.setdefault("trades", 0)
+        row.setdefault("profit_factor", "")
+        rows_match = re.search(
+            r"(?P<rows>\d+)\s*(?:rows|linhas)?\s*<\s*(?P<minimum>\d+)",
+            txt.lower(),
+        )
+        if rows_match:
+            row["data_rows"] = int(rows_match.group("rows"))
+
     return row
 
 
@@ -244,6 +313,9 @@ def _normalise_validation_rows(rows: list[dict[str, str]]) -> list[dict[str, obj
             "before_cost_pct": _to_float(row.get("before_cost_pct")),
             "after_cost_pct": _to_float(row.get("after_cost_pct")),
             "beat_rate_pct": _to_float(row.get("beat_rate_pct")),
+            "eligibility_status": row.get("eligibility_status", ""),
+            "ineligible_reason": row.get("ineligible_reason", ""),
+            "data_rows": _to_int(row.get("data_rows")),
             "log_path": log_path,
         }
         out.append(item)

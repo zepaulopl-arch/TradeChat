@@ -88,11 +88,6 @@ def _run_matrix(args: argparse.Namespace) -> None:
         universe = args.universe or getattr(args, "asset_list", None) or "all"
         argv.extend(["--asset-list", str(universe)])
 
-    profiles = list(getattr(args, "profiles", None) or [])
-    if profiles:
-        argv.append("--profiles")
-        argv.extend(profiles)
-
     _append_positive_int(argv, "--jobs", getattr(args, "jobs", 1))
     _append_optional(argv, "--log-dir", getattr(args, "log_dir", None))
     _append_optional(argv, "--start", getattr(args, "start", None))

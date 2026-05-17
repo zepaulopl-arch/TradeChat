@@ -14,7 +14,7 @@ promotion:
 
     max_exposure_pct: 80.0
 
-  fallback_profile: balanced
+  fallback_profile: active
 
   tie_break:
 
@@ -56,39 +56,37 @@ promotion:
 
         max_signal: ACTIONABLE
 
+  asset_specific_active:
+
+    bounds:
+
+      min_buy_return_pct: 0.04
+
+      max_buy_return_pct: 0.30
+
+      default_buy_return_pct: 0.08
+
+      min_confidence_pct_floor: 0.32
+
+      min_confidence_pct_cap: 0.45
+
+      min_rr_floor: 0.10
+
+      min_rr_cap: 0.60
+
+      risk_per_trade_pct_floor: 0.25
+
+      risk_per_trade_pct_cap: 1.0
+
+      max_position_pct_floor: 5.0
+
+      max_position_pct_cap: 40.0
+
   runtime_overrides:
 
     enabled: true
 
     profiles:
-
-      strict:
-
-        buy_return_pct: 0.18
-
-        sell_return_pct: -0.18
-
-        min_confidence_pct: 0.45
-
-        mae_threshold_multiplier: 0.15
-
-        risk_management:
-
-          min_rr_threshold: 0.60
-
-      balanced:
-
-        buy_return_pct: 0.12
-
-        sell_return_pct: -0.12
-
-        min_confidence_pct: 0.38
-
-        mae_threshold_multiplier: 0.10
-
-        risk_management:
-
-          min_rr_threshold: 0.30
 
       active:
 
@@ -103,17 +101,3 @@ promotion:
         risk_management:
 
           min_rr_threshold: 0.15
-
-      relaxed:
-
-        buy_return_pct: 0.06
-
-        sell_return_pct: -0.06
-
-        min_confidence_pct: 0.32
-
-        mae_threshold_multiplier: 0.06
-
-        risk_management:
-
-          min_rr_threshold: 0.20

@@ -49,9 +49,9 @@ def available_policy_profiles(cfg: dict[str, Any]) -> list[str]:
 
 def policy_profile_overrides(cfg: dict[str, Any], profile: str | None) -> dict[str, Any]:
     """Resolve overrides for a policy profile without mutating the config."""
-    name = str(profile or "strict").strip().lower()
+    name = str(profile or "active").strip().lower()
     if not name:
-        name = "strict"
+        name = "active"
     pcfg = cfg.get("policy", {}) or {}
     configured = pcfg.get("profiles", {}) or {}
     if name not in BUILTIN_POLICY_PROFILES and name not in configured:
@@ -64,11 +64,10 @@ def policy_profile_overrides(cfg: dict[str, Any], profile: str | None) -> dict[s
 def apply_policy_profile(cfg: dict[str, Any], profile: str | None) -> dict[str, Any]:
     """Return a copied config with the selected policy profile applied.
 
-    The default/strict profile preserves the configured policy. Other profiles are
-    intended for diagnostics/calibration and should be validated before becoming
-    operational defaults.
+    The default operational profile is active. Other built-in profiles are kept
+    for diagnostics and benchmark comparisons.
     """
-    name = str(profile or "strict").strip().lower() or "strict"
+    name = str(profile or "active").strip().lower() or "active"
     new_cfg = deepcopy(cfg)
     pcfg = deepcopy(new_cfg.get("policy", {}) or {})
     profiles = pcfg.pop("profiles", None)
@@ -82,7 +81,7 @@ def apply_policy_profile(cfg: dict[str, Any], profile: str | None) -> dict[str, 
 
 
 def active_policy_profile(cfg: dict[str, Any]) -> str:
-    return str((cfg.get("policy", {}) or {}).get("_active_profile", "strict"))
+    return str((cfg.get("policy", {}) or {}).get("_active_profile", "active"))
 
 
 def _confidence_floor_pct(pcfg: dict[str, Any]) -> float:
@@ -197,9 +196,15 @@ def classify_signal(
             )
 
     priority = {"STRONG BUY": 4, "STRONG SELL": 4, "BUY": 3, "SELL": 3, "NEUTRAL": 1}
+    preferred_horizon = str(pcfg.get("preferred_horizon", "") or "").lower()
     if candidates:
         candidates.sort(
-            key=lambda x: (priority.get(x["label"], 0), x["confidence_pct"]), reverse=True
+            key=lambda x: (
+                priority.get(x["label"], 0),
+                1 if preferred_horizon and x["horizon"] == preferred_horizon else 0,
+                x["confidence_pct"],
+            ),
+            reverse=True,
         )
         best_signal = candidates[0]
     else:
@@ -274,12 +279,24 @@ def classify_signal(
 
     tcfg = cfg.get("trading", {}) or {}
     capital = float(tcfg.get("capital", 10000.0))
-    max_loss = capital * (float(tcfg.get("risk_per_trade_pct", 1.0)) / 100.0)
+    risk_budget_pct = float(
+        rm_cfg.get(
+            "risk_per_trade_pct",
+            tcfg.get("risk_per_trade_pct", 1.0),
+        )
+        or 1.0
+    )
+    max_loss = capital * (risk_budget_pct / 100.0)
     risk_per_share = abs(latest_price - best_signal["stop_loss_price"])
     if risk_per_share > 0 and best_signal["label"] != "NEUTRAL":
         best_signal["position_size"] = int(max_loss / risk_per_share)
     else:
         best_signal["position_size"] = 0
+
+    max_position_pct = float(rm_cfg.get("max_position_pct", 0.0) or 0.0)
+    if max_position_pct > 0 and latest_price > 0 and best_signal["position_size"] > 0:
+        max_shares = int((capital * (max_position_pct / 100.0)) / latest_price)
+        best_signal["position_size"] = min(best_signal["position_size"], max_shares)
 
     move_pct = score_pct * 0.5
     if "BUY" in best_signal["label"]:
@@ -306,7 +323,6 @@ def classify_signal(
         best_signal["target_partial"] = latest_price
         best_signal["breakeven_trigger"] = latest_price
         best_signal["reasons"].append(f"{blocked} blocked: R/R {rr:.2f} < {min_rr:.2f}")
-        rr = 0.0
 
     allow_short = bool(
         pcfg.get(

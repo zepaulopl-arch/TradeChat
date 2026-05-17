@@ -147,3 +147,48 @@ def test_active_profile_can_pass_when_balanced_rr_blocks():
     assert active["label"] == "BUY"
     assert active["horizon"] == "d20"
     assert active["profile"] == "active"
+
+
+def test_asset_specific_active_preferred_horizon_wins_same_signal_strength():
+    cfg = apply_policy_profile(_cfg(), "active")
+    cfg["policy"]["buy_return_pct"] = 0.05
+    cfg["policy"]["sell_return_pct"] = -0.05
+    cfg["policy"]["min_confidence_pct"] = 0.30
+    cfg["policy"]["preferred_horizon"] = "d5"
+    cfg["policy"]["risk_management"]["min_rr_threshold"] = 0.0
+
+    results = {
+        "d1": {"prediction_return": 0.0002, "confidence": 0.50},
+        "d5": {"prediction_return": 0.0015, "confidence": 0.55},
+        "d20": {"prediction_return": 0.0060, "confidence": 0.90},
+    }
+
+    signal = classify_signal(cfg, results, _meta())
+
+    assert signal["label"] == "BUY"
+    assert signal["horizon"] == "d5"
+
+
+def test_asset_specific_active_risk_budget_and_position_cap_are_applied():
+    cfg = apply_policy_profile(_cfg(), "active")
+    cfg["policy"]["buy_return_pct"] = 0.05
+    cfg["policy"]["sell_return_pct"] = -0.05
+    cfg["policy"]["min_confidence_pct"] = 0.30
+    cfg["policy"]["risk_management"]["min_rr_threshold"] = 0.0
+    cfg["policy"]["risk_management"]["risk_per_trade_pct"] = 0.25
+    cfg["policy"]["risk_management"]["max_position_pct"] = 5.0
+
+    results = {
+        "d1": {"prediction_return": 0.0010, "confidence": 0.80},
+    }
+    meta = {
+        "latest_price": 100.0,
+        "latest_risk_pct": 2.0,
+        "fundamentals": {},
+        "sentiment_value": 0.0,
+    }
+
+    signal = classify_signal(cfg, results, meta)
+
+    assert signal["label"] == "BUY"
+    assert signal["position_size"] == 5

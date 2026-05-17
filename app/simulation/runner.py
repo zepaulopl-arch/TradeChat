@@ -582,7 +582,7 @@ def _write_simulation_artifacts(
         f"WINDOW: {summary['start_date']} -> {summary['end_date']}",
         f"TICKERS: {', '.join(summary.get('tickers', []) or [])}",
         f"REBALANCE DAYS: {summary['rebalance_days']}",
-        f"POLICY PROFILE: {summary.get('policy_profile', 'strict')}",
+        f"POLICY PROFILE: {summary.get('policy_profile', 'active')}",
         f"WARMUP BARS: {summary['warmup_bars']}",
         f"TRADES: {int(float(metrics.get('trade_count', 0) or 0))}",
         f"RETURN: {float(metrics.get('total_return_pct', 0.0) or 0.0):+.2f}%",

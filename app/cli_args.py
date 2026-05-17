@@ -35,7 +35,6 @@ def add_validate_args(parser: argparse.ArgumentParser) -> None:
 
     matrix = parser.add_argument_group("validate matrix/report")
     matrix.add_argument("--universe", default=None)
-    matrix.add_argument("--profiles", nargs="+", default=None)
     matrix.add_argument("--jobs", type=int, default=1)
     matrix.add_argument("--log-dir", default=None)
     matrix.add_argument("--resume", action="store_true")

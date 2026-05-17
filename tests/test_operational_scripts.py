@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from scripts.check_runtime_policy import check_runtime_policy
-from scripts.run_daily_smart_rank import LATEST_MATRIX_PLACEHOLDER, build_daily_plan
+from scripts.run_operational_matrix import OPERATIONAL_PROFILE, build_operational_plan
 from scripts.validate_smart_rank_output import validate_smart_rank_output
 
 
@@ -29,10 +29,15 @@ def _asset(
 ) -> dict:
     return {
         "profile": "active",
+        "policy_type": "asset_specific_active",
         "source": "policy_matrix",
+        "evaluated": True,
+        "ineligible_data": False,
         "promoted": promoted,
+        "actionable_candidate": promoted,
         "promotion_status": status,
         "rejection_reasons": reasons,
+        "blocker": reasons[0] if reasons else None,
         "overrides": {},
         "evidence": {
             "decision": "APPROVE" if promoted else "REJECT",
@@ -113,12 +118,15 @@ def test_validate_smart_rank_output_accepts_clean_policy_first_rank(tmp_path):
     text = """
 SMART RANK
 ------------------------------------------------------------------------------------------------
-TICKER      SIGNAL     PROFILE   MATRIX          PF   TRD    RR GUARD  BLOCKER
+#   TICKER      ACTION      SIGNAL     MATRIX          PF   TRD     RR GUARD  REASON
 ------------------------------------------------------------------------------------------------
-PETR4.SA    BUY        active    APPROVE       2.10    34  1.45 OK      none
-ALOS3.SA    REJECTED   active    REJECT        0.00     0  0.00 BLOCK   trades 0 < 15
+  1 PETR4.SA    ACTIONABLE  BUY        APPROVE       2.10    34   1.45 OK      none
+  2 ALOS3.SA    REJECTED    REJECTED   REJECT        0.00     0    n/a BLOCK   trades 0 < 15
 ------------------------------------------------------------------------------------------------
-Rows: 2 of 2 | OK=1 | BLOCK=1 | REJECTED=1 | SKIP=0 | ERROR=0
+Processed: 2
+Displayed: 2 of 2
+Rows: 2 of 2
+ACTIONABLE=1 | WATCH=0 | BLOCKED=0 | REJECTED=1 | INELIGIBLE=0 | ERROR=0
 Top actionable: PETR4.SA
 Main blocker: trades < minimum
 """
@@ -134,39 +142,7 @@ Main blocker: trades < minimum
     assert result["summary"]["total"] == 2
 
 
-def test_validate_smart_rank_output_rejects_false_no_matrix(tmp_path):
-    runtime_path = tmp_path / "runtime_policy.json"
-    _write_runtime(
-        runtime_path,
-        {
-            "ALOS3.SA": _asset(
-                promoted=False,
-                status="rejected_by_constraints",
-                reasons=["trades 0 < 15"],
-            )
-        },
-    )
-
-    text = """
-SMART RANK
-------------------------------------------------------------------------------------------------
-TICKER      SIGNAL     PROFILE   MATRIX          PF   TRD    RR GUARD  BLOCKER
-------------------------------------------------------------------------------------------------
-ALOS3.SA    NO_MATRIX  n/a       n/a            n/a   n/a  0.00 SKIP   not found in runtime
-------------------------------------------------------------------------------------------------
-Rows: 1 of 1 | OK=0 | BLOCK=0 | REJECTED=0 | SKIP=1 | ERROR=0
-"""
-
-    errors, _warnings, _result = validate_smart_rank_output(
-        text,
-        expected_rows=1,
-        runtime_path=runtime_path,
-    )
-
-    assert "ALOS3.SA: NO_MATRIX row exists but ticker is present in runtime." in errors
-
-
-def test_validate_smart_rank_output_rejects_balanced_na_actionable_signal(tmp_path):
+def test_validate_smart_rank_output_rejects_actionable_without_matrix(tmp_path):
     runtime_path = tmp_path / "runtime_policy.json"
     _write_runtime(
         runtime_path,
@@ -182,11 +158,14 @@ def test_validate_smart_rank_output_rejects_balanced_na_actionable_signal(tmp_pa
     text = """
 SMART RANK
 ------------------------------------------------------------------------------------------------
-TICKER      SIGNAL     PROFILE   MATRIX          PF   TRD    RR GUARD  BLOCKER
+#   TICKER      ACTION      SIGNAL     MATRIX          PF   TRD     RR GUARD  REASON
 ------------------------------------------------------------------------------------------------
-PETR4.SA    BUY        balanced  n/a            n/a   n/a  0.00 OK     none
+  1 PETR4.SA    ACTIONABLE  BUY        n/a            n/a   n/a   0.00 OK     none
 ------------------------------------------------------------------------------------------------
-Rows: 1 of 1 | OK=1 | BLOCK=0 | REJECTED=0 | SKIP=0 | ERROR=0
+Processed: 1
+Displayed: 1 of 1
+Rows: 1 of 1
+ACTIONABLE=1 | WATCH=0 | BLOCKED=0 | REJECTED=0 | INELIGIBLE=0 | ERROR=0
 """
 
     errors, _warnings, _result = validate_smart_rank_output(
@@ -195,7 +174,7 @@ Rows: 1 of 1 | OK=1 | BLOCK=0 | REJECTED=0 | SKIP=0 | ERROR=0
         runtime_path=runtime_path,
     )
 
-    assert "PETR4.SA: actionable balanced n/a signal found in smart rank." in errors
+    assert "PETR4.SA: actionable signal without Matrix decision found." in errors
 
 
 def test_validate_smart_rank_output_parses_multi_word_signal(tmp_path):
@@ -214,11 +193,14 @@ def test_validate_smart_rank_output_parses_multi_word_signal(tmp_path):
     text = """
 SMART RANK
 ------------------------------------------------------------------------------------------------
-TICKER      SIGNAL     PROFILE   MATRIX          PF   TRD    RR GUARD  BLOCKER
+#   TICKER      ACTION      SIGNAL     MATRIX          PF   TRD     RR GUARD  REASON
 ------------------------------------------------------------------------------------------------
-PETR4.SA    STRONG BUY active    APPROVE       2.10    34  1.45 OK      none
+  1 PETR4.SA    ACTIONABLE  STRONG BUY APPROVE       2.10    34   1.45 OK      none
 ------------------------------------------------------------------------------------------------
-Rows: 1 of 1 | OK=1 | BLOCK=0 | REJECTED=0 | SKIP=0 | ERROR=0
+Processed: 1
+Displayed: 1 of 1
+Rows: 1 of 1
+ACTIONABLE=1 | WATCH=0 | BLOCKED=0 | REJECTED=0 | INELIGIBLE=0 | ERROR=0
 """
 
     errors, _warnings, result = validate_smart_rank_output(
@@ -231,42 +213,31 @@ Rows: 1 of 1 | OK=1 | BLOCK=0 | REJECTED=0 | SKIP=0 | ERROR=0
     assert result["rows"][0]["signal"] == "STRONG BUY"
 
 
-def test_daily_plan_is_light_by_default_and_validates_rank_output(tmp_path):
+def test_operational_matrix_plan_runs_active_only_without_powershell(tmp_path):
     args = argparse.Namespace(
         universe="ibov",
         rank_limit=20,
-        jobs=1,
-        skip_data=False,
-        with_matrix=False,
-        skip_promote=False,
-        matrix_dir=None,
+        jobs=4,
+        allow_untrained=False,
+        skip_tests=True,
         python="python",
     )
+    matrix_dir = tmp_path / "logs" / "policy_matrix" / "run"
 
-    steps = build_daily_plan(args, out_dir=tmp_path)
+    steps = build_operational_plan(
+        args,
+        out_dir=tmp_path / "artifacts",
+        matrix_dir=matrix_dir,
+    )
     commands = [" ".join(step.command) for step in steps]
 
-    assert commands[0] == "python trade.py data load --list ibov"
+    assert OPERATIONAL_PROFILE == "active"
+    assert commands[0].startswith("python trade.py validate matrix --universe ibov --jobs 4")
+    assert "--profiles" not in commands[0]
+    assert "--skip-pytest" in commands[0]
+    assert "python trade.py validate report --latest" in commands
     assert "python trade.py signal rank --list ibov --smart --rank-limit 20" in commands
     assert any("scripts/validate_smart_rank_output.py" in command for command in commands)
-    assert not any("validate matrix" in command for command in commands)
-
-
-def test_daily_plan_adds_matrix_and_promote_only_when_requested(tmp_path):
-    args = argparse.Namespace(
-        universe="ibov",
-        rank_limit=20,
-        jobs=1,
-        skip_data=True,
-        with_matrix=True,
-        skip_promote=False,
-        matrix_dir=None,
-        python="python",
-    )
-
-    steps = build_daily_plan(args, out_dir=tmp_path)
-    commands = [" ".join(step.command) for step in steps]
-
-    assert commands[0] == "python trade.py validate matrix --universe ibov --jobs 1"
-    assert any("python trade.py validate report --latest" == command for command in commands)
-    assert any(LATEST_MATRIX_PLACEHOLDER in command for command in commands)
+    assert "powershell" not in " ".join(commands).lower()
+    assert any(matrix_dir.as_posix() in command for command in commands if "promote_policy" in command)
+    assert any("smart_rank.txt" in command for command in commands)

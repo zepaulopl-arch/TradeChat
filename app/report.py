@@ -356,7 +356,7 @@ def _render_policy_diagnostic(
     lines.extend(
         render_facts(
             [
-                ("Profile", str(diag.get("profile", "strict"))),
+                ("Profile", str(diag.get("profile", "active"))),
                 (
                     "Final",
                     f"{diag.get('final_label', 'NEUTRAL')} ({diag.get('final_posture', 'n/a')})",

@@ -62,3 +62,30 @@ Beat rate  : 20.0%
     assert "PETR4.SA" in report
     assert "Main candidates" in report
     assert "+1.70%" in report
+
+
+def test_policy_matrix_analyzer_marks_insufficient_history_as_ineligible(tmp_path):
+    from tools.analyze_policy_matrix import rebuild_validation_summary
+
+    run_dir = tmp_path / "matrix"
+    log_dir = run_dir / "04_validate_per_asset" / "active"
+    log_dir.mkdir(parents=True)
+    (log_dir / "0001_EMBJ3.SA.log").write_text(
+        """
+VALIDATE - PYBROKER - REPLAY
+Policy               : active
+ERROR: insufficient prepared train rows: 8 < 60
+""",
+        encoding="utf-8",
+    )
+
+    summary = rebuild_validation_summary(
+        run_dir,
+        force=True,
+    )
+    text = summary.read_text(encoding="utf-8")
+
+    assert "EMBJ3.SA" in text
+    assert "INELIGIBLE_DATA" in text
+    assert "ineligible_data" in text
+    assert "insufficient history: rows 8 < 60" in text

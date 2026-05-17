@@ -26,7 +26,8 @@ def test_smart_signal_uses_runtime_policy_selection(
         calls["fallback"] = fallback
 
         return {
-            "profile": "aggressive",
+            "profile": "active",
+            "policy_type": "asset_specific_active",
             "source": "policy_matrix",
             "evidence": {
                 "profit_factor": 1.42,
@@ -135,7 +136,7 @@ def test_smart_signal_uses_runtime_policy_selection(
 
     assert calls["resolved_ticker"] == "PETR4.SA"
     assert calls["fallback"] is None
-    assert calls["applied_profile"] == "aggressive"
+    assert calls["applied_profile"] == "active"
     assert calls["signal_ticker"] == "PETR4.SA"
     assert calls["signal_update"] is True
     assert calls["printed"] is True
@@ -151,7 +152,8 @@ def test_smart_signal_uses_runtime_policy_selection(
     )
 
     assert '"smart_signal"' in written
-    assert '"profile": "aggressive"' in written
+    assert '"profile": "active"' in written
+    assert '"policy_type": "asset_specific_active"' in written
     assert '"source": "policy_matrix"' in written
     assert '"profit_factor": 1.42' in written
 
@@ -179,7 +181,8 @@ def test_smart_signal_passes_policy_profile_as_fallback(
         calls["fallback"] = fallback
 
         return {
-            "profile": fallback,
+            "profile": "active",
+            "policy_type": "asset_specific_active",
             "source": "fallback",
             "evidence": {},
             "selection": {},
@@ -276,7 +279,7 @@ def test_smart_signal_passes_policy_profile_as_fallback(
 
     assert calls["resolved_ticker"] == "VALE3.SA"
     assert calls["fallback"] == "balanced"
-    assert calls["applied_profile"] == "balanced"
+    assert calls["applied_profile"] == "active"
     assert calls["printed"] is True
 
 

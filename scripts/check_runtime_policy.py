@@ -11,8 +11,12 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "runtime_policy.yaml"
 
 REQUIRED_ASSET_FIELDS = (
     "profile",
+    "policy_type",
     "source",
+    "evaluated",
+    "ineligible_data",
     "promoted",
+    "actionable_candidate",
     "promotion_status",
     "rejection_reasons",
     "overrides",
@@ -61,6 +65,7 @@ def check_runtime_policy(
         "assets_total": 0,
         "assets_promoted": 0,
         "assets_rejected": 0,
+        "assets_ineligible": 0,
     }
 
     if not config_path.exists():
@@ -88,15 +93,21 @@ def check_runtime_policy(
     declared_total = _declared_count(data, "assets_total", actual_total)
     declared_promoted = _declared_count(data, "assets_promoted", actual_promoted)
     declared_rejected = _declared_count(data, "assets_rejected", actual_rejected)
+    actual_ineligible = sum(
+        1 for item in assets.values() if bool((item or {}).get("ineligible_data"))
+    )
+    declared_ineligible = _declared_count(data, "assets_ineligible", actual_ineligible)
 
     summary.update(
         {
             "assets_total": actual_total,
             "assets_promoted": actual_promoted,
             "assets_rejected": actual_rejected,
+            "assets_ineligible": actual_ineligible,
             "declared_assets_total": declared_total,
             "declared_assets_promoted": declared_promoted,
             "declared_assets_rejected": declared_rejected,
+            "declared_assets_ineligible": declared_ineligible,
         }
     )
 
@@ -117,6 +128,12 @@ def check_runtime_policy(
             f"{actual_rejected} rejected assets."
         )
 
+    if declared_ineligible != actual_ineligible:
+        errors.append(
+            f"assets_ineligible={declared_ineligible} but runtime has "
+            f"{actual_ineligible} ineligible assets."
+        )
+
     if actual_promoted <= 0:
         errors.append("runtime_policy has 0 promoted assets. Check promotion constraints.")
 
@@ -132,10 +149,21 @@ def check_runtime_policy(
             if field not in asset:
                 errors.append(f"{ticker}: missing field {field}.")
 
-        if asset.get("source") != "policy_matrix":
-            errors.append(f"{ticker}: source must be policy_matrix.")
+        source = str(asset.get("source", ""))
+        profile = str(asset.get("profile", ""))
+        policy_type = str(asset.get("policy_type", ""))
+
+        if profile != "active":
+            errors.append(f"{ticker}: profile must be active.")
+
+        if policy_type != "asset_specific_active":
+            errors.append(f"{ticker}: policy_type must be asset_specific_active.")
+
+        if source not in {"policy_matrix", "data_eligibility"}:
+            errors.append(f"{ticker}: source must be policy_matrix or data_eligibility.")
 
         promoted = asset.get("promoted")
+        ineligible = bool(asset.get("ineligible_data", False))
 
         if not isinstance(promoted, bool):
             errors.append(f"{ticker}: promoted must be true or false.")
@@ -146,10 +174,28 @@ def check_runtime_policy(
         if promoted and promotion_status != "promoted":
             errors.append(f"{ticker}: promoted asset must use promotion_status=promoted.")
 
-        if not promoted and promotion_status != "rejected_by_constraints":
+        if not promoted and promotion_status not in {
+            "rejected_by_constraints",
+            "ineligible_data",
+        }:
             errors.append(
-                f"{ticker}: rejected asset must use promotion_status=rejected_by_constraints."
+                f"{ticker}: rejected asset must use promotion_status="
+                "rejected_by_constraints or ineligible_data."
             )
+
+        if ineligible and promotion_status != "ineligible_data":
+            errors.append(f"{ticker}: ineligible asset must use promotion_status=ineligible_data.")
+
+        if ineligible and source != "data_eligibility":
+            errors.append(f"{ticker}: ineligible asset must use source=data_eligibility.")
+
+        actionable_candidate = asset.get("actionable_candidate")
+
+        if not isinstance(actionable_candidate, bool):
+            errors.append(f"{ticker}: actionable_candidate must be true or false.")
+
+        if actionable_candidate and not promoted:
+            errors.append(f"{ticker}: actionable_candidate cannot be true when promoted=false.")
 
         rejection_reasons = asset.get("rejection_reasons")
 
@@ -191,7 +237,8 @@ def main(argv: list[str] | None = None) -> int:
         "Assets: "
         f"{summary.get('assets_total', 0)} | "
         f"Promoted: {summary.get('assets_promoted', 0)} | "
-        f"Rejected: {summary.get('assets_rejected', 0)}"
+        f"Rejected: {summary.get('assets_rejected', 0)} | "
+        f"Ineligible: {summary.get('assets_ineligible', 0)}"
     )
 
     for warning in warnings:
