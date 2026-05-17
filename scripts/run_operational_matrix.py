@@ -74,7 +74,7 @@ def build_operational_plan(
         universe,
         "--jobs",
         str(jobs),
-        "--profiles",
+        "--policy-profile",
         OPERATIONAL_PROFILE,
         "--log-dir",
         matrix_dir.as_posix(),

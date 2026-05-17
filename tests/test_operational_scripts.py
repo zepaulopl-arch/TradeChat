@@ -232,8 +232,8 @@ def test_operational_matrix_plan_runs_active_only_without_powershell(tmp_path):
     commands = [" ".join(step.command) for step in steps]
 
     assert OPERATIONAL_PROFILE == "active"
-    assert commands[0].startswith("python trade.py validate matrix --universe ibov --jobs 4 --profiles active")
-    assert "--profiles active" in commands[0]
+    assert commands[0].startswith("python trade.py validate matrix --universe ibov --jobs 4 --policy-profile active")
+    assert "--policy-profile active" in commands[0]
     assert "--skip-pytest" in commands[0]
     assert "python trade.py validate report --latest" in commands
     assert "python trade.py signal rank --list ibov --smart --rank-limit 20" in commands
