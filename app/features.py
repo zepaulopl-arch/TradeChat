@@ -57,10 +57,29 @@ def _hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
     def calc_hurst(x):
         if len(x) < 20:
             return 0.5
-        lags = range(2, 20)
-        tau = [np.sqrt(np.std(np.subtract(x[lag:], x[:-lag]))) for lag in lags]
-        m = np.polyfit(np.log(lags), np.log(tau), 1)
-        return m[0] * 2.0
+        lags = np.arange(2, 20, dtype=float)
+        tau = np.array(
+            [
+                np.sqrt(np.std(np.subtract(x[int(lag) :], x[: -int(lag)])))
+                for lag in lags
+            ],
+            dtype=float,
+        )
+        valid = np.isfinite(tau) & (tau > 0)
+        if valid.sum() < 2:
+            return 0.5
+        log_lags = np.log(lags[valid])
+        log_tau = np.log(tau[valid])
+        finite = np.isfinite(log_lags) & np.isfinite(log_tau)
+        if finite.sum() < 2:
+            return 0.5
+        x_log = log_lags[finite]
+        y_log = log_tau[finite]
+        denom = float(np.sum((x_log - x_log.mean()) ** 2))
+        if denom <= 0:
+            return 0.5
+        slope = float(np.sum((x_log - x_log.mean()) * (y_log - y_log.mean())) / denom)
+        return float(np.clip(slope * 2.0, 0.0, 1.5))
 
     return series.rolling(window).apply(calc_hurst, raw=True)
 

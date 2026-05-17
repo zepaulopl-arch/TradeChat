@@ -88,6 +88,8 @@ def _unique(items: list[str]) -> list[str]:
 
 
 def _registry(cfg: dict[str, Any]) -> dict[str, Any]:
+    if cfg.get("assets_registry"):
+        return cfg.get("assets_registry", {}) or {}
     try:
         return load_data_registry(cfg)
     except FileNotFoundError:
@@ -109,9 +111,12 @@ def resolve_asset(cfg: dict[str, Any], ticker: str) -> dict[str, Any]:
         return None
 
     key = lookup_key(requested)
-    canonical = normalize_ticker(
-        canonical_asset_ticker({"assets_registry": registry}, key or requested)
-    )
+    if str(registry.get("_registry_source", "")).lower() == "split":
+        canonical = normalize_ticker(key or requested)
+    else:
+        canonical = normalize_ticker(
+            canonical_asset_ticker({"assets_registry": registry}, key or requested)
+        )
     profile = dict(assets.get(canonical, {}) or {})
     if not profile and canonical.split(".")[0] in assets:
         profile = dict(assets.get(canonical.split(".")[0], {}) or {})

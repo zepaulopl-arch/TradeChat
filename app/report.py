@@ -89,6 +89,63 @@ def _engine_values_summary(values: dict[str, Any] | None) -> str:
     return "; ".join(parts)
 
 
+def _smart_decision_lines(signal: dict[str, Any], *, width: int) -> list[str]:
+    smart = signal.get("smart_signal", {}) or {}
+
+    if not smart:
+        return []
+
+    evidence = smart.get("evidence", {}) or {}
+    guard = smart.get("matrix_decision_guard", {}) or signal.get("matrix_decision_guard", {}) or {}
+    policy = signal.get("policy", {}) or {}
+    rejection_reasons = smart.get("rejection_reasons", []) or []
+    guard_state = "BLOCK" if bool(guard.get("blocked", False)) else "OK"
+    promotion_status = str(smart.get("promotion_status") or "")
+
+    if not promotion_status:
+        promotion_status = (
+            "rejected_by_constraints"
+            if rejection_reasons
+            else "promoted" if str(smart.get("source", "")).lower() == "policy_matrix" else "n/a"
+        )
+
+    lines = [
+        divider(width, use_color=False),
+        "DECISION PATH",
+    ]
+    lines.extend(
+        render_facts(
+            [
+                ("Matrix", str(evidence.get("decision", "n/a"))),
+                ("Promotion", promotion_status),
+                ("Profile", str(smart.get("profile", "n/a"))),
+                ("Guard", guard_state),
+                ("Final Signal", str(policy.get("label", signal.get("label", "n/a")))),
+                ("R/R", f"{float(policy.get('risk_reward_ratio', 0.0) or 0.0):.2f}"),
+                ("PF", str(evidence.get("profit_factor", "n/a"))),
+                ("Trades", str(evidence.get("trades", "n/a"))),
+            ],
+            width=width,
+            max_columns=2,
+            use_color=False,
+        )
+    )
+
+    why = (
+        "; ".join(str(item) for item in rejection_reasons)
+        or str(guard.get("reason") or "none")
+    )
+    lines.extend(
+        render_wrapped(
+            "Why",
+            why,
+            width=width,
+            use_color=False,
+        )
+    )
+    return lines
+
+
 def _print_lines(lines: list[str]) -> None:
     for line in lines:
         print(line)
@@ -475,6 +532,7 @@ def render_txt_report(signal: dict[str, Any]) -> str:
             use_color=False,
         )
     )
+    lines.extend(_smart_decision_lines(signal, width=width))
     lines.append(divider(width, use_color=False))
     lines.append("BASE ENGINES AND ARBITER")
     lines.extend(

@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 .pytest_cache/
+.pytest_tmp/
 *.py[cod]
 *$py.class
 
@@ -29,6 +30,7 @@ Thumbs.db
 
 # Generated model/report artifacts
 artifacts/
+runtime/
 
 # Local patch/archive artifacts
 _local_archive/

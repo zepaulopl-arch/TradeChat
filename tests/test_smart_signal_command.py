@@ -278,3 +278,81 @@ def test_smart_signal_passes_policy_profile_as_fallback(
     assert calls["fallback"] == "balanced"
     assert calls["applied_profile"] == "balanced"
     assert calls["printed"] is True
+
+
+def test_signal_report_prefers_latest_smart_signal(
+    tmp_path,
+    monkeypatch,
+):
+    calls = {}
+    latest_path = tmp_path / "PETR4_SA" / "latest_signal.json"
+    smart_path = tmp_path / "PETR4_SA" / "latest_smart_signal.json"
+    smart_path.parent.mkdir(parents=True)
+    latest_path.write_text('{"ticker": "PETR4.SA", "plain": true}', encoding="utf-8")
+    smart_path.write_text('{"ticker": "PETR4.SA", "smart_signal": {"enabled": true}}', encoding="utf-8")
+
+    def fake_resolve_cli_tickers(
+        cfg,
+        args,
+        required,
+    ):
+        return [
+            "PETR4.SA",
+        ]
+
+    def fake_latest_signal_path(
+        cfg,
+        ticker,
+    ):
+        return latest_path
+
+    def fake_write_txt_report(
+        cfg,
+        signal,
+    ):
+        calls["signal"] = signal
+        return tmp_path / "report.txt"
+
+    def fake_make_signal(
+        cfg,
+        ticker,
+        update=False,
+    ):
+        raise AssertionError("report should read latest smart signal when available")
+
+    monkeypatch.setattr(
+        signal_command,
+        "resolve_cli_tickers",
+        fake_resolve_cli_tickers,
+    )
+    monkeypatch.setattr(
+        signal_command,
+        "latest_signal_path",
+        fake_latest_signal_path,
+    )
+    monkeypatch.setattr(
+        signal_command,
+        "write_txt_report",
+        fake_write_txt_report,
+    )
+    monkeypatch.setattr(
+        signal_command,
+        "make_signal",
+        fake_make_signal,
+    )
+
+    args = argparse.Namespace(
+        tickers=[
+            "PETR4.SA",
+        ],
+        asset_list=None,
+        refresh=False,
+        update=False,
+    )
+
+    signal_command._report(
+        {},
+        args,
+    )
+
+    assert calls["signal"]["smart_signal"]["enabled"] is True

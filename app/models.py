@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.exceptions import ConvergenceWarning
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
@@ -19,6 +18,104 @@ from .config import models_dir
 from .feature_audit import feature_family_profile, top_selected_features
 from .preparation import prepare_training_matrix
 from .utils import normalize_ticker, read_json, safe_ticker, write_json
+
+
+class StableRidgeArbiter:
+    """Small deterministic Ridge arbiter for stacked engine predictions.
+
+    The arbiter only receives a handful of base-engine columns. Solving that tiny
+    system directly avoids fragile BLAS/LAPACK paths that can hard-crash on some
+    Windows desktop environments while preserving Ridge semantics.
+    """
+
+    def __init__(self, alpha: float = 1.0, fit_intercept: bool = True):
+        self.alpha = float(alpha)
+        self.fit_intercept = bool(fit_intercept)
+        self.coef_: list[float] = []
+        self.intercept_: float = 0.0
+
+    def fit(self, X: Any, y: Any):
+        rows = np.asarray(X, dtype=float)
+        target = np.asarray(y, dtype=float).reshape(-1)
+        if rows.ndim == 1:
+            rows = rows.reshape(-1, 1)
+        if len(rows) != len(target):
+            raise ValueError("X and y have incompatible lengths")
+        if len(rows) == 0:
+            raise ValueError("Ridge arbiter needs at least one training row")
+
+        design = rows.tolist()
+        if self.fit_intercept:
+            design = [[1.0, *row] for row in design]
+
+        width = len(design[0])
+        gram = [[0.0 for _ in range(width)] for _ in range(width)]
+        rhs = [0.0 for _ in range(width)]
+
+        for row, value in zip(design, target.tolist()):
+            for i in range(width):
+                rhs[i] += float(row[i]) * float(value)
+                for j in range(width):
+                    gram[i][j] += float(row[i]) * float(row[j])
+
+        start = 1 if self.fit_intercept else 0
+        for i in range(start, width):
+            gram[i][i] += self.alpha
+
+        solved = _solve_small_linear_system(gram, rhs)
+
+        if self.fit_intercept:
+            self.intercept_ = float(solved[0])
+            self.coef_ = [float(value) for value in solved[1:]]
+        else:
+            self.intercept_ = 0.0
+            self.coef_ = [float(value) for value in solved]
+
+        return self
+
+    def predict(self, X: Any) -> np.ndarray:
+        rows = np.asarray(X, dtype=float)
+        if rows.ndim == 1:
+            rows = rows.reshape(1, -1)
+        coef = list(self.coef_)
+        out: list[float] = []
+        for row in rows.tolist():
+            value = self.intercept_
+            for weight, item in zip(coef, row):
+                value += float(weight) * float(item)
+            out.append(float(value))
+        return np.asarray(out, dtype=float)
+
+
+def _solve_small_linear_system(matrix: list[list[float]], rhs: list[float]) -> list[float]:
+    size = len(rhs)
+    augmented = [list(row) + [float(rhs[i])] for i, row in enumerate(matrix)]
+
+    for col in range(size):
+        pivot = max(range(col, size), key=lambda row: abs(augmented[row][col]))
+        if abs(augmented[pivot][col]) < 1e-12:
+            augmented[pivot][col] += 1e-8
+        if pivot != col:
+            augmented[col], augmented[pivot] = augmented[pivot], augmented[col]
+
+        pivot_value = augmented[col][col]
+        if abs(pivot_value) < 1e-12:
+            pivot_value = 1e-8
+            augmented[col][col] = pivot_value
+
+        for item in range(col, size + 1):
+            augmented[col][item] /= pivot_value
+
+        for row in range(size):
+            if row == col:
+                continue
+            factor = augmented[row][col]
+            if factor == 0:
+                continue
+            for item in range(col, size + 1):
+                augmented[row][item] -= factor * augmented[col][item]
+
+    return [float(augmented[row][size]) for row in range(size)]
 
 
 def _make_scaler(cfg: dict[str, Any]):
@@ -402,12 +499,12 @@ def _tune_base_engines(
     return tuned, summary
 
 
-def _make_arbiter(cfg: dict[str, Any]) -> Ridge:
+def _make_arbiter(cfg: dict[str, Any]) -> StableRidgeArbiter:
     """Create the final stacking arbiter from config."""
     model_cfg = cfg.get("model", {}) or {}
     arbiter_cfg = model_cfg.get("arbiter", {}) or {}
     ridge_cfg = arbiter_cfg.get("ridge", {}) or {}
-    return Ridge(
+    return StableRidgeArbiter(
         alpha=float(ridge_cfg.get("alpha", 1.0)),
         fit_intercept=bool(ridge_cfg.get("fit_intercept", True)),
     )

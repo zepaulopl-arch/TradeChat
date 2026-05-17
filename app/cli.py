@@ -39,11 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
             "  python trade.py data load PETR4.SA\n"
             "  python trade.py train PETR4.SA\n"
             "  python trade.py signal generate PETR4.SA --verbose\n"
-            "  python trade.py signal rank --list validacao\n"
-            "  python trade.py validate --list validacao --mode walkforward\n"
+            "  python trade.py signal smart PETR4.SA\n"
+            "  python trade.py signal rank --list ibov --smart --rank-limit 20\n"
+            "  python trade.py validate --list ibov --mode walkforward\n"
             "  python trade.py validate matrix --universe ibov --jobs 4\n"
             "  python trade.py validate report --latest\n"
-            "  python trade.py refine --list validacao --removal --walkforward\n"
+            "  python trade.py refine --list ibov --removal --walkforward\n"
             "  python trade.py portfolio status"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,

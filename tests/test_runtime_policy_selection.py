@@ -66,6 +66,97 @@ def test_resolve_policy_selection_supports_rich_object(
     assert selection["evidence"]["trades"] == 34
 
 
+def test_resolve_policy_selection_preserves_matrix_rejection_metadata(
+    tmp_path,
+    monkeypatch,
+):
+    policy_path = tmp_path / "runtime_policy.json"
+
+    policy_path.write_text(
+        json.dumps(
+            {
+                "assets": {
+                    "ALOS3.SA": {
+                        "profile": "active",
+                        "source": "policy_matrix",
+                        "promoted": False,
+                        "promotion_status": "rejected_by_constraints",
+                        "rejection_reasons": [
+                            "trades 0 < 15",
+                        ],
+                        "overrides": {
+                            "buy_return_pct": 0.08,
+                        },
+                        "evidence": {
+                            "decision": "REJECT",
+                            "trades": 0,
+                        },
+                        "selection": {
+                            "metric": "profit_factor",
+                        },
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        runtime_policy,
+        "POLICY_PATH",
+        policy_path,
+    )
+
+    selection = runtime_policy.resolve_policy_selection("ALOS3.SA")
+
+    assert selection["profile"] == "active"
+    assert selection["source"] == "policy_matrix"
+    assert selection["promoted"] is False
+    assert selection["promotion_status"] == "rejected_by_constraints"
+    assert selection["rejection_reasons"] == [
+        "trades 0 < 15",
+    ]
+    assert selection["overrides"]["buy_return_pct"] == 0.08
+    assert selection["evidence"]["decision"] == "REJECT"
+    assert selection["selection"]["metric"] == "profit_factor"
+
+
+def test_resolve_policy_selection_infers_rejected_status_when_promoted_missing(
+    tmp_path,
+    monkeypatch,
+):
+    policy_path = tmp_path / "runtime_policy.json"
+
+    policy_path.write_text(
+        json.dumps(
+            {
+                "assets": {
+                    "ALOS3.SA": {
+                        "profile": "active",
+                        "source": "policy_matrix",
+                        "promotion_status": "rejected_by_constraints",
+                        "rejection_reasons": "trades 0 < 15",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        runtime_policy,
+        "POLICY_PATH",
+        policy_path,
+    )
+
+    selection = runtime_policy.resolve_policy_selection("ALOS3.SA")
+
+    assert selection["promoted"] is False
+    assert selection["rejection_reasons"] == [
+        "trades 0 < 15",
+    ]
+
+
 def test_resolve_policy_profile_remains_backward_compatible(
     tmp_path,
     monkeypatch,

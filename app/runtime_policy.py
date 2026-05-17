@@ -105,6 +105,31 @@ def merge_runtime_overrides(
     )
 
 
+def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        return deepcopy(value)
+
+    if isinstance(value, (tuple, set)):
+        return list(value)
+
+    return [value]
+
+
+def _promoted_from_status(value: dict[str, Any], promotion_status: str) -> bool:
+    if "promoted" in value:
+        return bool(value.get("promoted"))
+
+    return promotion_status.lower() not in {
+        "rejected_by_constraints",
+        "rejected",
+        "no_matrix",
+        "fallback",
+    }
+
+
 def _normalize_asset_selection(
     value: Any,
     fallback: str,
@@ -129,6 +154,13 @@ def _normalize_asset_selection(
             )
         )
 
+        promotion_status = str(
+            value.get(
+                "promotion_status",
+                "promoted",
+            )
+        )
+
         return {
             "profile": profile,
             "source": str(
@@ -137,28 +169,20 @@ def _normalize_asset_selection(
                     "runtime_policy",
                 )
             ),
-            "promoted": bool(
-                value.get(
-                    "promoted",
-                    True,
-                )
+            "promoted": _promoted_from_status(
+                value,
+                promotion_status,
             ),
-            "promotion_status": str(
-                value.get(
-                    "promotion_status",
-                    "promoted",
-                )
-            ),
-            "rejection_reasons": list(
+            "promotion_status": promotion_status,
+            "rejection_reasons": _as_list(
                 value.get(
                     "rejection_reasons",
                     [],
                 )
-                or []
             ),
-            "overrides": (value.get("overrides", {}) or {}),
-            "evidence": (value.get("evidence", {}) or {}),
-            "selection": (value.get("selection", {}) or {}),
+            "overrides": deepcopy(value.get("overrides", {}) or {}),
+            "evidence": deepcopy(value.get("evidence", {}) or {}),
+            "selection": deepcopy(value.get("selection", {}) or {}),
         }
 
     return {
@@ -178,6 +202,19 @@ def resolve_policy_selection(
     fallback: str | None = None,
 ) -> dict[str, Any]:
     data = load_runtime_policy()
+
+    return resolve_policy_selection_from_data(
+        data,
+        ticker,
+        fallback=fallback,
+    )
+
+
+def resolve_policy_selection_from_data(
+    data: dict[str, Any],
+    ticker: str,
+    fallback: str | None = None,
+) -> dict[str, Any]:
 
     assets = data.get("assets", {}) or {}
 

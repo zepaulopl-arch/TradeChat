@@ -27,5 +27,6 @@ def test_txt_report_renderer_exists_and_contains_audit_sections():
     assert "def write_txt_report" in report
     assert "def render_txt_report" in report
     assert "TRADECHAT AUDIT REPORT" in report
+    assert "DECISION PATH" in report
     assert "BASE ENGINES AND ARBITER" in report
     assert "AUTOTUNE SUMMARY" in report

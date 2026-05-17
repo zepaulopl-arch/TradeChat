@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -12,11 +13,23 @@ from app.runtime_policy_config import (
 
 
 def _safe_value(value: Any) -> Any:
-    if pd.isna(value):
-        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
 
     if hasattr(value, "item"):
-        return value.item()
+        value = value.item()
+
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        if math.isinf(value):
+            return "inf" if value > 0 else "-inf"
+
+    if value is pd.NA:
+        return None
 
     return value
 
@@ -304,6 +317,7 @@ def promote_policy(matrix_dir: str) -> None:
             output,
             indent=2,
             ensure_ascii=False,
+            allow_nan=False,
         ),
         encoding="utf-8",
     )
